@@ -28,7 +28,7 @@ export const schema = z
     decimals: z.number(),
 
     rateDifferencePercentThreshold: z.number(),
-    refreshInterval: z.number(),
+    refreshInterval: z.number().optional(),
     minSources: z.number(),
 
     // Server

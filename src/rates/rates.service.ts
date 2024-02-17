@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Interval } from '@nestjs/schedule';
+import { SchedulerRegistry } from '@nestjs/schedule';
 import { InjectModel } from '@nestjs/mongoose';
 
 import Redis from 'ioredis';
@@ -47,6 +47,7 @@ export class RatesService {
   constructor(
     @InjectRedis() private readonly redis: Redis,
     @InjectModel(Ticker.name) private tickerModel: Model<Ticker>,
+    private schedulerRegistry: SchedulerRegistry,
     private config: ConfigService,
     private notifier: Notifier,
   ) {
@@ -64,10 +65,23 @@ export class RatesService {
       },
     ];
 
+    this.init();
+  }
+
+  init() {
+    const refreshInterval = this.config.get<number>('refreshInterval');
+
+    const interval = setInterval(
+      this.updateTickers.bind(this),
+      refreshInterval
+        ? refreshInterval * 60 * 1000
+        : CronIntervals.EVERY_10_MINUTES,
+    );
+    this.schedulerRegistry.addInterval('tickers', interval);
+
     this.updateTickers();
   }
 
-  @Interval('tickers', CronIntervals.EVERY_10_MINUTES)
   async updateTickers() {
     this.logger.log('Updating rates…');
 
