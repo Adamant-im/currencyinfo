@@ -24,6 +24,7 @@ import { CoingeckoApi } from './api/coingecko';
 import { CryptoCompareApi } from './api/cryptocompare';
 import { MoexApi } from './api/moex';
 import { CoinmarketcapApi } from './api/coinmarketcap';
+import { ExchangeRateHost } from './api/exchangeratehost';
 import { GetHistoryDto } from './schemas/getHistory.schema';
 import { InjectRedis } from '@nestjs-modules/ioredis';
 
@@ -52,6 +53,7 @@ export class RatesService {
     private notifier: Notifier,
   ) {
     this.sources = [
+      { source: new ExchangeRateHost(this.config), merge: true },
       { source: new CurrencyApi(this.config), merge: true },
       {
         source: new CoinmarketcapApi(this.config, this.logger, this.notifier),
