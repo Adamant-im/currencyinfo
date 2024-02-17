@@ -17,11 +17,13 @@ export class CryptoCompareApi implements BaseApi {
   ) {}
 
   async fetch(baseCurrency: string): Promise<Tickers> {
-    if (!this.config.get('cryptocompare.enabled')) {
+    const enabled = this.config.get<boolean>('cryptocompare.enabled');
+    const apiKey = this.config.get<string>('cryptocompare.api_key');
+
+    if (enabled === false || !apiKey) {
       return {};
     }
 
-    const apiKey = this.config.get<string>('cryptocompare.api_key');
     const coins = this.config.get<string[]>('cryptocompare.coins');
 
     const params = {

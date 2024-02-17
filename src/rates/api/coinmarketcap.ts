@@ -68,7 +68,10 @@ export class CoinmarketcapApi implements BaseApi {
   }
 
   async fetch(baseCurrency: string): Promise<Tickers> {
-    if (!this.config.get('coinmarketcap.enabled')) {
+    const enabled = this.config.get<boolean>('coinmarketcap.enabled');
+    const apiKey = this.config.get<string>('coinmarketcap.api_key');
+
+    if (enabled === false || !apiKey) {
       return {};
     }
 
@@ -79,7 +82,6 @@ export class CoinmarketcapApi implements BaseApi {
     const url = `${baseUrl}?id=${coinIds.join(',')}&convert=${baseCurrency}`;
 
     const coins = this.config.get<string[]>('coinmarketcap.coins');
-    const apiKey = this.config.get<string>('coinmarketcap.api_key');
 
     const { data } = await axios<CoinmarketcapResponseDto>({
       url,

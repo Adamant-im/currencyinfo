@@ -32,7 +32,7 @@ export class CoingeckoApi implements BaseApi {
   }
 
   async fetch(baseCurrency: string): Promise<Tickers> {
-    if (!this.config.get('coingecko.enabled')) {
+    if (this.config.get('coingecko.enabled') === false) {
       return {};
     }
 

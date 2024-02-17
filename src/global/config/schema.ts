@@ -74,7 +74,6 @@ export const schema = z
     coingecko: z
       .object({
         enabled: z.boolean().optional(),
-        api_key: z.string(),
         coins: z.array(coinName).optional(),
         ids: z.array(z.string()).optional(),
       })

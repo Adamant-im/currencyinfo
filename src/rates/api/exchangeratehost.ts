@@ -21,11 +21,12 @@ export class ExchangeRateHost implements BaseApi {
   constructor(private config: ConfigService) {}
 
   async fetch(): Promise<Tickers> {
-    if (!this.config.get<boolean>('exchange_rate_host.enabled')) {
+    const enabled = this.config.get<boolean>('exchange_rate_host.enabled');
+    const apiKey = this.config.get<string>('exchange_rate_host.api_key');
+
+    if (enabled === false || !apiKey) {
       return {};
     }
-
-    const apiKey = this.config.get<string>('exchange_rate_host.api_key');
 
     const url = `${baseUrl}?access_key=${apiKey}`;
 
