@@ -11,11 +11,12 @@ async function bootstrap() {
   });
 
   const config = app.get(ConfigService);
-  const logLevel = config.get('log_level') as LogLevelName;
 
+  const logLevel = config.get('log_level') as LogLevelName;
   app.useLogger(new Logger(logLevel));
 
-  await app.listen(3000);
+  const port = config.get('port') as number;
+  await app.listen(port);
 }
 
 bootstrap();
