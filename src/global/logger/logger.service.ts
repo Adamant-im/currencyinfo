@@ -59,7 +59,7 @@ export class Logger implements LoggerService {
     const prefix = `${chalk.gray(time)} ${color(level)}${space}|`;
 
     const colorfulLogMessage = `${prefix} ${message} ${diff}`;
-    console.log(colorfulLogMessage);
+    console.log(colorfulLogMessage.slice(0, 500));
 
     const fullLogMessage = `${level}${space}|${fullTime()}| ${message}\n`;
     this.logStream.write(fullLogMessage);

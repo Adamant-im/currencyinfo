@@ -53,13 +53,13 @@ export class RatesService {
     private notifier: Notifier,
   ) {
     this.sources = [
-      { source: new ExchangeRateHost(this.config), merge: true },
       { source: new CurrencyApi(this.config), merge: true },
+      { source: new ExchangeRateHost(this.config), merge: true },
+      { source: new MoexApi(this.config), merge: true },
       {
         source: new CoinmarketcapApi(this.config, this.logger, this.notifier),
         merge: true,
       },
-      { source: new MoexApi(this.config), merge: true },
       { source: new CryptoCompareApi(this.config, this.logger), merge: true },
       {
         source: new CoingeckoApi(this.config, this.logger, this.notifier),
@@ -313,6 +313,10 @@ export class RatesService {
 
       this.getAllCoins().forEach((coin) => {
         const priceAlt = 1 / tickers[`${coin}/USD`];
+
+        if (!priceAlt) {
+          return;
+        }
 
         tickers[`${coin}/${baseCoin}`] = +(price / priceAlt).toFixed(decimals);
       });
