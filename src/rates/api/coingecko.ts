@@ -55,11 +55,11 @@ export class CoingeckoApi implements BaseApi {
 
     const exchangeRates: Record<string, number> = {};
 
-    const baseCoin = baseCurrency.toLowerCase();
+    const coingeckoBaseCoin = baseCurrency.toLowerCase();
 
     this.coins?.forEach(({ symbol, cg_id }) => {
-      exchangeRates[`${symbol}/${baseCoin}`] =
-        +data[cg_id][baseCoin].toFixed(decimals);
+      exchangeRates[`${symbol}/${baseCurrency}`] =
+        +data[cg_id][coingeckoBaseCoin].toFixed(decimals);
     });
 
     this.logger.log(
