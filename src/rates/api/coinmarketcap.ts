@@ -98,8 +98,10 @@ export class CoinmarketcapApi implements BaseApi {
       const rates = {};
       const unavailable: string[] = [];
 
+      const coinmarketcapCoins = Object.values(data.data);
+
       coins?.forEach((symbol) => {
-        const coin = data.data.find(
+        const coin = coinmarketcapCoins.find(
           (coin) => coin.symbol === symbol.toUpperCase(),
         );
 
@@ -149,9 +151,7 @@ export class CoinmarketcapApi implements BaseApi {
 
     const url = `${baseUrl}?symbol=${coins?.join(',')}`;
 
-    const {
-      data: { data },
-    } = await axios<CoinmarketcapResponseDto>({
+    const { data } = await axios<CoinmarketcapResponseDto>({
       url,
       method: 'get',
       timeout: 10000,
@@ -160,9 +160,13 @@ export class CoinmarketcapApi implements BaseApi {
       },
     });
 
+    const coinmarketcapCoins = Object.values(data.data);
+
     try {
       coins?.forEach((symbol) => {
-        const coin = data.find((coin) => coin.symbol === symbol.toUpperCase());
+        const coin = coinmarketcapCoins.find(
+          (coin) => coin.symbol === symbol.toUpperCase(),
+        );
 
         if (!coin) {
           return this.notifier.notify(
