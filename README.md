@@ -14,16 +14,16 @@ It collects rates from **MOEX, Currency-Api, and ExchangeRate for fiat tickers**
 - Open-source: Free for any use
 - Reliable: uses different sources for one coin, and notifies about significant deviation
 
-# Installation
+## Installation
 
-## Requirements
+### Requirements
 
 - NodeJS
 - MongoDB
 - Redis
 - pnpm
 
-## Setup
+### Setup
 
 ```
 $ git clone https://github.com/Adamant-im/currencyinfo
@@ -31,7 +31,7 @@ $ cd currencyinfo
 $ pnpm i
 ```
 
-## Pre-launch tuning
+### Pre-launch tuning
 
 ```
 nano config.jsonc
@@ -129,7 +129,7 @@ After that, you can start the ADAMANT Currencyinfo with `npm run start:prod` com
 pm2 start npm --name "currency-info" -- run start:prod
 ```
 
-## Add info-service to cron
+### Cron
 
 ```
 crontab -e
@@ -141,7 +141,7 @@ Add string:
 @reboot cd /home/adamant/currencyinfo && pm2 start npm --name "currency-info" -- run start:prod
 ```
 
-# Usage
+## Usage
 
 To test Currencyinfo successfully installed, try to open link
 http://IP:36668/get?coin=ADM in a web browser.
