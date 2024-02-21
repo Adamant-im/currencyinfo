@@ -1,73 +1,149 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="200" alt="Nest Logo" /></a>
-</p>
+# Currencyinfo Services
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+> Self-hosted crypto and fiat currency rates service provider.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+It collects rates from **MOEX, Currency-Api, and ExchangeRate for fiat tickers**, and **Coinmarketcap, CryptoCompare, and Coingecko for crypto tickers**, calculates cross-rates, and provides information via API.
 
-## Description
+- Self-hosted
+- Reliable: Checks multiple sources for discrepancies
+- Minimal API calls: Compatible with free API keys
+- Notifications: Slack, Discord, ADAMANT Messenger
+- Stores rate history on server: No extra requests needed
+- Easy to set up: Using config file
+- Provides RESTful API access with fast performance and low hardware needs
+- Open-source: Free for any use
+- Reliable: uses different sources for one coin, and notifies about significant deviation
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+# Installation
 
-## Installation
+## Requirements
 
-```bash
-$ pnpm install
+- NodeJS
+- MongoDB
+- Redis
+- pnpm
+
+## Setup
+
+```
+$ git clone https://github.com/Adamant-im/currencyinfo
+$ cd currencyinfo
+$ pnpm i
 ```
 
-## Running the app
+## Pre-launch tuning
 
-```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+```
+nano config.jsonc
 ```
 
-## Test
+Parameters:
 
-```bash
-# unit tests
-$ pnpm run test
+```jsonc
+{
+  "decimals": 12, // Number of decimal places for rate values.
+  "rateDifferencePercentThreshold": 25, // Percentage threshold for notifying significant rate deviations.
+  "refreshInterval": 10, // Frequency of rate updates from sources, in minutes (optional).
+  "minSources": 1 // Minimum number of sources required for rate calculation.
 
-# e2e tests
-$ pnpm run test:e2e
+  "port": 3000, // Port number for the API service.
 
-# test coverage
-$ pnpm run test:cov
+  "passphrase": "apple banana...", // Secret passphrase for ADAMANT notifications (optional).
+  "notify": {
+    // Array of Slack webhook URLs for sending notifications (optional).
+    "slack": ["https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"],
+
+    // Array of Discord webhook URLs for sending notifications (optional).
+    "discord": ["https://discord.com/api/webhooks/123456789012345678/aBCdeFg9h0iJKl1-_mNoPqRST2uvwXYZ3ab4cDefgH5ijklmnOPQrsTuvWxYZaBC-de_"],
+
+    // Array of ADAMANT addresses for sending notifications (optional).
+    "adamant": ["U1234567890"],
+  },
+  "log_level": "warn", // Specifies the verbosity of logs (none, log, info, warn, error).
+
+  // Record of fiat pairs and their codes to fetch rates from MOEX.
+  "moex": {
+    "USD/RUB": "USDRUB_TOM",
+    "EUR/RUB": "EURRUB_TOM",
+    // ...
+  },
+  "base_coins": ["USD", "RUB"], // 'List of base coins for calculating all available pairs.
+
+  "exchange_rate_host": {
+    "enabled": true, // Enable or disable ExchangeRate API (optional).
+    "api_key": "API key for ExchangeRate."
+  },
+
+  "coinmarketcap": {
+    "enabled": true, // Enable or disable CoinMarketCap API (optional).
+    "api_key": "API key for CoinMarketCap.",
+    "coins": [ // List of coins to fetch rates from CoinMarketCap (optional).
+      "BTC",
+      "ETH",
+      // ...
+    ],
+    "ids": { // Record of CoinMarketCap Symbol-Id pairs for specific coin rates (optional).
+      "ADM": 3703,
+      "XCN": 18679,
+      // ...
+    }
+  },
+
+  "cryptocompare": {
+    "enabled": true, // Enable or disable CryptoCompare API (optional).
+    "api_key": "API key for CryptoCompare.",
+    "coins": [ // List of coins to fetch rates from CryptoCompare (optional).
+      "BTC",
+      "ETH",
+      // ...
+    ]
+  },
+
+  "coingecko": {
+    "enabled": true, // Enable or disable CoinGecko API (optional).
+    "coins": [ // List of coins to fetch rates from CoinGecko (optional).
+      "BTC",
+      "ETH",
+      // ...
+    ],
+    "ids": [ // Array of CoinGecko coin IDs for specific coin rates (optional).
+      "adamant-messenger",
+      "bitcoin",
+      // ...
+    ],
+  },
+}
 ```
 
-## Support
+## Launching
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+Before launching, you need to build the app using the following command:
 
-## Stay in touch
+```
+npm run build
+```
 
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+After that, you can start the ADAMANT Currencyinfo with `npm run start:prod` command, but it's recommended to use process manager:
 
-## License
+```
+pm2 start npm --name "currency-info" -- run start:prod
+```
 
-Nest is [MIT licensed](LICENSE).
+## Add info-service to cron
+
+```
+crontab -e
+```
+
+Add string:
+
+```
+@reboot cd /home/adamant/currencyinfo && pm2 start npm --name "currency-info" -- run start:prod
+```
+
+# Usage
+
+To test Currencyinfo successfully installed, try to open link
+http://IP:36668/get?coin=ADM in a web browser.
+
+For usage see [InfoServices API documentation](https://github.com/Adamant-im/currencyinfo/wiki/InfoServices-API-documentation).
