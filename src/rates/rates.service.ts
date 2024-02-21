@@ -33,15 +33,10 @@ const CronIntervals = {
   EVERY_SECOND: 1000, // For debugging
 };
 
-interface ApiSource {
-  source: BaseApi;
-  merge: boolean;
-}
-
 @Injectable()
 export class RatesService {
   private tickers: Tickers = {};
-  private sources: ApiSource[];
+  private sources: BaseApi[];
 
   private readonly logger = new Logger();
 
@@ -53,18 +48,15 @@ export class RatesService {
     private notifier: Notifier,
   ) {
     this.sources = [
-      { source: new CurrencyApi(this.config), merge: true },
-      { source: new ExchangeRateHost(this.config), merge: true },
-      { source: new MoexApi(this.config), merge: true },
-      {
-        source: new CoinmarketcapApi(this.config, this.logger, this.notifier),
-        merge: true,
-      },
-      { source: new CryptoCompareApi(this.config, this.logger), merge: true },
-      {
-        source: new CoingeckoApi(this.config, this.logger, this.notifier),
-        merge: true,
-      },
+      // Fiat tickers
+      new CurrencyApi(this.config),
+      new ExchangeRateHost(this.config),
+      new MoexApi(this.config),
+
+      // Crypto tickers
+      new CoinmarketcapApi(this.config, this.logger, this.notifier),
+      new CryptoCompareApi(this.config, this.logger),
+      new CoingeckoApi(this.config, this.logger, this.notifier),
     ];
 
     this.init();
@@ -91,7 +83,7 @@ export class RatesService {
 
     let availableSources = 0;
 
-    for (const { source, merge } of this.sources) {
+    for (const source of this.sources) {
       const tickers = await this.fetchTickers(source);
 
       if (!tickers) {
@@ -102,7 +94,7 @@ export class RatesService {
         continue;
       }
 
-      this.mergeTickers(tickers, { merge, name: source.name });
+      this.mergeTickers(tickers, { name: source.name });
 
       availableSources += 1;
     }
@@ -256,14 +248,7 @@ export class RatesService {
     }
   }
 
-  private mergeTickers(
-    data: Tickers,
-    options: { name: string; merge: boolean },
-  ) {
-    if (!options.merge) {
-      this.tickers = this.normalizeTickers(data);
-    }
-
+  private mergeTickers(data: Tickers, options: { name: string }) {
     const acceptableDifference = this.config.get(
       'rateDifferencePercentThreshold',
     );
@@ -326,13 +311,13 @@ export class RatesService {
   }
 
   private getAllCoins() {
-    const sources = this.sources.filter(({ source }) =>
+    const sources = this.sources.filter((source) =>
       ['Coingecko', 'Coinmarketcap'].includes(source.name),
     );
 
     const coins = new Set(
       sources.flatMap(
-        ({ source }) => source.coins?.map((coin) => coin.symbol) ?? [],
+        (source) => source.coins?.map((coin) => coin.symbol) ?? [],
       ),
     );
 
