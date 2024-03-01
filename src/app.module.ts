@@ -11,6 +11,13 @@ import { LoggerModule } from './global/logger/logger.module';
 import { NotifierModule } from './global/notifier/notifier.module';
 import { RedisModule } from '@nestjs-modules/ioredis';
 
+const {
+  MONGODB_HOST = '127.0.0.1',
+  MONGODB_PORT = 27017,
+  REDIS_HOST = 'localhost',
+  REDIS_PORT = 6379,
+} = process.env;
+
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -21,10 +28,12 @@ import { RedisModule } from '@nestjs-modules/ioredis';
       isGlobal: true,
     }),
     RatesModule,
-    MongooseModule.forRoot('mongodb://127.0.0.1:27017/currencyinfo'),
+    MongooseModule.forRoot(
+      `mongodb://${MONGODB_HOST}:${MONGODB_PORT}/currencyinfo`,
+    ),
     RedisModule.forRoot({
       type: 'single',
-      url: 'redis://localhost:6379',
+      url: `redis://${REDIS_HOST}:${REDIS_PORT}`,
     }),
   ],
 })

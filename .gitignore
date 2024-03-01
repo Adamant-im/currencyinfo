@@ -1,3 +1,6 @@
+# docker
+docker-compose.override.yml
+
 # configs
 config.jsonc
 .env

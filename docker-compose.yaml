@@ -1,0 +1,35 @@
+services:
+  app:
+    container_name: currencyinfo
+    build: .
+    ports:
+      - '36668:36668'
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - app_network
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      MONGODB_HOST: mongodb
+      MONGODB_PORT: 27017
+
+  redis:
+    container_name: redis
+    image: 'redis:latest'
+    ports:
+      - '6379:6379'
+    networks:
+      - app_network
+
+  mongodb:
+    container_name: mongodb
+    image: 'mongo:latest'
+    ports:
+      - '27017:27017'
+    networks:
+      - app_network
+
+networks:
+  app_network:

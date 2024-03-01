@@ -13,10 +13,14 @@ async function bootstrap() {
   const config = app.get(ConfigService);
 
   const logLevel = config.get('log_level') as LogLevelName;
-  app.useLogger(new Logger(logLevel));
+  const logger = new Logger(logLevel);
+
+  app.useLogger(logger);
 
   const port = config.get('port') as number;
   await app.listen(port);
+
+  logger.log(`The app started on port ${port}`);
 }
 
 bootstrap();
