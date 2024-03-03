@@ -70,7 +70,7 @@ export function isPositiveOrZeroNumber(value: unknown) {
 }
 
 export function isNumber(value: unknown): value is number {
-  return typeof value !== 'number' || isNaN(value) || !Number.isFinite(value);
+  return typeof value === 'number' && !isNaN(value) && Number.isFinite(value);
 }
 
 export function calculatePercentageDifference(a: number, b: number) {

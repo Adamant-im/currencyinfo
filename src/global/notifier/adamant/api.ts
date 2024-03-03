@@ -10,4 +10,5 @@ const nodes = [
 
 export const api = new AdamantApi({
   nodes,
+  checkHealthAtStartup: false,
 });

@@ -4,6 +4,8 @@ import { SchedulerRegistry } from '@nestjs/schedule';
 import { InjectModel } from '@nestjs/mongoose';
 
 import Redis from 'ioredis';
+import { InjectRedis } from '@nestjs-modules/ioredis';
+
 import { Model, PipelineStage } from 'mongoose';
 import { AxiosError } from 'axios';
 
@@ -26,7 +28,6 @@ import { MoexApi } from './api/moex';
 import { CoinmarketcapApi } from './api/coinmarketcap';
 import { ExchangeRateHost } from './api/exchangeratehost';
 import { GetHistoryDto } from './schemas/getHistory.schema';
-import { InjectRedis } from '@nestjs-modules/ioredis';
 
 const CronIntervals = {
   EVERY_10_MINUTES: 10 * 60 * 1000,
@@ -35,7 +36,8 @@ const CronIntervals = {
 
 @Injectable()
 export class RatesService {
-  private tickers: Tickers = {};
+  tickers: Tickers = {};
+
   private sources: BaseApi[];
 
   private readonly logger = new Logger();
@@ -284,7 +286,7 @@ export class RatesService {
   /**
    * Calculates rates for each base coin using USD rate
    */
-  private normalizeTickers(tickers: Tickers) {
+  normalizeTickers(tickers: Tickers) {
     const baseCoins = this.config.get<string[]>('base_coins');
     const decimals = this.config.get<number>('decimals');
 
@@ -310,7 +312,7 @@ export class RatesService {
     return tickers;
   }
 
-  private getAllCoins() {
+  getAllCoins() {
     const sources = this.sources.filter((source) =>
       [CoingeckoApi.resourceName, CoinmarketcapApi.resourceName].includes(
         source.getResourceName(),
@@ -326,7 +328,7 @@ export class RatesService {
     return [...coins];
   }
 
-  private fail(reason: string) {
+  fail(reason: string) {
     this.notifier.notify('error', reason);
   }
 }
