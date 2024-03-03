@@ -17,8 +17,9 @@ export interface CoingeckoCoin {
   cg_id: string;
 }
 
-export class CoingeckoApi implements BaseApi {
-  public name = 'Coingecko';
+export class CoingeckoApi extends BaseApi {
+  static resourceName = 'Coingecko';
+
   public coins: CoingeckoCoin[] = [];
 
   private ready: Promise<void>;
@@ -28,6 +29,8 @@ export class CoingeckoApi implements BaseApi {
     private logger: LoggerService,
     private notifier: Notifier,
   ) {
+    super();
+
     this.ready = this.getCoinIds();
   }
 

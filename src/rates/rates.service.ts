@@ -88,13 +88,13 @@ export class RatesService {
 
       if (!tickers) {
         this.fail(
-          `Error: Unable to get data from ${source.name}. InfoService will provide previous rates; historical rates wouldn't be saved.`,
+          `Error: Unable to get data from ${source.getResourceName()}. InfoService will provide previous rates; historical rates wouldn't be saved.`,
         );
 
         continue;
       }
 
-      this.mergeTickers(tickers, { name: source.name });
+      this.mergeTickers(tickers, { name: source.getResourceName() });
 
       availableSources += 1;
     }
@@ -248,7 +248,7 @@ export class RatesService {
     }
   }
 
-  private mergeTickers(data: Tickers, options: { name: string }) {
+  mergeTickers(data: Tickers, options: { name: string }) {
     const acceptableDifference = this.config.get(
       'rateDifferencePercentThreshold',
     );
@@ -312,7 +312,9 @@ export class RatesService {
 
   private getAllCoins() {
     const sources = this.sources.filter((source) =>
-      ['Coingecko', 'Coinmarketcap'].includes(source.name),
+      [CoingeckoApi.resourceName, CoinmarketcapApi.resourceName].includes(
+        source.getResourceName(),
+      ),
     );
 
     const coins = new Set(

@@ -4,9 +4,14 @@ export interface BaseCoin {
   symbol: string;
 }
 
-export interface BaseApi {
-  name: string;
+export abstract class BaseApi {
+  static resourceName: string;
+
   coins?: BaseCoin[];
 
-  fetch(baseCurrency: string): Promise<Tickers>;
+  getResourceName() {
+    return (this.constructor as typeof BaseApi).resourceName;
+  }
+
+  abstract fetch(baseCurrency: string): Promise<Tickers>;
 }

@@ -15,10 +15,12 @@ export interface ExchangeRateHostDto {
 const baseUrl = `https://api.exchangerate.host/live`;
 const skipCoins = ['USD', 'ETH'];
 
-export class ExchangeRateHost implements BaseApi {
-  public name = 'ExchangeRateHost';
+export class ExchangeRateHost extends BaseApi {
+  static resourceName = 'ExchangeRateHost';
 
-  constructor(private config: ConfigService) {}
+  constructor(private config: ConfigService) {
+    super();
+  }
 
   async fetch(): Promise<Tickers> {
     const enabled = this.config.get<boolean>('exchange_rate_host.enabled');

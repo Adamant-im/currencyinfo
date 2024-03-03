@@ -53,8 +53,9 @@ export interface CoinmarketcapResponseDto {
 const baseUrl =
   'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest';
 
-export class CoinmarketcapApi implements BaseApi {
-  public name = 'Coinmarketcap';
+export class CoinmarketcapApi extends BaseApi {
+  static resourceName = 'Coinmarketcap';
+
   public coins: CoinmarketcapCoin[] = [];
 
   private ready: Promise<void>;
@@ -64,6 +65,8 @@ export class CoinmarketcapApi implements BaseApi {
     private logger: LoggerService,
     private notifier: Notifier,
   ) {
+    super();
+
     this.ready = this.getCoinIds();
   }
 

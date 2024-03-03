@@ -18,21 +18,28 @@ const url =
 
 const skipCoins = ['USD', 'BTC', 'ETH'];
 
-export class CurrencyApi implements BaseApi {
-  public name = 'CurrencyApi';
+export class CurrencyApi extends BaseApi {
+  static resourceName = 'CurrencyApi';
 
-  constructor(private config: ConfigService) {}
+  constructor(private config: ConfigService) {
+    super();
+  }
 
   async fetch() {
+    const baseCoins = this.config.get<string[]>('base_coins');
+
+    if (!baseCoins?.length) {
+      return {};
+    }
+
     const { data } = await axios.get<CurrencyApiDto>(url);
 
     try {
       const rates: Tickers = {};
 
-      const baseCoins = this.config.get<string[]>('base_coins');
       const decimals = this.config.get<number>('decimals');
 
-      baseCoins?.forEach((symbol) => {
+      baseCoins.forEach((symbol) => {
         const coin = symbol.toUpperCase();
 
         if (skipCoins.includes(coin)) {

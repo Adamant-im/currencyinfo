@@ -34,12 +34,20 @@ export interface MoexResponseDto {
 
 const url = 'https://rusdoor.adamant.im/securities.jsonp';
 
-export class MoexApi implements BaseApi {
-  public name = 'MOEX';
+export class MoexApi extends BaseApi {
+  static resourceName = 'MOEX';
 
-  constructor(private config: ConfigService) {}
+  constructor(private config: ConfigService) {
+    super();
+  }
 
   async fetch(): Promise<Tickers> {
+    const pairs = this.config.get<Record<string, string>>('moex');
+
+    if (!pairs) {
+      return {};
+    }
+
     const rates = {};
 
     const response = await axios.get<MoexResponseDto>(url);
@@ -47,12 +55,6 @@ export class MoexApi implements BaseApi {
     const data = response.data.securities.data.filter(
       (ticker) => ticker[1] === 'CETS',
     );
-
-    const pairs = this.config.get<Record<string, string>>('moex');
-
-    if (!pairs) {
-      return {};
-    }
 
     const decimals = this.config.get<number>('decimals');
 

@@ -8,13 +8,15 @@ import { BaseApi } from './base';
 
 const url = 'https://min-api.cryptocompare.com/data/pricemulti';
 
-export class CryptoCompareApi implements BaseApi {
-  public name = 'CryptoCompare';
+export class CryptoCompareApi extends BaseApi {
+  static resourceName = 'CryptoCompare';
 
   constructor(
     private config: ConfigService,
     private logger: LoggerService,
-  ) {}
+  ) {
+    super();
+  }
 
   async fetch(baseCurrency: string): Promise<Tickers> {
     const enabled = this.config.get<boolean>('cryptocompare.enabled');
