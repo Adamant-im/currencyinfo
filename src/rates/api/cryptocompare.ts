@@ -11,6 +11,11 @@ const url = 'https://min-api.cryptocompare.com/data/pricemulti';
 export class CryptoCompareApi extends BaseApi {
   static resourceName = 'CryptoCompare';
 
+  public enabled =
+    this.config.get('cryptocompare.enabled') !== false &&
+    !!this.config.get<string>('cryptocompare.api_key') &&
+    !!this.config.get<string[]>('cryptocompare.coins')?.length;
+
   constructor(
     private config: ConfigService,
     private logger: LoggerService,
@@ -19,14 +24,12 @@ export class CryptoCompareApi extends BaseApi {
   }
 
   async fetch(baseCurrency: string): Promise<Tickers> {
-    const enabled = this.config.get<boolean>('cryptocompare.enabled');
-    const apiKey = this.config.get<string>('cryptocompare.api_key');
-
-    if (enabled === false || !apiKey) {
+    if (!this.enabled) {
       return {};
     }
 
-    const coins = this.config.get<string[]>('cryptocompare.coins');
+    const apiKey = this.config.get('cryptocompare.api_key') as string;
+    const coins = this.config.get('cryptocompare.coins') as string[];
 
     const params = {
       fsyms: coins?.join(),

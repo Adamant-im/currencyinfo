@@ -37,16 +37,18 @@ const url = 'https://rusdoor.adamant.im/securities.jsonp';
 export class MoexApi extends BaseApi {
   static resourceName = 'MOEX';
 
+  public enabled = !!this.config.get<Record<string, string>>('moex');
+
   constructor(private config: ConfigService) {
     super();
   }
 
   async fetch(): Promise<Tickers> {
-    const pairs = this.config.get<Record<string, string>>('moex');
-
-    if (!pairs) {
+    if (!this.enabled) {
       return {};
     }
+
+    const pairs = this.config.get('moex') as Record<string, string>;
 
     const rates = {};
 

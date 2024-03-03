@@ -21,6 +21,9 @@ export class CoingeckoApi extends BaseApi {
   static resourceName = 'Coingecko';
 
   public coins: CoingeckoCoin[] = [];
+  public enabled =
+    this.config.get('coingecko.enabled') !== false &&
+    !!this.config.get<string[]>('coingecko.coins')?.length;
 
   private ready: Promise<void>;
 
@@ -35,7 +38,7 @@ export class CoingeckoApi extends BaseApi {
   }
 
   async fetch(baseCurrency: string): Promise<Tickers> {
-    if (this.config.get('coingecko.enabled') === false) {
+    if (!this.enabled) {
       return {};
     }
 
@@ -73,7 +76,7 @@ export class CoingeckoApi extends BaseApi {
   }
 
   async getCoinIds() {
-    if (!this.config.get('coingecko.enabled')) {
+    if (!this.enabled) {
       return;
     }
 

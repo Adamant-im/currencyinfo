@@ -7,6 +7,7 @@ export interface BaseCoin {
 export abstract class BaseApi {
   static resourceName: string;
 
+  abstract enabled: boolean;
   coins?: BaseCoin[];
 
   getResourceName() {

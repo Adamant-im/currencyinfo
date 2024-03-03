@@ -57,6 +57,11 @@ export class CoinmarketcapApi extends BaseApi {
   static resourceName = 'Coinmarketcap';
 
   public coins: CoinmarketcapCoin[] = [];
+  public enabled =
+    this.config.get('coinmarketcap.enabled') !== false &&
+    !!this.config.get<string>('coinmarketcap.api_key') &&
+    (!!this.config.get<string[]>('coinmarketcap.coins')?.length ||
+      !!this.config.get<string[]>('coinmarketcap.ids')?.length);
 
   private ready: Promise<void>;
 
@@ -71,12 +76,11 @@ export class CoinmarketcapApi extends BaseApi {
   }
 
   async fetch(baseCurrency: string): Promise<Tickers> {
-    const enabled = this.config.get<boolean>('coinmarketcap.enabled');
-    const apiKey = this.config.get<string>('coinmarketcap.api_key');
-
-    if (enabled === false || !apiKey) {
+    if (!this.enabled) {
       return {};
     }
+
+    const apiKey = this.config.get('coinmarketcap.api_key') as string;
 
     await this.ready;
 
@@ -84,7 +88,7 @@ export class CoinmarketcapApi extends BaseApi {
 
     const url = `${baseUrl}?id=${coinIds.join(',')}&convert=${baseCurrency}`;
 
-    const coins = this.config.get<string[]>('coinmarketcap.coins');
+    const coins = this.config.get('coinmarketcap.coins') as string[];
 
     const { data } = await axios<CoinmarketcapResponseDto>({
       url,
@@ -143,14 +147,14 @@ export class CoinmarketcapApi extends BaseApi {
   }
 
   async getCoinIds() {
-    if (!this.config.get('coinmarketcap.enabled')) {
+    if (!this.enabled) {
       return;
     }
 
     this.coins = [];
 
-    const coins = this.config.get<string[]>('coinmarketcap.coins');
-    const apiKey = this.config.get<string>('coinmarketcap.api_key');
+    const coins = this.config.get('coinmarketcap.coins') as string[];
+    const apiKey = this.config.get('coinmarketcap.api_key') as string;
 
     const url = `${baseUrl}?symbol=${coins?.join(',')}`;
 

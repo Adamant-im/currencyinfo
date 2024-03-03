@@ -21,16 +21,18 @@ const skipCoins = ['USD', 'BTC', 'ETH'];
 export class CurrencyApi extends BaseApi {
   static resourceName = 'CurrencyApi';
 
+  public enabled = !!this.config.get<string[]>('base_coins')?.length;
+
   constructor(private config: ConfigService) {
     super();
   }
 
   async fetch() {
-    const baseCoins = this.config.get<string[]>('base_coins');
-
-    if (!baseCoins?.length) {
+    if (!this.enabled) {
       return {};
     }
+
+    const baseCoins = this.config.get('base_coins') as string[];
 
     const { data } = await axios.get<CurrencyApiDto>(url);
 

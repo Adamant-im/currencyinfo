@@ -39,6 +39,7 @@ export class RatesService {
   tickers: Tickers = {};
 
   private sources: BaseApi[];
+  private sourceCount: number;
 
   private readonly logger = new Logger();
 
@@ -60,6 +61,8 @@ export class RatesService {
       new CryptoCompareApi(this.config, this.logger),
       new CoingeckoApi(this.config, this.logger, this.notifier),
     ];
+
+    this.sourceCount = this.sources.filter((source) => source.enabled).length;
 
     this.init();
   }
@@ -86,6 +89,10 @@ export class RatesService {
     let availableSources = 0;
 
     for (const source of this.sources) {
+      if (!source.enabled) {
+        continue;
+      }
+
       const tickers = await this.fetchTickers(source);
 
       if (!tickers) {
@@ -120,7 +127,7 @@ export class RatesService {
       await this.redis.set('last_updated', timestamp);
 
       this.logger.log(
-        `Rates from ${availableSources}/${this.sources.length} sources saved successfully`,
+        `Rates from ${availableSources}/${this.sourceCount} sources saved successfully`,
       );
     } catch (error) {
       this.notifier.notify(

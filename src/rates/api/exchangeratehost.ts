@@ -18,17 +18,21 @@ const skipCoins = ['USD', 'ETH'];
 export class ExchangeRateHost extends BaseApi {
   static resourceName = 'ExchangeRateHost';
 
+  public enabled =
+    this.config.get('exchange_rate_host.enabled') !== false &&
+    !!this.config.get<string>('exchange_rate_host.api_key') &&
+    !!this.config.get<string[]>('base_coins')?.length;
+
   constructor(private config: ConfigService) {
     super();
   }
 
   async fetch(): Promise<Tickers> {
-    const enabled = this.config.get<boolean>('exchange_rate_host.enabled');
-    const apiKey = this.config.get<string>('exchange_rate_host.api_key');
-
-    if (enabled === false || !apiKey) {
+    if (!this.enabled) {
       return {};
     }
+
+    const apiKey = this.config.get('exchange_rate_host.api_key') as string;
 
     const url = `${baseUrl}?access_key=${apiKey}`;
 
@@ -37,10 +41,10 @@ export class ExchangeRateHost extends BaseApi {
     try {
       const rates = {};
 
-      const baseCoins = this.config.get<string[]>('base_coins');
+      const baseCoins = this.config.get('base_coins') as string[];
       const decimals = this.config.get<number>('decimals');
 
-      baseCoins?.forEach((symbol) => {
+      baseCoins.forEach((symbol) => {
         const coin = symbol.toUpperCase();
 
         if (skipCoins.includes(coin)) {
