@@ -111,7 +111,7 @@ export class RatesService {
       const timestamp = getTimestamp();
 
       const createdTicker = new this.tickerModel({
-        timestamp,
+        date: timestamp,
         tickers: this.tickers,
       });
 
@@ -159,7 +159,7 @@ export class RatesService {
     if (from && to) {
       queries.push({
         $match: {
-          timestamp: {
+          date: {
             $gte: from,
             $lte: to,
           },
@@ -170,7 +170,7 @@ export class RatesService {
     let limit = Math.min(options.limit || 100, 100);
 
     if (timestamp) {
-      queries.push({ $match: { timestamp: { $lte: timestamp } } });
+      queries.push({ $match: { date: { $lte: timestamp } } });
 
       limit = 1;
     }
@@ -215,7 +215,7 @@ export class RatesService {
 
     const result = await this.tickerModel.aggregate([
       ...queries,
-      { $sort: { timestamp: -1 } },
+      { $sort: { date: -1 } },
       { $limit: limit },
     ]);
 

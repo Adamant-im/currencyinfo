@@ -6,7 +6,7 @@ export type TickerDocument = HydratedDocument<Ticker>;
 @Schema()
 export class Ticker {
   @Prop({ required: true })
-  timestamp!: number;
+  date!: number;
 
   @Prop({ type: Map, of: Number })
   tickers!: Record<string, number>;
