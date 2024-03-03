@@ -79,8 +79,12 @@ export const schema = z
       })
       .optional(),
   })
-  .strict(); /* Throw error on unkown properties. This will help users to migrate from the
- * older versions of the app that use different config schema
- */
+  .strict() /* Throw error on unkown properties. This will help users to migrate from the
+   * older versions of the app that use different config schema
+   */
+  .refine(
+    (schema) => !(schema.notify?.adamant && !schema.passphrase),
+    'Provide passphrase to use ADAMANT notifier',
+  );
 
 export type Schema = z.infer<typeof schema>;
