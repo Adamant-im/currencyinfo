@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 
 import { Notifier } from 'src/global/notifier/notifier.service';
+
 import { BaseApi } from './base';
 import { Tickers } from './dto/tickers.dto';
 

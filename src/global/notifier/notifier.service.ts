@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import axios from 'axios';
 
-import { LogLevelName } from '../logger/logger.constants';
+import { LogLevelName } from 'src/global/logger/logger.constants';
 import {
   formatMessageForAdamant,
   formatMessageForDiscord,

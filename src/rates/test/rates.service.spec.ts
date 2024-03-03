@@ -1,11 +1,12 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigService } from '@nestjs/config';
-
-import { RatesService } from '../rates.service';
-import { SchedulerRegistry } from '@nestjs/schedule';
-import { Notifier } from 'src/global/notifier/notifier.service';
 import { getModelToken } from '@nestjs/mongoose';
 import { getRedisConnectionToken } from '@nestjs-modules/ioredis';
+
+import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
+import { SchedulerRegistry } from '@nestjs/schedule';
+
+import { Notifier } from 'src/global/notifier/notifier.service';
+import { RatesService } from '../rates.service';
 
 const mockConfig = {
   decimals: 12,

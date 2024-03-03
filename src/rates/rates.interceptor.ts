@@ -4,12 +4,12 @@ import {
   ExecutionContext,
   CallHandler,
 } from '@nestjs/common';
+
 import { InjectRedis } from '@nestjs-modules/ioredis';
+import Redis from 'ioredis';
 
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-
-import Redis from 'ioredis';
 
 @Injectable()
 export class RatesInterceptor implements NestInterceptor {

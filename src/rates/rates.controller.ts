@@ -6,8 +6,8 @@ import {
   UseInterceptors,
   UsePipes,
 } from '@nestjs/common';
-import { HttpExceptionFilter } from 'src/http-exception.filter';
 
+import { HttpExceptionFilter } from 'src/http-exception.filter';
 import { ParseCoinsPipe } from 'src/parse-coins.pipe';
 import { ZodValidationPipe } from 'src/zod-validation.pipe';
 

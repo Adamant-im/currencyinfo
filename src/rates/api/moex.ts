@@ -1,6 +1,6 @@
+import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 
-import { ConfigService } from '@nestjs/config';
 import { BaseApi } from './base';
 import { Tickers } from './dto/tickers.dto';
 

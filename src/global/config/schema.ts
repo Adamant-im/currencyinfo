@@ -1,5 +1,5 @@
-import { coinName } from 'src/shared/schema-types';
 import { z } from 'zod';
+import { coinName } from 'src/shared/schema-types';
 
 export const slackWebhookUrl = z.custom<string>(
   (value: unknown) =>

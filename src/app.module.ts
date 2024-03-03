@@ -2,14 +2,15 @@ import { Module } from '@nestjs/common';
 
 import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule } from '@nestjs/config';
+
 import { MongooseModule } from '@nestjs/mongoose';
+import { RedisModule } from '@nestjs-modules/ioredis';
 
 import configuration from './global/config/configuration';
 
 import { RatesModule } from './rates/rates.module';
 import { LoggerModule } from './global/logger/logger.module';
 import { NotifierModule } from './global/notifier/notifier.module';
-import { RedisModule } from '@nestjs-modules/ioredis';
 
 const {
   MONGODB_HOST = '127.0.0.1',

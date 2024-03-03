@@ -1,7 +1,8 @@
-import axios from 'axios';
-
 import { LoggerService } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+
+import axios from 'axios';
+
 import { Notifier } from 'src/global/notifier/notifier.service';
 
 import { BaseApi } from './base';
