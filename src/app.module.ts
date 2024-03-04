@@ -30,7 +30,7 @@ const {
     }),
     RatesModule,
     MongooseModule.forRoot(
-      `mongodb://${MONGODB_HOST}:${MONGODB_PORT}/currencyinfo`,
+      `mongodb://${MONGODB_HOST}:${MONGODB_PORT}/tickersdb`,
     ),
     RedisModule.forRoot({
       type: 'single',
