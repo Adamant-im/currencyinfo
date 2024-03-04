@@ -5,14 +5,15 @@ services:
     ports:
       - '36668:36668'
     depends_on:
-      - mongodb
       - redis
     networks:
       - app_network
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     environment:
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      MONGODB_HOST: mongodb
+      MONGODB_HOST: host.docker.internal
       MONGODB_PORT: 27017
 
   redis:
@@ -20,14 +21,6 @@ services:
     image: 'redis:latest'
     ports:
       - '6379:6379'
-    networks:
-      - app_network
-
-  mongodb:
-    container_name: mongodb
-    image: 'mongo:latest'
-    ports:
-      - '27017:27017'
     networks:
       - app_network
 
