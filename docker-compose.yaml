@@ -3,7 +3,7 @@ services:
     container_name: currencyinfo
     build: .
     ports:
-      - '36668:36668'
+      - '36661:36661'
     depends_on:
       - redis
     networks:

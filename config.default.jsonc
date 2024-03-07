@@ -1,19 +1,19 @@
 {
   "decimals": 12,
   "rateDifferencePercentThreshold": 25,
-  "port": 36668,
+  "port": 36661,
   "refreshInterval": 10,
   "minSources": 1,
   "notify": {
-    "slack": ["https://hooks.slack.com/services/T192381293/B19283/XXXXX"]
+    "slack": ["https://hooks.slack.com/services/T192381293/B19283/XXXXX"],
   },
   "log_level": "log",
   "coinmarketcap": {
     "api_key": "hello_world",
     "coins": ["BTC", "ETH"],
     "ids": {
-      "BTC": 102
-    }
+      "BTC": 102,
+    },
   },
   "base_coins": ["USD", "RUB", "EUR", "CNY", "JPY", "BTC", "ETH", "KRW"],
   "moex": {
@@ -21,6 +21,6 @@
     "EUR/RUB": "EURRUB_TOM",
     "GBR/RUB": "GBPRUB_TOM",
     "CNY/RUB": "CNYRUB_TOM",
-    "JPY/RUB": "JPYRUB_TOM"
-  }
+    "JPY/RUB": "JPYRUB_TOM",
+  },
 }

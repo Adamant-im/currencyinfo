@@ -144,6 +144,6 @@ Add string:
 ## Usage
 
 To test Currencyinfo successfully installed, try to open link
-http://IP:36668/get?coin=ADM in a web browser.
+http://IP:36661/get?coin=ADM in a web browser.
 
 For usage see [InfoServices API documentation](https://github.com/Adamant-im/currencyinfo/wiki/InfoServices-API-documentation).
