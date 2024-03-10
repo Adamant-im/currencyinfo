@@ -1,10 +1,10 @@
 {
   "name": "currencyinfo",
-  "version": "0.0.1",
-  "description": "",
-  "author": "",
+  "version": "4.0.0",
+  "description": "Self-hosted crypto and fiat currency rates service provider",
+  "author": "ADAMANT Foundation <devs@adamant.im> (https://adamant.im)",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "GPL-3.0",
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -20,6 +20,9 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
+  "engines": {
+    "node": ">=16"
+  },  
   "dependencies": {
     "@nestjs-modules/ioredis": "^2.0.2",
     "@nestjs/common": "^10.3.3",
@@ -84,5 +87,42 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
-  }
+  },
+  "keywords": [
+    "blockchain",
+    "bitcoin",
+    "ethereum",
+    "trading",
+    "trade",
+    "adm",
+    "adamant",
+    "exchange",
+    "crypto",
+    "cryptocurrency",
+    "coingecko",
+    "coinmarketcap",
+    "cryptocompare",
+    "currency-api",
+    "ticker",
+    "rate",
+    "exchange rate",
+    "moex",
+    "fiat",
+    "money",
+    "usd",
+    "eur",
+    "cny",
+    "jpy",
+    "rub",
+    "btc",
+    "eth"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Adamant-im/currencyinfo.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Adamant-im/currencyinfo/issues"
+  },
+  "homepage": "https://github.com/Adamant-im/currencyinfo#readme"  
 }
