@@ -33,85 +33,8 @@ pnpm i
 ### Pre-launch tuning
 
 ```
+cp config.default.jsonc config.jsonc
 nano config.jsonc
-```
-
-Parameters:
-
-```jsonc
-{
-  "decimals": 12, // Number of decimal places for rate values.
-  "rateDifferencePercentThreshold": 25, // Percentage threshold for notifying significant rate deviations.
-  "refreshInterval": 10, // Frequency of rate updates from sources, in minutes (optional).
-  "minSources": 1 // Minimum number of sources required for rate calculation.
-
-  "port": 3000, // Port number for the API service.
-
-  "passphrase": "apple banana...", // Secret passphrase for ADAMANT notifications (optional).
-  "notify": {
-    // Array of Slack webhook URLs for sending notifications (optional).
-    "slack": ["https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"],
-
-    // Array of Discord webhook URLs for sending notifications (optional).
-    "discord": ["https://discord.com/api/webhooks/123456789012345678/aBCdeFg9h0iJKl1-_mNoPqRST2uvwXYZ3ab4cDefgH5ijklmnOPQrsTuvWxYZaBC-de_"],
-
-    // Array of ADAMANT addresses for sending notifications (optional).
-    "adamant": ["U1234567890"],
-  },
-  "log_level": "warn", // Specifies the verbosity of logs (none, log, info, warn, error).
-
-  // Record of fiat pairs and their codes to fetch rates from MOEX.
-  "moex": {
-    "USD/RUB": "USDRUB_TOM",
-    "EUR/RUB": "EURRUB_TOM",
-    // ...
-  },
-  "base_coins": ["USD", "RUB"], // 'List of base coins for calculating all available pairs.
-
-  "exchange_rate_host": {
-    "enabled": true, // Enable or disable ExchangeRate API (optional).
-    "api_key": "API key for ExchangeRate."
-  },
-
-  "coinmarketcap": {
-    "enabled": true, // Enable or disable CoinMarketCap API (optional).
-    "api_key": "API key for CoinMarketCap.",
-    "coins": [ // List of coins to fetch rates from CoinMarketCap (optional).
-      "BTC",
-      "ETH",
-      // ...
-    ],
-    "ids": { // Record of CoinMarketCap Symbol-Id pairs for specific coin rates (optional).
-      "ADM": 3703,
-      "XCN": 18679,
-      // ...
-    }
-  },
-
-  "cryptocompare": {
-    "enabled": true, // Enable or disable CryptoCompare API (optional).
-    "api_key": "API key for CryptoCompare.",
-    "coins": [ // List of coins to fetch rates from CryptoCompare (optional).
-      "BTC",
-      "ETH",
-      // ...
-    ]
-  },
-
-  "coingecko": {
-    "enabled": true, // Enable or disable CoinGecko API (optional).
-    "coins": [ // List of coins to fetch rates from CoinGecko (optional).
-      "BTC",
-      "ETH",
-      // ...
-    ],
-    "ids": [ // Array of CoinGecko coin IDs for specific coin rates (optional).
-      "adamant-messenger",
-      "bitcoin",
-      // ...
-    ],
-  },
-}
 ```
 
 ## Launching
