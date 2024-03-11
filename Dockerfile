@@ -23,7 +23,9 @@ RUN npm install -g pnpm && \
 
 COPY --from=builder /usr/src/currencyinfo/dist  ./dist
 COPY --from=builder /usr/src/currencyinfo/config.default.jsonc \
-  /usr/src/currencyinfo/config.jsonc ./
+  /usr/src/currencyinfo/config.jsonc \
+  /usr/src/currencyinfo/.env \
+  ./
 
 EXPOSE 36661
 CMD ["node", "dist/main"]
