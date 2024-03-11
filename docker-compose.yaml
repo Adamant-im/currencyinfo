@@ -10,11 +10,6 @@ services:
       - app_network
     extra_hosts:
       - 'host.docker.internal:host-gateway'
-    environment:
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      MONGODB_HOST: host.docker.internal
-      MONGODB_PORT: 27017
 
   redis:
     container_name: redis

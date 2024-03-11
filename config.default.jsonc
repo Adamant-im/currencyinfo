@@ -1,13 +1,23 @@
 {
   "decimals": 12,
   "rateDifferencePercentThreshold": 25,
-  "port": 36661,
   "refreshInterval": 10,
   "minSources": 1,
   "notify": {
     "slack": ["https://hooks.slack.com/services/T192381293/B19283/XXXXX"],
   },
   "log_level": "log",
+  "server": {
+    "port": 36668,
+    "mongodb": {
+      "host": "mongodb",
+      "port": 27017,
+    },
+    "redis": {
+      "host": "redis",
+      "port": 6379,
+    },
+  },
   "coinmarketcap": {
     "api_key": "hello_world",
     "coins": ["BTC", "ETH"],

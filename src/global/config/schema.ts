@@ -22,6 +22,11 @@ export const discordWebhookUrl = z.custom<string>(
   'Invalid Discord webhook url. The format is `https://discord.com/api/webhooks/123456789012345678/aBCdeFg9h0iJKl1-_mNoPqRST2uvwXYZ3ab4cDefgH5ijklmnOPQrsTuvWxYZaBC-de_`. Read more at https://discord.com/developers/docs/resources/webhook',
 );
 
+const databaseSchema = z.object({
+  port: z.number(),
+  host: z.string(),
+});
+
 export const schema = z
   .object({
     // Formatting
@@ -32,7 +37,11 @@ export const schema = z
     minSources: z.number(),
 
     // Server
-    port: z.number(),
+    server: z.object({
+      port: z.number(),
+      mongodb: databaseSchema,
+      redis: databaseSchema,
+    }),
 
     // Logging
     passphrase: z.string().optional(),
