@@ -10,7 +10,7 @@
   "server": {
     "port": 36668,
     "mongodb": {
-      "host": "mongodb",
+      "host": "host.docker.internal",
       "port": 27017,
     },
     "redis": {
