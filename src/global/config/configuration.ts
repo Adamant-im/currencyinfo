@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'fs';
 import JSON5 from 'json5';
 import { schema, Schema } from './schema';
 
-const isDev = process.argv.includes('dev');
+const isDev = process.env.NODE_ENV === 'development';
 
 export default () => {
   const configPath = findConfig();

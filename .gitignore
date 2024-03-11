@@ -3,6 +3,7 @@ docker-compose.override.yml
 
 # configs
 config.jsonc
+config.test.jsonc
 .env
 
 # compiled output
