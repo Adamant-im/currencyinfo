@@ -18,7 +18,7 @@ async function bootstrap() {
 
   app.useLogger(logger);
 
-  const port = config.get('port') as number;
+  const port = config.get('server.port') as number;
   await app.listen(port);
 
   logger.log(`The app started on port ${port}`);

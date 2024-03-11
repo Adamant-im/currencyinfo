@@ -6,7 +6,7 @@
 
   "server": {
     // Port number for the API service, e.g. http://localhost:36668
-    "port": 36668,
+    "port": 36661,
     "mongodb": {
       "host": "host.docker.internal",
       "port": 27017
