@@ -119,13 +119,13 @@ Parameters:
 Before launching, you need to build the app using the following command:
 
 ```
-npm run build
+pnpm run build
 ```
 
 After that, you can start the ADAMANT Currencyinfo with `npm run start:prod` command, but it's recommended to use process manager:
 
 ```
-pm2 start npm --name "currency-info" -- run start:prod
+pm2 start pnpm --name "currency-info" -- run start:prod
 ```
 
 ### Cron
@@ -137,7 +137,7 @@ crontab -e
 Add string:
 
 ```
-@reboot cd /home/adamant/currencyinfo && pm2 start npm --name "currency-info" -- run start:prod
+@reboot cd /home/adamant/currencyinfo && pm2 start pnpm --name "currency-info" -- run start:prod
 ```
 
 ## Usage
