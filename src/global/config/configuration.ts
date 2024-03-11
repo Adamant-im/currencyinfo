@@ -6,8 +6,13 @@ const isDev = process.argv.includes('dev');
 
 export default () => {
   const configPath = findConfig();
-  const json = readFileSync(configPath, 'utf-8');
 
+  if (!configPath) {
+    console.error(`No config found. Cannot start the app.`);
+    process.exit(-1);
+  }
+
+  const json = readFileSync(configPath, 'utf-8');
   const userConfig: Schema = JSON5.parse(json);
 
   const result = schema.safeParse(userConfig);
@@ -38,8 +43,6 @@ function findConfig() {
   if (existsSync('./config.jsonc')) {
     return './config.jsonc';
   }
-
-  return './config.default.jsonc';
 }
 
 function formatZodErrors(errors: any, tab = 0, property?: string) {
