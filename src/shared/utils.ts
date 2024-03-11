@@ -29,14 +29,23 @@ export function fullTime() {
   return formatDate(DateFormats.YY_MM_DD_HH_MM_SS, new Date());
 }
 
+/**
+ * Retrieves the Unix timestamp in seconds.
+ */
 export function getTimestamp() {
   return Math.ceil(Date.now() / 1000);
 }
 
+/**
+ * Removes Markdown formatting from the text.
+ */
 export function removeMarkdown(text: string) {
   return doubleAsterisksToSingle(text).replace(/([_*]\b|\b[_*])/g, '');
 }
 
+/**
+ * Converts double asterisks to single asterisks.
+ */
 export function doubleAsterisksToSingle(text: string) {
   return text.replace(/(\*\*\b|\b\*\*)/g, '*');
 }

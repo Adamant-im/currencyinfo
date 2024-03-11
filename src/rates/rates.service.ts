@@ -67,6 +67,9 @@ export class RatesService {
     this.init();
   }
 
+  /**
+   * Initializes the process of updating tickers and schedules it.
+   */
   init() {
     const refreshInterval = this.config.get<number>('refreshInterval');
 
@@ -81,6 +84,10 @@ export class RatesService {
     this.updateTickers();
   }
 
+  /**
+   * Retrieves data from all enabled API sources and stores it in the
+   * database if successful responses exceed the `config.minSources`.
+   */
   async updateTickers() {
     this.logger.log('Updating rates…');
 
@@ -137,6 +144,10 @@ export class RatesService {
     }
   }
 
+  /**
+   * Returns the latest cached tickers for specified coins.
+   * To retrieve tickers for all available coins, pass an empty array.
+   */
   async getTickers(coins: string[]) {
     const requestedCoins = new Set(coins);
 
@@ -158,6 +169,10 @@ export class RatesService {
     return filteredCoins;
   }
 
+  /**
+   * Retrieves tickers from the database for a specified
+   * time period and coin, limited to 100 entries.
+   */
   async getHistoryTickers(options: GetHistoryDto) {
     const { from, to, timestamp, coin } = options;
 
@@ -229,6 +244,10 @@ export class RatesService {
     return result;
   }
 
+  /**
+   * Attempts to fetch ticker data from a specific API source.
+   * Returns `undefined` upon failure.
+   */
   async fetchTickers(source: BaseApi): Promise<Tickers | undefined> {
     try {
       const tickers = await source.fetch('USD');
@@ -257,6 +276,10 @@ export class RatesService {
     }
   }
 
+  /**
+   * Updates the latest tickers from the given data,
+   * avoiding significant changes.
+   */
   mergeTickers(data: Tickers, options: { name: string }) {
     const acceptableDifference = this.config.get(
       'rateDifferencePercentThreshold',
@@ -291,7 +314,7 @@ export class RatesService {
   }
 
   /**
-   * Calculates rates for each base coin using USD rate
+   * Adjusts the rates for each base coin using the USD rate.
    */
   normalizeTickers(tickers: Tickers) {
     const baseCoins = this.config.get<string[]>('base_coins');
@@ -319,6 +342,9 @@ export class RatesService {
     return tickers;
   }
 
+  /**
+   * Returns list of all the coin IDs from crypto tickers.
+   */
   getAllCoins() {
     const sources = this.sources.filter((source) =>
       [CoingeckoApi.resourceName, CoinmarketcapApi.resourceName].includes(
