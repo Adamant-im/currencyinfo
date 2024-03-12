@@ -8,6 +8,13 @@ run();
 async function run() {
   const configFiles = await findConfigFiles();
 
+  if (!configFiles.length) {
+    console.error(
+      'No config files were specified. Usage: pnpm run migrate ./path-to-your-config.json',
+    );
+    process.exit(-1);
+  }
+
   let exchangeRateHostWasEnabled = false;
 
   for (const configFilePath of configFiles) {
