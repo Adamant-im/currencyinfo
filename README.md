@@ -45,7 +45,7 @@ Before launching, you need to build the app using the following command:
 pnpm run build
 ```
 
-After that, you can start the ADAMANT Currencyinfo with `npm run start:prod` command, but it's recommended to use process manager:
+After that, you can start the ADAMANT Currencyinfo with `pnpm run start:prod` command, but it's recommended to use process manager:
 
 ```
 pm2 start pnpm --name "currency-info" -- run start:prod
