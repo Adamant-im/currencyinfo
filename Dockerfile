@@ -1,5 +1,5 @@
 # Build
-FROM node:21 as builder
+FROM node:21-alpine as builder
 
 WORKDIR /usr/src/currencyinfo
 
@@ -11,7 +11,7 @@ COPY . .
 RUN pnpm run build
 
 # Production
-FROM node:21
+FROM node:21-alpine
 
 WORKDIR /usr/src/currencyinfo
 
