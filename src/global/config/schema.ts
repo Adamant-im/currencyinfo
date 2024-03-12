@@ -47,10 +47,11 @@ export const schema = z
     passphrase: z.string().optional(),
     notify: z
       .object({
-        slack: slackWebhookUrl.array().optional(),
-        discord: discordWebhookUrl.array().optional(),
-        adamant: adamantAddress.array().optional(),
+        slack: slackWebhookUrl.array(),
+        discord: discordWebhookUrl.array(),
+        adamant: adamantAddress.array(),
       })
+      .partial()
       .optional(),
     log_level: z.enum(['none', 'log', 'info', 'warn', 'error']),
 
@@ -60,32 +61,36 @@ export const schema = z
 
     exchange_rate_host: z
       .object({
-        enabled: z.boolean().optional(),
+        enabled: z.boolean(),
         api_key: z.string(),
       })
+      .partial()
       .optional(),
 
     coinmarketcap: z
       .object({
-        enabled: z.boolean().optional(),
+        enabled: z.boolean(),
         api_key: z.string(),
-        coins: z.array(coinName).optional(),
-        ids: z.record(z.number()).optional(),
+        coins: z.array(coinName),
+        ids: z.record(z.number()),
       })
+      .partial()
       .optional(),
     cryptocompare: z
       .object({
-        enabled: z.boolean().optional(),
+        enabled: z.boolean(),
         api_key: z.string(),
-        coins: z.array(coinName).optional(),
+        coins: z.array(coinName),
       })
+      .partial()
       .optional(),
     coingecko: z
       .object({
-        enabled: z.boolean().optional(),
-        coins: z.array(coinName).optional(),
-        ids: z.array(z.string()).optional(),
+        enabled: z.boolean(),
+        coins: z.array(coinName),
+        ids: z.array(z.string()),
       })
+      .partial()
       .optional(),
   })
   .strict() /* Throw error on unkown properties. This will help users to migrate from the
