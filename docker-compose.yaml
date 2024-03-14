@@ -6,6 +6,8 @@ services:
       - '36661:36661'
     depends_on:
       - redis
+    volumes:
+      - ./config.jsonc:/usr/src/currencyinfo/config.jsonc
     networks:
       - app_network
 
