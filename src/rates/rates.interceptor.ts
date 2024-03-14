@@ -21,6 +21,8 @@ export class RatesInterceptor implements NestInterceptor {
         const lastUpdated = await this.redis.get('last_updated');
 
         return {
+          success: true,
+          date: Date.now(),
           result: data,
           last_updated: lastUpdated ? Number(lastUpdated) : null,
           version: process.env.APP_VERSION,
