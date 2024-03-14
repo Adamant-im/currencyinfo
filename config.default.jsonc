@@ -17,7 +17,11 @@
     }
   },
 
+<<<<<<< HEAD
   "passphrase": "apple banana...", // Secret passphrase for ADAMANT notifications (optional)
+=======
+  "passphrase": "apple banana...", // Secret passphrase for ADAMANT notifications (optional).
+>>>>>>> 18d7b1a (chore: add mongodb back to docker compose)
   "notify": {
     // Array of Slack webhook URLs for sending notifications (optional)
     "slack": [
@@ -43,6 +47,10 @@
     "CNY/RUB": "CNYRUB_TOM"
     // ...
   },
+<<<<<<< HEAD
+=======
+  "base_coins": ["USD", "RUB"], // List of base coins for calculating all available pairs.
+>>>>>>> 18d7b1a (chore: add mongodb back to docker compose)
 
   "exchange_rate_host": {
     "enabled": true, // Enable or disable ExchangeRate API (optional)

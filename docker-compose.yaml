@@ -8,8 +8,6 @@ services:
       - redis
     networks:
       - app_network
-    extra_hosts:
-      - 'host.docker.internal:host-gateway'
 
   redis:
     container_name: redis
@@ -17,5 +15,16 @@ services:
     networks:
       - app_network
 
+  mongodb:
+    container_name: mongodb
+    image: 'mongo:latest'
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - app_network
+
 networks:
   app_network:
+
+volumes:
+  mongo_data:
