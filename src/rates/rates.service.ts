@@ -12,7 +12,6 @@ import { AxiosError } from 'axios';
 import { Notifier } from 'src/global/notifier/notifier.service';
 import {
   calculatePercentageDifference,
-  getTimestamp,
   isPositiveOrZeroNumber,
 } from 'src/shared/utils';
 
@@ -122,7 +121,7 @@ export class RatesService {
     }
 
     try {
-      const timestamp = getTimestamp();
+      const timestamp = Date.now();
 
       const createdTicker = new this.tickerModel({
         date: timestamp,

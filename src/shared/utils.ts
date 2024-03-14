@@ -30,13 +30,6 @@ export function fullTime() {
 }
 
 /**
- * Retrieves the Unix timestamp in seconds.
- */
-export function getTimestamp() {
-  return Math.ceil(Date.now() / 1000);
-}
-
-/**
  * Removes Markdown formatting from the text.
  */
 export function removeMarkdown(text: string) {
