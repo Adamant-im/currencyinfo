@@ -93,7 +93,7 @@ export const schema = z
       .partial()
       .optional(),
   })
-  .strict() /* Throw error on unkown properties. This will help users to migrate from the
+  .strict() /* Throw error on unknown properties. This will help users to migrate from the
    * older versions of the app that use different config schema
    */
   .refine(

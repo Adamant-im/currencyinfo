@@ -113,13 +113,13 @@ export class Notifier {
     }
 
     const promises = addresses.map(async (address) => {
-      const formatedMessage = formatMessageForAdamant(message);
+      const formattedMessage = formatMessageForAdamant(message);
 
       try {
         const response = await api.sendMessage(
           passphrase,
           address,
-          `${notifyLevel}| ${formatedMessage}`,
+          `${notifyLevel}| ${formattedMessage}`,
         );
 
         if (!response.success) {
@@ -127,7 +127,7 @@ export class Notifier {
         }
       } catch (error) {
         this.logger.warn(
-          `Failed to send notification message '${formatedMessage}' to ${address}. ${error}.`,
+          `Failed to send notification message '${formattedMessage}' to ${address}. ${error}.`,
         );
       }
     });
