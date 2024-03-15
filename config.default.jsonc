@@ -1,11 +1,11 @@
 {
-  "decimals": 12, // Number of decimal places for rate values.
-  "rateDifferencePercentThreshold": 25, // Percentage threshold for notifying significant rate deviations.
-  "refreshInterval": 10, // Frequency of rate updates from sources, in minutes (optional).
-  "minSources": 1, // Minimum number of sources required for rate calculation.
+  "decimals": 12, // Number of decimal places for rate values
+  "rateDifferencePercentThreshold": 25, // Percentage threshold for notifying significant rate deviations
+  "refreshInterval": 10, // The frequency of rate updates from sources in minutes (optional). Frequent refreshes may require paid API keys.
+  "minSources": 1, // Minimum number of sources required for rate calculation
 
   "server": {
-    // Port number for the API service, e.g. http://localhost:36668
+    // Port number for the API service, e.g., http://localhost:36668
     "port": 36661,
     "mongodb": {
       "host": "host.docker.internal",
@@ -17,60 +17,62 @@
     }
   },
 
-  "passphrase": "apple banana...", // Optional. Secret passphrase for ADAMANT notifications (optional).
+  "passphrase": "apple banana...", // Secret passphrase for ADAMANT notifications (optional)
   "notify": {
-    // Array of Slack webhook URLs for sending notifications (optional).
+    // Array of Slack webhook URLs for sending notifications (optional)
     "slack": [
       "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
     ],
 
-    // Array of Discord webhook URLs for sending notifications (optional).
+    // Array of Discord webhook URLs for sending notifications (optional)
     "discord": [
       "https://discord.com/api/webhooks/123456789012345678/aBCdeFg9h0iJKl1-_mNoPqRST2uvwXYZ3ab4cDefgH5ijklmnOPQrsTuvWxYZaBC-de_"
     ],
 
-    // Array of ADAMANT addresses for sending notifications (optional).
+    // Array of ADAMANT addresses for sending notifications (optional)
     "adamant": ["U12345678901234567890"]
   },
-  "log_level": "warn", // Specifies the verbosity of logs (none, log, info, warn, error).
+  "log_level": "warn", // Specifies the verbosity of logs (none, log, info, warn, error)
 
-  // Record of fiat pairs and their codes to fetch rates from MOEX.
+  "base_coins": ["USD", "RUB", "EUR", "CNY", "JPY", "BTC", "ETH", "KRW"], // List of base coins for calculating all available pairs
+
+  // Record of fiat pairs and their codes to fetch rates from MOEX
   "moex": {
     "USD/RUB": "USDRUB_TOM",
     "EUR/RUB": "EURRUB_TOM",
     "CNY/RUB": "CNYRUB_TOM"
     // ...
   },
-  "base_coins": ["USD", "RUB"], // 'List of base coins for calculating all available pairs.
 
   "exchange_rate_host": {
-    "enabled": true, // Enable or disable ExchangeRate API (optional).
-    "api_key": "API key for ExchangeRate."
+    "enabled": true, // Enable or disable ExchangeRate API (optional)
+    "api_key": "API key for ExchangeRate"
   },
 
   "coinmarketcap": {
-    "enabled": true, // Enable or disable CoinMarketCap API (optional).
-    "api_key": "API key for CoinMarketCap.",
+    "enabled": true, // Enable or disable CoinMarketCap API (optional)
+    "api_key": "API key for CoinMarketCap",
     "coins": [
-      // List of coins to fetch rates from CoinMarketCap (optional).
+      // List of coins to fetch rates from CoinMarketCap (optional, deprecated)
       "BTC",
       "ETH",
       "ADM"
       // ...
     ],
     "ids": {
-      // Record of CoinMarketCap Symbol-Id pairs for specific coin rates (optional).
-      "ADM": 3703,
-      "XCN": 18679
+      // Record of CoinMarketCap SymbolId/UCID pairs for specific coin rates (optional, preferred)
+      "BTC": 1,
+      "ETH": 1027,
+      "ADM": 3703
       // ...
     }
   },
 
   "cryptocompare": {
-    "enabled": true, // Enable or disable CryptoCompare API (optional).
-    "api_key": "API key for CryptoCompare.",
+    "enabled": true, // Enable or disable CryptoCompare API (optional)
+    "api_key": "API key for CryptoCompare",
     "coins": [
-      // List of coins to fetch rates from CryptoCompare (optional).
+      // List of coins to fetch rates from CryptoCompare (optional)
       "BTC",
       "ETH",
       "ADM"
@@ -79,18 +81,19 @@
   },
 
   "coingecko": {
-    "enabled": true, // Enable or disable CoinGecko API (optional).
+    "enabled": true, // Enable or disable CoinGecko API (optional)
     "coins": [
-      // List of coins to fetch rates from CoinGecko (optional).
+      // List of coins to fetch rates from CoinGecko (optional, deprecated)
       "BTC",
       "ETH",
       "ADM"
       // ...
     ],
     "ids": [
-      // Array of CoinGecko coin IDs for specific coin rates (optional).
-      "adamant-messenger",
-      "bitcoin"
+      // Array of CoinGecko coin IDs for specific coin rates (optional, preferred)
+      "bitcoin",
+      "ethereum",
+      "adamant-messenger"
       // ...
     ]
   }
