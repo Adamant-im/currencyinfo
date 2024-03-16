@@ -61,6 +61,14 @@ export const schema = z
     base_coins: z.array(coinName),
     skip_coins: z.array(coinName).default([]),
 
+    currency_api: z
+      .object({
+        enabled: z.boolean(),
+        skip: z.array(coinName).default([]),
+      })
+      .partial()
+      .optional(),
+
     exchange_rate_host: z
       .object({
         enabled: z.boolean(),

@@ -27,11 +27,13 @@ export class CurrencyApi extends BaseApi {
     super();
 
     const baseCoins = this.config.get('base_coins') as string[];
-    const skipCoins = this.config.get('skip_coins') as string[];
+    const skipCoins = this.config.get('currency_api.skip') as string[];
 
     this.baseCoins = baseCoins.filter((coin) => !skipCoins.includes(coin));
 
-    this.enabled = !!this.baseCoins.length;
+    this.enabled =
+      this.config.get('currency_api.enabled') !== false &&
+      !!this.baseCoins.length;
   }
 
   async fetch() {
