@@ -33,6 +33,8 @@ const CronIntervals = {
   EVERY_SECOND: 1000, // For debugging
 };
 
+const BASE_CURRENCY = 'USD';
+
 @Injectable()
 export class RatesService {
   tickers: Tickers = {};
@@ -249,7 +251,7 @@ export class RatesService {
    */
   async fetchTickers(source: BaseApi): Promise<Tickers | undefined> {
     try {
-      const tickers = await source.fetch('USD');
+      const tickers = await source.fetch(BASE_CURRENCY);
 
       return tickers;
     } catch (error) {
