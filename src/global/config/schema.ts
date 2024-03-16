@@ -30,11 +30,11 @@ const databaseSchema = z.object({
 export const schema = z
   .object({
     // Formatting
-    decimals: z.number(),
+    decimals: z.number().default(12),
 
-    rateDifferencePercentThreshold: z.number(),
+    rateDifferencePercentThreshold: z.number().default(25),
     refreshInterval: z.number().optional(),
-    minSources: z.number(),
+    minSources: z.number().default(1),
 
     // Server
     server: z.object({
@@ -53,7 +53,7 @@ export const schema = z
       })
       .partial()
       .optional(),
-    log_level: z.enum(['none', 'log', 'info', 'warn', 'error']),
+    log_level: z.enum(['none', 'log', 'info', 'warn', 'error']).default('log'),
 
     // API
     moex: z.record(z.string()),

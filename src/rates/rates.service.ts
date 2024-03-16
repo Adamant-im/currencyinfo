@@ -90,7 +90,7 @@ export class RatesService {
   async updateTickers() {
     this.logger.log('Updating rates…');
 
-    const minSources = this.config.get<number>('minSources') ?? 1;
+    const minSources = this.config.get('minSources') as number;
 
     let availableSources = 0;
 
