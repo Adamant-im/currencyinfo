@@ -16,23 +16,28 @@ export interface CurrencyApiDto {
 const url =
   'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json';
 
-const skipCoins = ['USD', 'BTC', 'ETH'];
-
 export class CurrencyApi extends BaseApi {
   static resourceName = 'CurrencyApi';
 
-  public enabled = !!this.config.get<string[]>('base_coins')?.length;
+  public enabled: boolean;
+
+  private baseCoins: string[];
 
   constructor(private config: ConfigService) {
     super();
+
+    const baseCoins = this.config.get('base_coins') as string[];
+    const skipCoins = this.config.get('skip_coins') as string[];
+
+    this.baseCoins = baseCoins.filter((coin) => !skipCoins.includes(coin));
+
+    this.enabled = !!this.baseCoins.length;
   }
 
   async fetch() {
     if (!this.enabled) {
       return {};
     }
-
-    const baseCoins = this.config.get('base_coins') as string[];
 
     const { data } = await axios.get<CurrencyApiDto>(url);
 
@@ -41,12 +46,8 @@ export class CurrencyApi extends BaseApi {
 
       const decimals = this.config.get<number>('decimals');
 
-      baseCoins.forEach((symbol) => {
+      this.baseCoins.forEach((symbol) => {
         const coin = symbol.toUpperCase();
-
-        if (skipCoins.includes(coin)) {
-          return;
-        }
 
         const rate = data['usd'][symbol];
 

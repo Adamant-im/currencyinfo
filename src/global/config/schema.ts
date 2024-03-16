@@ -57,12 +57,15 @@ export const schema = z
 
     // API
     moex: z.record(z.string()),
+
     base_coins: z.array(coinName),
+    skip_coins: z.array(coinName).default([]),
 
     exchange_rate_host: z
       .object({
         enabled: z.boolean(),
         api_key: z.string(),
+        skip: z.array(coinName).default([]),
       })
       .partial()
       .optional(),
