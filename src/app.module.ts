@@ -44,6 +44,12 @@ import { NotifierModule } from './global/notifier/notifier.module';
         return {
           type: 'single',
           url: `redis://${host}:${port}`,
+          options: {
+            retryStrategy() {
+              console.error('Error: could not connect to Redis');
+              process.exit(-1);
+            },
+          },
         };
       },
     }),
