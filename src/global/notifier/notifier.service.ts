@@ -33,6 +33,8 @@ export class Notifier {
   constructor(private config: ConfigService) {}
 
   async notify(notifyLevel: LogLevelName, message: string) {
+    this.logger[notifyLevel](removeMarkdown(message));
+
     const notify = this.config.get('notify');
 
     if (!notify) {
@@ -50,8 +52,6 @@ export class Notifier {
     if (!slack) {
       return;
     }
-
-    this.logger[notifyLevel](removeMarkdown(message));
 
     const params = {
       attachments: [

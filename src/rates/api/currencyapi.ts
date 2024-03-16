@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import { LoggerService } from '@nestjs/common';
 
 import axios from 'axios';
 
@@ -23,11 +24,14 @@ export class CurrencyApi extends BaseApi {
 
   private baseCoins: string[];
 
-  constructor(private config: ConfigService) {
+  constructor(
+    private config: ConfigService,
+    private logger: LoggerService,
+  ) {
     super();
 
     const baseCoins = this.config.get('base_coins') as string[];
-    const skipCoins = this.config.get('currency_api.skip') as string[];
+    const skipCoins = this.config.get<string[]>('currency_api.skip') || [];
 
     this.baseCoins = baseCoins.filter((coin) => !skipCoins.includes(coin));
 
@@ -60,6 +64,8 @@ export class CurrencyApi extends BaseApi {
         rates[`USD/${coin}`] = +rate.toFixed(decimals);
         rates[`${coin}/USD`] = +(1 / +rate).toFixed(decimals);
       });
+
+      this.logger.log('CurrencyApi rates updated successfully');
 
       return rates;
     } catch (error) {

@@ -53,9 +53,9 @@ export class RatesService {
   ) {
     this.sources = [
       // Fiat tickers
-      new CurrencyApi(this.config),
-      new ExchangeRateHost(this.config),
-      new MoexApi(this.config),
+      new CurrencyApi(this.config, this.logger),
+      new ExchangeRateHost(this.config, this.logger),
+      new MoexApi(this.config, this.logger),
 
       // Crypto tickers
       new CoinmarketcapApi(this.config, this.logger, this.notifier),

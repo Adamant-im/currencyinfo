@@ -1,4 +1,6 @@
 import { ConfigService } from '@nestjs/config';
+import { LoggerService } from '@nestjs/common';
+
 import axios from 'axios';
 
 import { BaseApi } from './base';
@@ -39,7 +41,10 @@ export class MoexApi extends BaseApi {
 
   public enabled = !!this.config.get<Record<string, string>>('moex');
 
-  constructor(private config: ConfigService) {
+  constructor(
+    private config: ConfigService,
+    private logger: LoggerService,
+  ) {
     super();
   }
 
@@ -90,6 +95,8 @@ export class MoexApi extends BaseApi {
         rates[market] = Number(price.toFixed(decimals));
       }
     }
+
+    this.logger.log('MOEX rates updated successfully');
 
     return rates;
   }
