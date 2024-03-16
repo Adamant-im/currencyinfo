@@ -17,11 +17,7 @@
     }
   },
 
-<<<<<<< HEAD
   "passphrase": "apple banana...", // Secret passphrase for ADAMANT notifications (optional)
-=======
-  "passphrase": "apple banana...", // Secret passphrase for ADAMANT notifications (optional).
->>>>>>> 18d7b1a (chore: add mongodb back to docker compose)
   "notify": {
     // Array of Slack webhook URLs for sending notifications (optional)
     "slack": [
@@ -38,8 +34,6 @@
   },
   "log_level": "warn", // Specifies the verbosity of logs (none, log, info, warn, error)
 
-  "base_coins": ["USD", "RUB", "EUR", "CNY", "JPY", "BTC", "ETH", "KRW"], // List of base coins for calculating all available pairs
-
   // Record of fiat pairs and their codes to fetch rates from MOEX
   "moex": {
     "USD/RUB": "USDRUB_TOM",
@@ -47,24 +41,14 @@
     "CNY/RUB": "CNYRUB_TOM"
     // ...
   },
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-  "base_coins": ["USD", "RUB"], // List of base coins for calculating all available pairs.
->>>>>>> 18d7b1a (chore: add mongodb back to docker compose)
 
-  "exchange_rate_host": {
-    "enabled": true, // Enable or disable ExchangeRate API (optional)
-    "api_key": "API key for ExchangeRate"
-=======
-  "base_coins": ["USD", "RUB", "EUR", "CNY", "JPY", "BTC", "ETH"], // List of base coins for calculating all available pairs.
+  "base_coins": ["USD", "RUB", "EUR", "CNY", "JPY", "BTC", "ETH"], // List of base coins for calculating all available pairs
   "skip_coins": ["USD", "BTC", "ETH"], // List of the coins to exclude from the base_coins (optional).
 
   "exchange_rate_host": {
     "enabled": true, // Enable or disable ExchangeRate API (optional).
     "api_key": "API key for ExchangeRate.",
     "skip": ["USD", "ETH"] // List of the coins to exclude from the base_coins for the ExchangeRateHost (optional).
->>>>>>> 6aa51f6 (feat(config): add `skip_coins` and `exchange_rate_host.skip`)
   },
 
   "coinmarketcap": {
