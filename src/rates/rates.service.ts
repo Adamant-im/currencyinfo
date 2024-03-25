@@ -111,9 +111,11 @@ export class RatesService {
         continue;
       }
 
-      this.mergeTickers(tickers, { name: source.resourceName });
+      const success = this.mergeTickers(tickers, { name: source.resourceName });
 
-      availableSources += 1;
+      if (success) {
+        availableSources += 1;
+      }
     }
 
     if (availableSources < minSources) {
@@ -306,12 +308,16 @@ export class RatesService {
     if (alerts.length) {
       const alertString = alerts.join(', ');
 
-      return this.fail(
+      this.fail(
         `Error: rates from different sources significantly differs: ${alertString}. InfoService will provide previous rates; historical rates wouldn't be saved.`,
       );
+
+      return false;
     }
 
     this.tickers = this.normalizeTickers({ ...this.tickers, ...data });
+
+    return true;
   }
 
   /**
