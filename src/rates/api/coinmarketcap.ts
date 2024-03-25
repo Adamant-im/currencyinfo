@@ -110,7 +110,7 @@ export class CoinmarketcapApi extends CoinIdFetcher {
 
       const coinmarketcapCoins = Object.values(data.data);
 
-      coins?.forEach((symbol) => {
+      coins.forEach((symbol) => {
         const coin = coinmarketcapCoins.find(
           (coin) => coin.symbol === symbol.toUpperCase(),
         );
@@ -173,7 +173,7 @@ export class CoinmarketcapApi extends CoinIdFetcher {
     const coinmarketcapCoins = Object.values(data.data);
 
     try {
-      coins?.forEach((symbol) => {
+      coins.forEach((symbol) => {
         const coin = coinmarketcapCoins.find(
           (coin) => coin.symbol === symbol.toUpperCase(),
         );

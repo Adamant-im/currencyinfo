@@ -32,7 +32,7 @@ export class CryptoCompareApi extends BaseApi {
     const coins = this.config.get('cryptocompare.coins') as string[];
 
     const params = {
-      fsyms: coins?.join(),
+      fsyms: coins.join(),
       tsyms: baseCurrency,
       api_key: apiKey,
     };
@@ -45,7 +45,7 @@ export class CryptoCompareApi extends BaseApi {
 
     const exchangeRates: Record<string, number> = {};
 
-    coins?.forEach((coin) => {
+    coins.forEach((coin) => {
       exchangeRates[`${coin}/${baseCurrency}`] =
         +data[coin][baseCurrency].toFixed(decimals);
     });
