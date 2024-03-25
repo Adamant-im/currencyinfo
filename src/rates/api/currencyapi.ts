@@ -65,7 +65,7 @@ export class CurrencyApi extends BaseApi {
         rates[`${coin}/USD`] = +(1 / +rate).toFixed(decimals);
       });
 
-      this.logger.log('CurrencyApi rates updated successfully');
+      this.logger.log(`${this.resourceName} rates updated successfully`);
 
       return rates;
     } catch (error) {

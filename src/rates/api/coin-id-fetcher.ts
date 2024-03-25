@@ -7,9 +7,7 @@ export abstract class CoinIdFetcher extends BaseApi {
     return new Promise(async (resolve) => {
       try {
         if (attempt > MAX_ATTEMPT_COUNT) {
-          console.error(
-            `Could not fetch coin IDs for ${this.getResourceName()}`,
-          );
+          console.error(`Could not fetch coin IDs for ${this.resourceName}`);
           process.exit(-1);
         }
 

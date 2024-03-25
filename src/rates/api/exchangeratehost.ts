@@ -70,7 +70,7 @@ export class ExchangeRateHost extends BaseApi {
         rates[`${coin}/USD`] = +(1 / +rate).toFixed(decimals);
       });
 
-      this.logger.log('ExchangeRateHost rates updated successfully');
+      this.logger.log(`${this.resourceName} rates updated successfully`);
 
       return rates;
     } catch (error) {

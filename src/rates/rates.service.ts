@@ -105,13 +105,13 @@ export class RatesService {
 
       if (!tickers) {
         this.fail(
-          `Error: Unable to get data from ${source.getResourceName()}. InfoService will provide previous rates; historical rates wouldn't be saved.`,
+          `Error: Unable to get data from ${source.resourceName}. InfoService will provide previous rates; historical rates wouldn't be saved.`,
         );
 
         continue;
       }
 
-      this.mergeTickers(tickers, { name: source.getResourceName() });
+      this.mergeTickers(tickers, { name: source.resourceName });
 
       availableSources += 1;
     }
@@ -349,7 +349,7 @@ export class RatesService {
   getAllCoins() {
     const sources = this.sources.filter((source) =>
       [CoingeckoApi.resourceName, CoinmarketcapApi.resourceName].includes(
-        source.getResourceName(),
+        source.resourceName,
       ),
     );
 

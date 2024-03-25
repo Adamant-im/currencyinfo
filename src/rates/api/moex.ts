@@ -96,7 +96,7 @@ export class MoexApi extends BaseApi {
       }
     }
 
-    this.logger.log('MOEX rates updated successfully');
+    this.logger.log(`${this.resourceName} rates updated successfully`);
 
     return rates;
   }

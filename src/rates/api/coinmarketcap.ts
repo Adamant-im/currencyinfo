@@ -126,16 +126,16 @@ export class CoinmarketcapApi extends CoinIdFetcher {
 
       if (!unavailable.length) {
         this.logger.log(
-          `Coinmarketcap rates updated against ${baseCurrency} successfully`,
+          `${this.resourceName} rates updated against ${baseCurrency} successfully`,
         );
       } else if (unavailable.length === coins?.length) {
         this.notifier.notify(
           'error',
-          `Unable to get all of ${coins?.length} coin rates from request to ${url}. Check Coinmarketcap service and config file.`,
+          `Unable to get all of ${coins?.length} coin rates from request to ${url}. Check ${this.resourceName} service and config file.`,
         );
       } else {
         this.logger.warn(
-          `Coinmarketcap rates updated against ${baseCurrency} successfully, except ${unavailable.join(
+          `${this.resourceName} rates updated against ${baseCurrency} successfully, except ${unavailable.join(
             ', ',
           )}`,
         );
@@ -144,7 +144,7 @@ export class CoinmarketcapApi extends CoinIdFetcher {
       return rates;
     } catch (error) {
       throw new Error(
-        `Unable to process data ${JSON.stringify(data)} from request to ${url}. Wrong Coinmarketcap API key? Error: ${error}`,
+        `Unable to process data ${JSON.stringify(data)} from request to ${url}. Wrong ${this.resourceName} API key? Error: ${error}`,
       );
     }
   }
@@ -181,7 +181,7 @@ export class CoinmarketcapApi extends CoinIdFetcher {
         if (!coin) {
           return this.notifier.notify(
             'warn',
-            `Unable to get ticker for Coinmarketcap symbol '${symbol}'. Check if the coin exists: ${url}.`,
+            `Unable to get ticker for ${this.resourceName} symbol '${symbol}'. Check if the coin exists: ${url}.`,
           );
         }
 
@@ -203,20 +203,16 @@ export class CoinmarketcapApi extends CoinIdFetcher {
       }
 
       if (!this.coins.length) {
-        console.error(
-          `Could not fetch coin list for ${this.getResourceName()}`,
-        );
+        console.error(`Could not fetch coin list for ${this.resourceName}`);
         process.exit(-1);
       }
 
-      this.logger.log(
-        `${this.getResourceName()} coin ids fetched successfully`,
-      );
+      this.logger.log(`${this.resourceName} coin ids fetched successfully`);
     } catch (error) {
       throw new Error(
         `Unable to process data ${JSON.stringify(
           data,
-        )} from request to ${url}. Unable to get Coinmarketcap coin ids. Try to restart InfoService or there will be no rates from Coinmarketcap. Error: ${error}`,
+        )} from request to ${url}. Unable to get ${this.resourceName} coin ids. Try to restart InfoService or there will be no rates from Coinmarketcap. Error: ${error}`,
       );
     }
   }

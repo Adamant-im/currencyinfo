@@ -73,7 +73,7 @@ export class CoingeckoApi extends CoinIdFetcher {
     });
 
     this.logger.log(
-      `Coingecko rates updated against ${baseCurrency} successfully`,
+      `${this.resourceName} rates updated against ${baseCurrency} successfully`,
     );
 
     return exchangeRates;
@@ -98,7 +98,7 @@ export class CoingeckoApi extends CoinIdFetcher {
       if (!coin) {
         return this.notifier.notify(
           'warn',
-          `Unable to get ticker for Coingecko symbol '${symbol}'. Check if the coin exists: ${coinsListUrl}.`,
+          `Unable to get ticker for ${this.resourceName} symbol '${symbol}'. Check if the coin exists: ${coinsListUrl}.`,
         );
       }
 
@@ -116,7 +116,7 @@ export class CoingeckoApi extends CoinIdFetcher {
       if (!coin?.symbol) {
         return this.notifier.notify(
           'warn',
-          `Unable to get ticker for Coingecko id '${id}'. Check if the coin exists: ${coinsListUrl}.`,
+          `Unable to get ticker for ${this.resourceName} id '${id}'. Check if the coin exists: ${coinsListUrl}.`,
         );
       }
 
@@ -127,10 +127,10 @@ export class CoingeckoApi extends CoinIdFetcher {
     });
 
     if (!this.coins.length) {
-      console.error(`Could not fetch coin list for ${this.getResourceName()}`);
+      console.error(`Could not fetch coin list for ${this.resourceName}`);
       process.exit(-1);
     }
 
-    this.logger.log('Coingecko coin ids fetched successfully');
+    this.logger.log(`${this.resourceName} coin ids fetched successfully`);
   }
 }

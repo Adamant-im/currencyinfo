@@ -51,7 +51,7 @@ export class CryptoCompareApi extends BaseApi {
     });
 
     this.logger.log(
-      `CryptoCompare rates updated against ${baseCurrency} successfully`,
+      `${this.resourceName} rates updated against ${baseCurrency} successfully`,
     );
 
     return exchangeRates;

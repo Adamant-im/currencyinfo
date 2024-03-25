@@ -22,10 +22,12 @@ export abstract class BaseApi {
   coins?: BaseCoin[];
 
   /**
-   * Returns readable name of the API.
+   * Readable API's name to get from inside the class.
    */
-  getResourceName() {
-    return (this.constructor as typeof BaseApi).resourceName;
+  resourceName: string;
+
+  constructor() {
+    this.resourceName = (this.constructor as typeof BaseApi).resourceName;
   }
 
   /**
