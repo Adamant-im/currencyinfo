@@ -24,7 +24,10 @@ export class CoingeckoApi extends BaseApi {
   public coins: CoingeckoCoin[] = [];
   public enabled =
     this.config.get('coingecko.enabled') !== false &&
-    !!this.config.get<string[]>('coingecko.coins')?.length;
+    !!(
+      this.config.get<string[]>('coingecko.coins')?.length ||
+      this.config.get<string[]>('coingecko.ids')?.length
+    );
 
   private ready: Promise<void>;
 
@@ -122,6 +125,11 @@ export class CoingeckoApi extends BaseApi {
         cg_id: id,
       });
     });
+
+    if (!this.coins.length) {
+      console.error(`Could not fetch coin list for ${this.getResourceName()}`);
+      process.exit(-1);
+    }
 
     this.logger.log('Coingecko coin ids fetched successfully');
   }
