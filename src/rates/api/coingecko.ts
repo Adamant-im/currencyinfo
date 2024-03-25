@@ -36,7 +36,7 @@ export class CoingeckoApi extends CoinIdFetcher {
     private logger: LoggerService,
     private notifier: Notifier,
   ) {
-    super();
+    super(logger);
 
     this.ready = this.fetchCoinIds();
   }
@@ -134,7 +134,7 @@ export class CoingeckoApi extends CoinIdFetcher {
     });
 
     if (!this.coins.length) {
-      console.error(`Could not fetch coin list for ${this.resourceName}`);
+      this.logger.error(`Could not fetch coin list for ${this.resourceName}`);
       process.exit(-1);
     }
 

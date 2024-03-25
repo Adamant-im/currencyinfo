@@ -48,9 +48,9 @@ const MONGODB_NAME = 'tickersdb';
       },
     }),
     RedisModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => {
+      imports: [ConfigModule, LoggerModule],
+      inject: [ConfigService, Logger],
+      useFactory: (config: ConfigService, logger: Logger) => {
         const port = config.get('server.redis.port');
         const host = config.get('server.redis.host');
 
@@ -59,7 +59,7 @@ const MONGODB_NAME = 'tickersdb';
           url: `redis://${host}:${port}`,
           options: {
             retryStrategy() {
-              console.error('Error: could not connect to Redis');
+              logger.error('Error: could not connect to Redis');
               process.exit(-1);
             },
           },
