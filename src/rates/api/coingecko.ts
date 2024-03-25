@@ -5,7 +5,7 @@ import axios from 'axios';
 
 import { Notifier } from 'src/global/notifier/notifier.service';
 
-import { BaseApi } from './base';
+import { CoinIdFetcher } from './coin-id-fetcher';
 import { Tickers } from './dto/tickers.dto';
 
 export interface CoingeckoCoinDto {
@@ -18,7 +18,7 @@ export interface CoingeckoCoin {
   cg_id: string;
 }
 
-export class CoingeckoApi extends BaseApi {
+export class CoingeckoApi extends CoinIdFetcher {
   static resourceName = 'Coingecko';
 
   public coins: CoingeckoCoin[] = [];
@@ -38,7 +38,7 @@ export class CoingeckoApi extends BaseApi {
   ) {
     super();
 
-    this.ready = this.getCoinIds();
+    this.ready = this.fetchCoinIds();
   }
 
   async fetch(baseCurrency: string): Promise<Tickers> {

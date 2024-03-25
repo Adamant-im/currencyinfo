@@ -5,7 +5,7 @@ import axios from 'axios';
 
 import { Notifier } from 'src/global/notifier/notifier.service';
 
-import { BaseApi } from './base';
+import { CoinIdFetcher } from './coin-id-fetcher';
 import { Tickers } from './dto/tickers.dto';
 
 export interface CoinmarketcapCoin {
@@ -54,15 +54,17 @@ export interface CoinmarketcapResponseDto {
 const baseUrl =
   'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest';
 
-export class CoinmarketcapApi extends BaseApi {
+export class CoinmarketcapApi extends CoinIdFetcher {
   static resourceName = 'Coinmarketcap';
 
   public coins: CoinmarketcapCoin[] = [];
   public enabled =
     this.config.get('coinmarketcap.enabled') !== false &&
     !!this.config.get<string>('coinmarketcap.api_key') &&
-    (!!this.config.get<string[]>('coinmarketcap.coins')?.length ||
-      !!this.config.get<string[]>('coinmarketcap.ids')?.length);
+    !!(
+      this.config.get<string[]>('coinmarketcap.coins')?.length ||
+      this.config.get<string[]>('coinmarketcap.ids')?.length
+    );
 
   private ready: Promise<void>;
 
@@ -73,7 +75,7 @@ export class CoinmarketcapApi extends BaseApi {
   ) {
     super();
 
-    this.ready = this.getCoinIds();
+    this.ready = this.fetchCoinIds();
   }
 
   async fetch(baseCurrency: string): Promise<Tickers> {
@@ -200,7 +202,16 @@ export class CoinmarketcapApi extends BaseApi {
         }
       }
 
-      this.logger.log('Coinmarketcap coin ids fetched successfully');
+      if (!this.coins.length) {
+        console.error(
+          `Could not fetch coin list for ${this.getResourceName()}`,
+        );
+        process.exit(-1);
+      }
+
+      this.logger.log(
+        `${this.getResourceName()} coin ids fetched successfully`,
+      );
     } catch (error) {
       throw new Error(
         `Unable to process data ${JSON.stringify(
