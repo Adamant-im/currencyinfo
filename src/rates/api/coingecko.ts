@@ -68,8 +68,15 @@ export class CoingeckoApi extends CoinIdFetcher {
     const coingeckoBaseCoin = baseCurrency.toLowerCase();
 
     this.coins?.forEach(({ symbol, cg_id }) => {
-      exchangeRates[`${symbol}/${baseCurrency}`] =
-        +data[cg_id][coingeckoBaseCoin].toFixed(decimals);
+      const rate = data[cg_id][coingeckoBaseCoin];
+
+      if (!rate) {
+        return this.logger.warn(
+          `Unable to get rates for ${this.resourceName} id '${cg_id}'`,
+        );
+      }
+
+      exchangeRates[`${symbol}/${baseCurrency}`] = +rate.toFixed(decimals);
     });
 
     this.logger.log(
