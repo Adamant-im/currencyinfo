@@ -25,7 +25,7 @@ export default () => {
   }
 
   console.info(
-    `InfoService successfully read a config-file '${configPath}'${
+    `InfoService successfully read the config-file '${configPath}'${
       isDev ? ' (dev)' : ''
     }.`,
   );
