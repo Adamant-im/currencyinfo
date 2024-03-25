@@ -28,7 +28,7 @@ export abstract class CoinIdFetcher extends BaseApi {
 
         setTimeout(
           () => resolve(this.fetchCoinIds(attempt + 1)),
-          attempt * 1000,
+          attempt * 10000,
         );
       }
     });
