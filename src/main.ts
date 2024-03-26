@@ -4,7 +4,6 @@ import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 
 import { Logger } from './global/logger/logger.service';
-import { LogLevelName } from './global/logger/logger.constants';
 import { Notifier } from './global/notifier/notifier.service';
 
 async function bootstrap() {
@@ -14,8 +13,7 @@ async function bootstrap() {
 
   const config = app.get(ConfigService);
 
-  const logLevel = config.get('log_level') as LogLevelName;
-  const logger = new Logger(logLevel);
+  const logger = new Logger(config);
 
   app.useLogger(logger);
 
