@@ -32,7 +32,7 @@
     // Array of ADAMANT addresses for sending notifications (optional)
     "adamant": ["U12345678901234567890"]
   },
-  "log_level": "warn", // Specifies the verbosity of logs (none, log, info, warn, error)
+  "log_level": "log", // Specifies the verbosity of logs (none, log, info, warn, error)
 
   // Record of fiat pairs and their codes to fetch rates from MOEX
   "moex": {
