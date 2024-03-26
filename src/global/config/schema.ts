@@ -53,7 +53,7 @@ export const schema = z
       })
       .partial()
       .optional(),
-    log_level: z.enum(['none', 'log', 'info', 'warn', 'error']).default('log'),
+    log_level: z.enum(['none', 'log', 'warn', 'error']).default('log'),
 
     // API
     moex: z.record(z.string()),
