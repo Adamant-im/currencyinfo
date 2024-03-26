@@ -22,64 +22,89 @@ export const discordWebhookUrl = z.custom<string>(
   'Invalid Discord webhook url. The format is `https://discord.com/api/webhooks/123456789012345678/aBCdeFg9h0iJKl1-_mNoPqRST2uvwXYZ3ab4cDefgH5ijklmnOPQrsTuvWxYZaBC-de_`. Read more at https://discord.com/developers/docs/resources/webhook',
 );
 
+const databaseSchema = z.object({
+  port: z.number(),
+  host: z.string(),
+});
+
 export const schema = z
   .object({
     // Formatting
-    decimals: z.number(),
+    decimals: z.number().default(12),
 
-    rateDifferencePercentThreshold: z.number(),
+    rateDifferencePercentThreshold: z.number().default(25),
     refreshInterval: z.number().optional(),
-    minSources: z.number(),
+    minSources: z.number().default(1),
 
     // Server
-    port: z.number(),
+    server: z.object({
+      port: z.number(),
+      mongodb: databaseSchema,
+      redis: databaseSchema,
+    }),
 
     // Logging
     passphrase: z.string().optional(),
     notify: z
       .object({
-        slack: slackWebhookUrl.array().optional(),
-        discord: discordWebhookUrl.array().optional(),
-        adamant: adamantAddress.array().optional(),
+        slack: slackWebhookUrl.array(),
+        discord: discordWebhookUrl.array(),
+        adamant: adamantAddress.array(),
       })
+      .partial()
       .optional(),
-    log_level: z.enum(['none', 'log', 'info', 'warn', 'error']),
+    log_level: z.enum(['none', 'log', 'warn', 'error']).default('log'),
 
     // API
     moex: z.record(z.string()),
+
     base_coins: z.array(coinName),
+    skip_coins: z.array(coinName).default([]),
+
+    currency_api: z
+      .object({
+        enabled: z.boolean(),
+        skip: z.array(coinName).default([]),
+      })
+      .partial()
+      .optional(),
 
     exchange_rate_host: z
       .object({
-        enabled: z.boolean().optional(),
+        enabled: z.boolean(),
         api_key: z.string(),
+        skip: z.array(coinName).default([]),
       })
+      .partial()
       .optional(),
 
     coinmarketcap: z
       .object({
-        enabled: z.boolean().optional(),
+        enabled: z.boolean(),
         api_key: z.string(),
-        coins: z.array(coinName).optional(),
-        ids: z.record(z.number()).optional(),
+        coins: z.array(coinName),
+        ids: z.record(z.number()),
       })
+      .partial()
       .optional(),
     cryptocompare: z
       .object({
-        enabled: z.boolean().optional(),
+        enabled: z.boolean(),
         api_key: z.string(),
-        coins: z.array(coinName).optional(),
+        coins: z.array(coinName),
       })
+      .partial()
       .optional(),
     coingecko: z
       .object({
-        enabled: z.boolean().optional(),
-        coins: z.array(coinName).optional(),
-        ids: z.array(z.string()).optional(),
+        enabled: z.boolean(),
+        coins: z.array(coinName),
+        ids: z.array(z.string()),
       })
+      .partial()
       .optional(),
   })
-  .strict() /* Throw error on unkown properties. This will help users to migrate from the
+  .strict() /* Throw error on unknown properties. This will help users to migrate from the
    * older versions of the app that use different config schema
    */
   .refine(

@@ -5,7 +5,7 @@ import axios from 'axios';
 
 import { Notifier } from 'src/global/notifier/notifier.service';
 
-import { BaseApi } from './base';
+import { CoinIdFetcher } from './coin-id-fetcher';
 import { Tickers } from './dto/tickers.dto';
 
 export interface CoinmarketcapCoin {
@@ -54,15 +54,17 @@ export interface CoinmarketcapResponseDto {
 const baseUrl =
   'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest';
 
-export class CoinmarketcapApi extends BaseApi {
+export class CoinmarketcapApi extends CoinIdFetcher {
   static resourceName = 'Coinmarketcap';
 
   public coins: CoinmarketcapCoin[] = [];
   public enabled =
     this.config.get('coinmarketcap.enabled') !== false &&
     !!this.config.get<string>('coinmarketcap.api_key') &&
-    (!!this.config.get<string[]>('coinmarketcap.coins')?.length ||
-      !!this.config.get<string[]>('coinmarketcap.ids')?.length);
+    !!(
+      this.config.get<string[]>('coinmarketcap.coins')?.length ||
+      this.config.get<string[]>('coinmarketcap.ids')?.length
+    );
 
   private ready: Promise<void>;
 
@@ -71,9 +73,9 @@ export class CoinmarketcapApi extends BaseApi {
     private logger: LoggerService,
     private notifier: Notifier,
   ) {
-    super();
+    super(logger);
 
-    this.ready = this.getCoinIds();
+    this.ready = this.fetchCoinIds();
   }
 
   async fetch(baseCurrency: string): Promise<Tickers> {
@@ -108,7 +110,7 @@ export class CoinmarketcapApi extends BaseApi {
 
       const coinmarketcapCoins = Object.values(data.data);
 
-      coins?.forEach((symbol) => {
+      coins.forEach((symbol) => {
         const coin = coinmarketcapCoins.find(
           (coin) => coin.symbol === symbol.toUpperCase(),
         );
@@ -124,16 +126,16 @@ export class CoinmarketcapApi extends BaseApi {
 
       if (!unavailable.length) {
         this.logger.log(
-          `Coinmarketcap rates updated against ${baseCurrency} successfully`,
+          `${this.resourceName} rates updated against ${baseCurrency} successfully`,
         );
       } else if (unavailable.length === coins?.length) {
         this.notifier.notify(
           'error',
-          `Unable to get all of ${coins?.length} coin rates from request to ${url}. Check Coinmarketcap service and config file.`,
+          `Unable to get all of ${coins?.length} coin rates from request to ${url}. Check ${this.resourceName} service and config file.`,
         );
       } else {
         this.logger.warn(
-          `Coinmarketcap rates updated against ${baseCurrency} successfully, except ${unavailable.join(
+          `${this.resourceName} rates updated against ${baseCurrency} successfully, except ${unavailable.join(
             ', ',
           )}`,
         );
@@ -142,7 +144,7 @@ export class CoinmarketcapApi extends BaseApi {
       return rates;
     } catch (error) {
       throw new Error(
-        `Unable to process data ${JSON.stringify(data)} from request to ${url}. Wrong Coinmarketcap API key? Error: ${error}`,
+        `Unable to process data ${JSON.stringify(data)} from request to ${url}. Wrong ${this.resourceName} API key? Error: ${error}`,
       );
     }
   }
@@ -171,7 +173,7 @@ export class CoinmarketcapApi extends BaseApi {
     const coinmarketcapCoins = Object.values(data.data);
 
     try {
-      coins?.forEach((symbol) => {
+      coins.forEach((symbol) => {
         const coin = coinmarketcapCoins.find(
           (coin) => coin.symbol === symbol.toUpperCase(),
         );
@@ -179,7 +181,7 @@ export class CoinmarketcapApi extends BaseApi {
         if (!coin) {
           return this.notifier.notify(
             'warn',
-            `Unable to get ticker for Coinmarketcap symbol '${symbol}'. Check if the coin exists: ${url}.`,
+            `Unable to get ticker for ${this.resourceName} symbol '${symbol}'. Check if the coin exists: ${url}.`,
           );
         }
 
@@ -200,12 +202,17 @@ export class CoinmarketcapApi extends BaseApi {
         }
       }
 
-      this.logger.log('Coinmarketcap coin ids fetched successfully');
+      if (!this.coins.length) {
+        this.logger.error(`Could not fetch coin list for ${this.resourceName}`);
+        process.exit(-1);
+      }
+
+      this.logger.log(`${this.resourceName} coin ids fetched successfully`);
     } catch (error) {
       throw new Error(
         `Unable to process data ${JSON.stringify(
           data,
-        )} from request to ${url}. Unable to get Coinmarketcap coin ids. Try to restart InfoService or there will be no rates from Coinmarketcap. Error: ${error}`,
+        )} from request to ${url}. Unable to get ${this.resourceName} coin ids. Try to restart InfoService or there will be no rates from Coinmarketcap. Error: ${error}`,
       );
     }
   }

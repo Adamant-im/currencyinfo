@@ -1,6 +1,7 @@
 import fs, { WriteStream } from 'fs';
 
-import { LoggerService } from '@nestjs/common';
+import { Injectable, LoggerService } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 import chalk from 'chalk';
 import ms from 'ms';
@@ -12,13 +13,14 @@ import {
   LogLevelName,
 } from './logger.constants';
 
+@Injectable()
 export class Logger implements LoggerService {
   private logStream: WriteStream;
   private logLevel: LogLevel;
 
   private previousTime = 0;
 
-  constructor(logLevel: LogLevelName) {
+  constructor(private config: ConfigService) {
     if (!fs.existsSync('./logs')) {
       fs.mkdirSync('./logs');
     }
@@ -26,6 +28,8 @@ export class Logger implements LoggerService {
     this.logStream = fs.createWriteStream(`./logs/${fullTime()}.log`, {
       flags: 'a',
     });
+
+    const logLevel = this.config.get('log_level') as LogLevelName;
 
     this.logLevel = LogLevel[logLevel];
   }

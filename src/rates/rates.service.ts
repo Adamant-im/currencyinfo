@@ -12,7 +12,6 @@ import { AxiosError } from 'axios';
 import { Notifier } from 'src/global/notifier/notifier.service';
 import {
   calculatePercentageDifference,
-  getTimestamp,
   isPositiveOrZeroNumber,
 } from 'src/shared/utils';
 
@@ -34,6 +33,8 @@ const CronIntervals = {
   EVERY_SECOND: 1000, // For debugging
 };
 
+const BASE_CURRENCY = 'USD';
+
 @Injectable()
 export class RatesService {
   tickers: Tickers = {};
@@ -52,9 +53,9 @@ export class RatesService {
   ) {
     this.sources = [
       // Fiat tickers
-      new CurrencyApi(this.config),
-      new ExchangeRateHost(this.config),
-      new MoexApi(this.config),
+      new CurrencyApi(this.config, this.logger),
+      new ExchangeRateHost(this.config, this.logger),
+      new MoexApi(this.config, this.logger),
 
       // Crypto tickers
       new CoinmarketcapApi(this.config, this.logger, this.notifier),
@@ -67,6 +68,9 @@ export class RatesService {
     this.init();
   }
 
+  /**
+   * Initializes the process of updating tickers and schedules it.
+   */
   init() {
     const refreshInterval = this.config.get<number>('refreshInterval');
 
@@ -81,10 +85,14 @@ export class RatesService {
     this.updateTickers();
   }
 
+  /**
+   * Retrieves data from all enabled API sources and stores it in the
+   * database if successful responses exceed the `config.minSources`.
+   */
   async updateTickers() {
     this.logger.log('Updating rates…');
 
-    const minSources = this.config.get<number>('minSources') ?? 1;
+    const minSources = this.config.get('minSources') as number;
 
     let availableSources = 0;
 
@@ -97,15 +105,17 @@ export class RatesService {
 
       if (!tickers) {
         this.fail(
-          `Error: Unable to get data from ${source.getResourceName()}. InfoService will provide previous rates; historical rates wouldn't be saved.`,
+          `Error: Unable to get data from ${source.resourceName}. InfoService will provide previous rates; historical rates wouldn't be saved.`,
         );
 
         continue;
       }
 
-      this.mergeTickers(tickers, { name: source.getResourceName() });
+      const success = this.mergeTickers(tickers, { name: source.resourceName });
 
-      availableSources += 1;
+      if (success) {
+        availableSources += 1;
+      }
     }
 
     if (availableSources < minSources) {
@@ -115,7 +125,7 @@ export class RatesService {
     }
 
     try {
-      const timestamp = getTimestamp();
+      const timestamp = Date.now();
 
       const createdTicker = new this.tickerModel({
         date: timestamp,
@@ -137,6 +147,10 @@ export class RatesService {
     }
   }
 
+  /**
+   * Returns the latest cached tickers for specified coins.
+   * To retrieve tickers for all available coins, pass an empty array.
+   */
   async getTickers(coins: string[]) {
     const requestedCoins = new Set(coins);
 
@@ -158,6 +172,10 @@ export class RatesService {
     return filteredCoins;
   }
 
+  /**
+   * Retrieves tickers from the database for a specified
+   * time period and coin, limited to 100 entries.
+   */
   async getHistoryTickers(options: GetHistoryDto) {
     const { from, to, timestamp, coin } = options;
 
@@ -229,9 +247,13 @@ export class RatesService {
     return result;
   }
 
+  /**
+   * Attempts to fetch ticker data from a specific API source.
+   * Returns `undefined` upon failure.
+   */
   async fetchTickers(source: BaseApi): Promise<Tickers | undefined> {
     try {
-      const tickers = await source.fetch('USD');
+      const tickers = await source.fetch(BASE_CURRENCY);
 
       return tickers;
     } catch (error) {
@@ -257,6 +279,10 @@ export class RatesService {
     }
   }
 
+  /**
+   * Updates the latest tickers from the given data,
+   * avoiding significant changes.
+   */
   mergeTickers(data: Tickers, options: { name: string }) {
     const acceptableDifference = this.config.get(
       'rateDifferencePercentThreshold',
@@ -282,16 +308,20 @@ export class RatesService {
     if (alerts.length) {
       const alertString = alerts.join(', ');
 
-      return this.fail(
+      this.fail(
         `Error: rates from different sources significantly differs: ${alertString}. InfoService will provide previous rates; historical rates wouldn't be saved.`,
       );
+
+      return false;
     }
 
     this.tickers = this.normalizeTickers({ ...this.tickers, ...data });
+
+    return true;
   }
 
   /**
-   * Calculates rates for each base coin using USD rate
+   * Adjusts the rates for each base coin using the USD rate.
    */
   normalizeTickers(tickers: Tickers) {
     const baseCoins = this.config.get<string[]>('base_coins');
@@ -319,10 +349,13 @@ export class RatesService {
     return tickers;
   }
 
+  /**
+   * Returns list of all the coin IDs from crypto tickers.
+   */
   getAllCoins() {
     const sources = this.sources.filter((source) =>
       [CoingeckoApi.resourceName, CoinmarketcapApi.resourceName].includes(
-        source.getResourceName(),
+        source.resourceName,
       ),
     );
 

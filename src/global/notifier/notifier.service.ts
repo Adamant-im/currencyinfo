@@ -33,6 +33,8 @@ export class Notifier {
   constructor(private config: ConfigService) {}
 
   async notify(notifyLevel: LogLevelName, message: string) {
+    this.logger[notifyLevel](removeMarkdown(message));
+
     const notify = this.config.get('notify');
 
     if (!notify) {
@@ -50,8 +52,6 @@ export class Notifier {
     if (!slack) {
       return;
     }
-
-    this.logger[notifyLevel](removeMarkdown(message));
 
     const params = {
       attachments: [
@@ -113,13 +113,13 @@ export class Notifier {
     }
 
     const promises = addresses.map(async (address) => {
-      const formatedMessage = formatMessageForAdamant(message);
+      const formattedMessage = formatMessageForAdamant(message);
 
       try {
         const response = await api.sendMessage(
           passphrase,
           address,
-          `${notifyLevel}| ${formatedMessage}`,
+          `${notifyLevel}| ${formattedMessage}`,
         );
 
         if (!response.success) {
@@ -127,7 +127,7 @@ export class Notifier {
         }
       } catch (error) {
         this.logger.warn(
-          `Failed to send notification message '${formatedMessage}' to ${address}. ${error}.`,
+          `Failed to send notification message '${formattedMessage}' to ${address}. ${error}.`,
         );
       }
     });

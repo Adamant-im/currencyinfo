@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import { LoggerService } from '@nestjs/common';
 
 import axios from 'axios';
 
@@ -14,18 +15,30 @@ export interface ExchangeRateHostDto {
 }
 
 const baseUrl = `https://api.exchangerate.host/live`;
-const skipCoins = ['USD', 'ETH'];
 
 export class ExchangeRateHost extends BaseApi {
   static resourceName = 'ExchangeRateHost';
 
-  public enabled =
-    this.config.get('exchange_rate_host.enabled') !== false &&
-    !!this.config.get<string>('exchange_rate_host.api_key') &&
-    !!this.config.get<string[]>('base_coins')?.length;
+  public enabled: boolean;
 
-  constructor(private config: ConfigService) {
+  private baseCoins: string[];
+
+  constructor(
+    private config: ConfigService,
+    private logger: LoggerService,
+  ) {
     super();
+
+    const baseCoins = this.config.get('base_coins') as string[];
+    const skipCoins =
+      this.config.get<string[]>('exchange_rate_host.skip') || [];
+
+    this.baseCoins = baseCoins.filter((coin) => !skipCoins.includes(coin));
+
+    this.enabled =
+      this.config.get('exchange_rate_host.enabled') !== false &&
+      !!this.config.get<string>('exchange_rate_host.api_key') &&
+      !!this.baseCoins.length;
   }
 
   async fetch(): Promise<Tickers> {
@@ -42,15 +55,10 @@ export class ExchangeRateHost extends BaseApi {
     try {
       const rates = {};
 
-      const baseCoins = this.config.get('base_coins') as string[];
       const decimals = this.config.get<number>('decimals');
 
-      baseCoins.forEach((symbol) => {
+      this.baseCoins.forEach((symbol) => {
         const coin = symbol.toUpperCase();
-
-        if (skipCoins.includes(coin)) {
-          return;
-        }
 
         const rate = data.quotes[`USD${coin}`];
 
@@ -61,6 +69,8 @@ export class ExchangeRateHost extends BaseApi {
         rates[`USD/${coin}`] = +rate.toFixed(decimals);
         rates[`${coin}/USD`] = +(1 / +rate).toFixed(decimals);
       });
+
+      this.logger.log(`${this.resourceName} rates updated successfully`);
 
       return rates;
     } catch (error) {
