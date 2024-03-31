@@ -2,6 +2,7 @@ services:
   app:
     container_name: currencyinfo
     build: .
+    restart: always
     ports:
       - '36661:36661'
     depends_on:
