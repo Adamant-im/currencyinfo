@@ -87,14 +87,14 @@ function transformConfig(config) {
     minSources: 2,
 
     server: {
-      port: config.port,
+      port: 36661,
       mongodb: {
         port: 27017,
-        host: '127.0.0.1',
+        host: 'mongodb',
       },
       redis: {
         port: 6379,
-        host: 'localhost',
+        host: 'redis',
       },
     },
 
