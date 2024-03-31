@@ -17,17 +17,15 @@ It collects rates from **MOEX, Currency-Api, and ExchangeRate for fiat tickers**
 
 ### Requirements
 
-- NodeJS
-- MongoDB
-- Redis
-- pnpm
+- Docker
+- docker-compose
 
 ### Setup
 
 ```
 git clone https://github.com/Adamant-im/currencyinfo
 cd currencyinfo
-pnpm i
+pnpm run prestart
 ```
 
 ### Pre-launch tuning
@@ -37,34 +35,44 @@ cp config.default.jsonc config.jsonc
 nano config.jsonc
 ```
 
+If you are migrating from v3, you can use this command to copy your old configuration:
+
+```
+pnpm run migrate ../path/to/your/old/config.json
+```
+
 ## Launching
 
 Before launching, you need to build the app using the following command:
 
 ```
-pnpm run build
+sudo docker compose -f docker-compose.prod.yaml build
 ```
 
-After that, you can start the ADAMANT Currencyinfo with `pnpm run start:prod` command, but it's recommended to use process manager:
+After that, you can start the ADAMANT Currencyinfo with the following command:
 
 ```
-pm2 start pnpm --name "currency-info" -- run start:prod
-```
-
-### Cron
-
-```
-crontab -e
-```
-
-Add string:
-
-```
-@reboot cd /home/adamant/currencyinfo && pm2 start pnpm --name "currency-info" -- run start:prod
+sudo docker compose -f docker-compose.prod.yaml up -d
 ```
 
 ## Usage
 
-To test Currencyinfo successfully installed, try to open the link http://IP:36661/get?coin=ADM in a web browser.
+To test if Currencyinfo was successfully installed, try to this command:
+
+```
+curl -L http://localhost:36661/get?coin=ADM
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "date": 1711925331578,
+  "result": {},
+  "last_updated": 1711925043818,
+  "version": "4.0.0"
+}
+```
 
 For usage, see [InfoServices API documentation](https://github.com/Adamant-im/currencyinfo/wiki/InfoServices-API-documentation).
