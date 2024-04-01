@@ -26,4 +26,4 @@ COPY --from=builder /usr/src/currencyinfo/config.default.jsonc \
   ./
 
 EXPOSE 36661
-CMD ["node", "dist/main"]
+CMD ["pnpm", "run", "start:prod"]
