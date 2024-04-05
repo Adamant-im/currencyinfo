@@ -44,6 +44,11 @@
 
   "base_coins": ["USD", "RUB", "EUR", "CNY", "JPY", "BTC", "ETH"], // List of base coins for calculating all available pairs
 
+  "currency_api": {
+    "enabled": true, // Enable or disable CurrencyApi (optional).
+    "skip": ["USD", "ETH"] // List of the coins to exclude from the base_coins for CurrencyApi (optional).
+  },
+
   "exchange_rate_host": {
     "enabled": true, // Enable or disable ExchangeRate API (optional).
     "api_key": "API key for ExchangeRate.",
