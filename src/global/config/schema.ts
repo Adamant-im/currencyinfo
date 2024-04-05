@@ -59,7 +59,6 @@ export const schema = z
     moex: z.record(z.string()),
 
     base_coins: z.array(coinName),
-    skip_coins: z.array(coinName).default([]),
 
     currency_api: z
       .object({

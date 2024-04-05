@@ -15,6 +15,27 @@ It collects rates from **MOEX, Currency-Api, and ExchangeRate for fiat tickers**
 
 ## Installation
 
+Docker is the recommended way to run Currencyinfo.
+
+### Configuration
+
+Using [this sample file](./config.default.jsonc)
+
+### Docker Compose
+
+It is recommended to use Docker Compose to manage the various docker containers, if your MongoDB and Redis are running in the cloud then you may skip this step and run the single Currencyinfo docker container directly.
+
+1. Install [Docker Compose](https://docs.docker.com/compose/install/)
+2. Optionally, you can create `docker-compose.override.yml` file to set custom port or restart policy:
+
+```yaml
+services:
+  app:
+    restart: no
+    ports:
+      - '8080:8080'
+```
+
 ### Requirements
 
 - Docker

@@ -43,7 +43,6 @@
   },
 
   "base_coins": ["USD", "RUB", "EUR", "CNY", "JPY", "BTC", "ETH"], // List of base coins for calculating all available pairs
-  "skip_coins": ["USD", "BTC", "ETH"], // List of the coins to exclude from the base_coins (optional).
 
   "exchange_rate_host": {
     "enabled": true, // Enable or disable ExchangeRate API (optional).
