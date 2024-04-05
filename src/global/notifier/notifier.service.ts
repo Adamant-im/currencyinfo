@@ -106,7 +106,7 @@ export class Notifier {
 
   async notifyAdamant(notifyLevel: LogLevelName, message: string) {
     const addresses = this.config.get<string[]>('notify.adamant');
-    const passphrase = this.config.get<string>('passphrase');
+    const passphrase = this.config.get<string>('notify.adamantPassphrase');
 
     if (!addresses || !passphrase) {
       return;

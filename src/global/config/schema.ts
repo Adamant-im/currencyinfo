@@ -44,12 +44,12 @@ export const schema = z
     }),
 
     // Logging
-    passphrase: z.string().optional(),
     notify: z
       .object({
         slack: slackWebhookUrl.array(),
         discord: discordWebhookUrl.array(),
         adamant: adamantAddress.array(),
+        adamantPassphrase: z.string().optional(),
       })
       .partial()
       .optional(),
@@ -107,7 +107,7 @@ export const schema = z
    * older versions of the app that use different config schema
    */
   .refine(
-    (schema) => !(schema.notify?.adamant && !schema.passphrase),
+    (schema) => !(schema.notify?.adamant && !schema.notify?.adamantPassphrase),
     'Provide passphrase to use ADAMANT notifier',
   );
 

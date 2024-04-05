@@ -17,7 +17,6 @@
     }
   },
 
-  "passphrase": "apple banana...", // Secret passphrase for ADAMANT notifications (optional)
   "notify": {
     // Array of Slack webhook URLs for sending notifications (optional)
     "slack": [
@@ -29,6 +28,8 @@
       "https://discord.com/api/webhooks/123456789012345678/aBCdeFg9h0iJKl1-_mNoPqRST2uvwXYZ3ab4cDefgH5ijklmnOPQrsTuvWxYZaBC-de_"
     ],
 
+    // // Secret passphrase for ADAMANT notifications (optional)
+    "adamantPassphrase": "apple banana...",
     // Array of ADAMANT addresses for sending notifications (optional)
     "adamant": ["U12345678901234567890"]
   },
