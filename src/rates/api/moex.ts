@@ -34,12 +34,13 @@ export interface MoexResponseDto {
   };
 }
 
-const url = 'https://rusdoor.adamant.im/securities.jsonp';
-
 export class MoexApi extends BaseApi {
   static resourceName = 'MOEX';
 
-  public enabled = !!this.config.get<Record<string, string>>('moex');
+  public enabled =
+    this.config.get<boolean>('moex.enabled') !== false &&
+    !!Object.keys(this.config.get<Record<string, string>>('moex.codes') || {})
+      .length;
 
   constructor(
     private config: ConfigService,
@@ -53,7 +54,8 @@ export class MoexApi extends BaseApi {
       return {};
     }
 
-    const pairs = this.config.get('moex') as Record<string, string>;
+    const pairs = this.config.get('moex.codes') as Record<string, string>;
+    const url = this.config.get('moex.url') as string;
 
     const rates = {};
 

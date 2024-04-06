@@ -35,12 +35,18 @@
   },
   "log_level": "log", // Specifies the verbosity of logs (none, log, warn, error)
 
-  // Record of fiat pairs and their codes to fetch rates from MOEX
   "moex": {
-    "USD/RUB": "USDRUB_TOM",
-    "EUR/RUB": "EURRUB_TOM",
-    "CNY/RUB": "CNYRUB_TOM"
-    // ...
+    // Enable or disable Moex API (optional)
+    "enabled": true,
+    // API URL
+    "url": "https://rusdoor.adamant.im/securities.jsonp",
+    // Record of fiat pairs and their codes to fetch rates from MOEX
+    "codes": {
+      "USD/RUB": "USDRUB_TOM",
+      "EUR/RUB": "EURRUB_TOM",
+      "CNY/RUB": "CNYRUB_TOM"
+      // ...
+    }
   },
 
   "base_coins": ["USD", "RUB", "EUR", "CNY", "JPY", "BTC", "ETH"], // List of base coins for calculating all available pairs

@@ -56,7 +56,13 @@ export const schema = z
     log_level: z.enum(['none', 'log', 'warn', 'error']).default('log'),
 
     // API
-    moex: z.record(z.string()),
+    moex: z
+      .object({
+        url: z.string().url(),
+        enabled: z.boolean().optional(),
+        codes: z.record(z.string()),
+      })
+      .optional(),
 
     base_coins: z.array(coinName),
 
@@ -65,7 +71,6 @@ export const schema = z
         enabled: z.boolean(),
         skip: z.array(coinName).default([]),
       })
-      .partial()
       .optional(),
 
     exchange_rate_host: z
