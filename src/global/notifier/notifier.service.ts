@@ -123,7 +123,7 @@ export class Notifier {
         );
 
         if (!response.success) {
-          throw new Error(`${response}`);
+          throw new Error(JSON.stringify(response));
         }
       } catch (error) {
         this.logger.warn(
