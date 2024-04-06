@@ -52,8 +52,12 @@
   "base_coins": ["USD", "RUB", "EUR", "CNY", "JPY", "BTC", "ETH"], // List of base coins for calculating all available pairs
 
   "currency_api": {
-    "enabled": true, // Enable or disable CurrencyApi (optional).
-    "skip": ["USD", "ETH"] // List of the coins to exclude from the base_coins for CurrencyApi (optional).
+    // Enable or disable CurrencyApi (optional)
+    "enabled": true,
+    // API URL
+    "url": "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json",
+    // List of the coins to exclude from the base_coins for CurrencyApi (optional)
+    "skip": ["USD", "ETH"]
   },
 
   "exchange_rate_host": {

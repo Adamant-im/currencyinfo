@@ -68,7 +68,8 @@ export const schema = z
 
     currency_api: z
       .object({
-        enabled: z.boolean(),
+        url: z.string().url(),
+        enabled: z.boolean().optional(),
         skip: z.array(coinName).default([]),
       })
       .optional(),

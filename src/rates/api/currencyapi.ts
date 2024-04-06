@@ -14,9 +14,6 @@ export interface CurrencyApiDto {
   rates: CurrencyApiRates;
 }
 
-const url =
-  'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json';
-
 export class CurrencyApi extends BaseApi {
   static resourceName = 'CurrencyApi';
 
@@ -37,6 +34,7 @@ export class CurrencyApi extends BaseApi {
 
     this.enabled =
       this.config.get('currency_api.enabled') !== false &&
+      this.config.get('currency_api.url') &&
       !!this.baseCoins.length;
   }
 
@@ -44,6 +42,8 @@ export class CurrencyApi extends BaseApi {
     if (!this.enabled) {
       return {};
     }
+
+    const url = this.config.get('currency_api.url') as string;
 
     const { data } = await axios.get<CurrencyApiDto>(url);
 
