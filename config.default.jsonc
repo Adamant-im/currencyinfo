@@ -61,13 +61,13 @@
   },
 
   "exchange_rate_host": {
-    "enabled": true, // Enable or disable ExchangeRate API (optional)
+    "enabled": false, // Enable or disable ExchangeRate API (optional)
     "api_key": "API key for ExchangeRate.",
     "skip": ["USD", "ETH"] // List of the coins to exclude from the base_coins for the ExchangeRateHost (optional)
   },
 
   "coinmarketcap": {
-    "enabled": true, // Enable or disable CoinMarketCap API (optional)
+    "enabled": false, // Enable or disable CoinMarketCap API (optional)
     "api_key": "API key for CoinMarketCap",
     "coins": [
       // List of coins to fetch rates from CoinMarketCap (optional, deprecated)
