@@ -15,70 +15,13 @@ It collects rates from **MOEX, Currency-Api, and ExchangeRate for fiat tickers**
 
 ## Installation
 
-Docker is the recommended way to run Currencyinfo.
+Please follow the documentation at [Github Wiki](https://github.com/Adamant-im/currencyinfo/wiki/Installation)
 
-### Configuration
-
-Using [this sample file](./config.default.jsonc)
-
-### Docker Compose
-
-It is recommended to use Docker Compose to manage the various docker containers, if your MongoDB and Redis are running in the cloud then you may skip this step and run the single Currencyinfo docker container directly.
-
-1. Install [Docker Compose](https://docs.docker.com/compose/install/)
-2. Optionally, you can create `docker-compose.override.yml` file to set custom port or restart policy:
-
-```yaml
-services:
-  app:
-    restart: no
-    ports:
-      - '8080:8080'
-```
-
-### Requirements
-
-- Docker
-- docker-compose
-
-### Setup
-
-```
-git clone https://github.com/Adamant-im/currencyinfo
-cd currencyinfo
-pnpm run prestart
-```
-
-### Pre-launch tuning
-
-```
-cp config.default.jsonc config.jsonc
-nano config.jsonc
-```
-
-If you are migrating from v3, you can use this command to copy your old configuration:
-
-```
-pnpm run migrate ../path/to/your/old/config.json
-```
-
-## Launching
-
-Before launching, you need to build the app using the following command:
-
-```
-docker compose -f docker-compose.prod.yaml build
-```
-
-After that, you can start the ADAMANT Currencyinfo with the following command:
-
-```
-docker compose -f docker-compose.prod.yaml up -d
-```
+For development setup, see [CONTRIBUTING.md](./.github/CONTRIBUTING.md)
 
 ## Usage
 
-To test if Currencyinfo was successfully installed, try to this command:
+To test if Currencyinfo was successfully installed, try to run this command:
 
 ```
 curl -L http://localhost:36661/get?coin=ADM
