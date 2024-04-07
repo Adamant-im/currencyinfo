@@ -67,13 +67,13 @@ pnpm run migrate ../path/to/your/old/config.json
 Before launching, you need to build the app using the following command:
 
 ```
-sudo docker compose -f docker-compose.prod.yaml build
+docker compose -f docker-compose.prod.yaml build
 ```
 
 After that, you can start the ADAMANT Currencyinfo with the following command:
 
 ```
-sudo docker compose -f docker-compose.prod.yaml up -d
+docker compose -f docker-compose.prod.yaml up -d
 ```
 
 ## Usage
