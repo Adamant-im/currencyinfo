@@ -1,7 +1,7 @@
 {
   "decimals": 12, // Number of decimal places for rate values
   "rateDifferencePercentThreshold": 25, // Percentage threshold for notifying significant rate deviations
-  "refreshInterval": 10, // The frequency of rate updates from sources in minutes (optional). Frequent refreshes may require paid API keys.
+  "refreshInterval": 10, // The frequency of rate updates from sources in minutes (optional). Frequent refreshes may require paid API keys
   "minSources": 1, // Minimum number of sources required for rate calculation
 
   "server": {
@@ -28,7 +28,7 @@
       "https://discord.com/api/webhooks/123456789012345678/aBCdeFg9h0iJKl1-_mNoPqRST2uvwXYZ3ab4cDefgH5ijklmnOPQrsTuvWxYZaBC-de_"
     ],
 
-    // // Secret passphrase for ADAMANT notifications (optional)
+    // Secret passphrase for ADAMANT notifications (optional)
     "adamantPassphrase": "apple banana...",
     // Array of ADAMANT addresses for sending notifications (optional)
     "adamant": ["U12345678901234567890"]
@@ -61,9 +61,9 @@
   },
 
   "exchange_rate_host": {
-    "enabled": true, // Enable or disable ExchangeRate API (optional).
+    "enabled": true, // Enable or disable ExchangeRate API (optional)
     "api_key": "API key for ExchangeRate.",
-    "skip": ["USD", "ETH"] // List of the coins to exclude from the base_coins for the ExchangeRateHost (optional).
+    "skip": ["USD", "ETH"] // List of the coins to exclude from the base_coins for the ExchangeRateHost (optional)
   },
 
   "coinmarketcap": {
