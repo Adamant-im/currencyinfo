@@ -3,9 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { InjectModel } from '@nestjs/mongoose';
 
-import Redis from 'ioredis';
-import { InjectRedis } from '@nestjs-modules/ioredis';
-
 import { Model, PipelineStage } from 'mongoose';
 import { AxiosError } from 'axios';
 
@@ -38,6 +35,7 @@ const BASE_CURRENCY = 'USD';
 @Injectable()
 export class RatesService {
   tickers: Tickers = {};
+  lastUpdated = 0;
 
   private sources: BaseApi[];
   private sourceCount: number;
@@ -45,7 +43,6 @@ export class RatesService {
   private readonly logger = new Logger();
 
   constructor(
-    @InjectRedis() private readonly redis: Redis,
     @InjectModel(Ticker.name) private tickerModel: Model<Ticker>,
     private schedulerRegistry: SchedulerRegistry,
     private config: ConfigService,
@@ -134,7 +131,7 @@ export class RatesService {
 
       await createdTicker.save();
 
-      await this.redis.set('last_updated', timestamp);
+      this.lastUpdated = timestamp;
 
       this.logger.log(
         `Rates from ${availableSources}/${this.sourceCount} sources saved successfully`,

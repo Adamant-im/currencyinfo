@@ -1,12 +1,4 @@
 services:
-  redis:
-    container_name: redis
-    ports:
-      - '6379:6379'
-    image: 'redis:latest'
-    volumes:
-      - redis_data:/data
-
   mongodb:
     container_name: mongodb
     image: 'mongo:latest'
@@ -16,5 +8,4 @@ services:
       - mongo_data:/data/db
 
 volumes:
-  redis_data:
   mongo_data:

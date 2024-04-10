@@ -4,7 +4,6 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { MongooseModule } from '@nestjs/mongoose';
-import { RedisModule } from '@nestjs-modules/ioredis';
 
 import configuration from './global/config/configuration';
 
@@ -43,25 +42,6 @@ const MONGODB_NAME = 'tickersdb';
             });
             connection._events.connected();
             return connection;
-          },
-        };
-      },
-    }),
-    RedisModule.forRootAsync({
-      imports: [ConfigModule, LoggerModule],
-      inject: [ConfigService, Logger],
-      useFactory: (config: ConfigService, logger: Logger) => {
-        const port = config.get('server.redis.port');
-        const host = config.get('server.redis.host');
-
-        return {
-          type: 'single',
-          url: `redis://${host}:${port}`,
-          options: {
-            retryStrategy() {
-              logger.error('Error: could not connect to Redis');
-              process.exit(-1);
-            },
           },
         };
       },

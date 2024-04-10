@@ -10,10 +10,6 @@
     "mongodb": {
       "host": "mongodb",
       "port": 27017
-    },
-    "redis": {
-      "host": "redis",
-      "port": 6379
     }
   },
 

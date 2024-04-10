@@ -40,7 +40,6 @@ export const schema = z
     server: z.object({
       port: z.number(),
       mongodb: databaseSchema,
-      redis: databaseSchema,
     }),
 
     // Logging

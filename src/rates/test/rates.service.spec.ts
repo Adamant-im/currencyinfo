@@ -1,5 +1,4 @@
 import { getModelToken } from '@nestjs/mongoose';
-import { getRedisConnectionToken } from '@nestjs-modules/ioredis';
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
@@ -54,7 +53,6 @@ describe('RatesService', () => {
         { provide: ConfigService, useValue: mockConfigService },
         { provide: SchedulerRegistry, useValue: {} },
         { provide: Notifier, useValue: {} },
-        { provide: getRedisConnectionToken('default'), useValue: {} },
         { provide: getModelToken('Ticker'), useValue: {} },
       ],
     }).compile();

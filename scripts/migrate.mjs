@@ -92,10 +92,6 @@ function transformConfig(config) {
         port: 27017,
         host: 'mongodb',
       },
-      redis: {
-        port: 6379,
-        host: 'redis',
-      },
     },
 
     notify,

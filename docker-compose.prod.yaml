@@ -6,18 +6,9 @@ services:
     ports:
       - '36661:36661'
     depends_on:
-      - redis
       - mongodb
     volumes:
       - ./config.jsonc:/usr/src/currencyinfo/config.jsonc
-    networks:
-      - app_network
-
-  redis:
-    container_name: redis
-    image: 'redis:latest'
-    volumes:
-      - redis_data:/data
     networks:
       - app_network
 
@@ -33,5 +24,4 @@ networks:
   app_network:
 
 volumes:
-  redis_data:
   mongo_data:
