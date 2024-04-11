@@ -16,7 +16,7 @@ export const adamantAddress = z.custom<string>(
 
 export const discordWebhookUrl = z.custom<string>(
   (val) =>
-    /^https:\/\/discord\.com\/api\/webhooks\/\d+\/[A-Za-z0-9_\-]+$/.test(
+    /^https:\/\/discord(app)?\.com\/api\/webhooks\/\d+\/[A-Za-z0-9_\-]+$/.test(
       val as string,
     ),
   'Invalid Discord webhook url. The format is `https://discord.com/api/webhooks/123456789012345678/aBCdeFg9h0iJKl1-_mNoPqRST2uvwXYZ3ab4cDefgH5ijklmnOPQrsTuvWxYZaBC-de_`. Read more at https://discord.com/developers/docs/resources/webhook',
