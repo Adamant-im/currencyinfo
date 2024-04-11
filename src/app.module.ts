@@ -34,6 +34,7 @@ const MONGODB_NAME = 'tickersdb';
         return {
           uri: `mongodb://${host}:${port}/${MONGODB_NAME}`,
           retryAttempts: 0,
+          serverSelectionTimeoutMS: 1000,
           connectionFactory(connection) {
             connection.on('connected', () => {
               logger.log(
