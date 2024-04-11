@@ -57,7 +57,7 @@ export class MoexApi extends BaseApi {
     const pairs = this.config.get('moex.codes') as Record<string, string>;
     const url = this.config.get('moex.url') as string;
 
-    const rates = {};
+    const rates: Record<string, number> = {};
 
     const response = await axios.get<MoexResponseDto>(url);
 

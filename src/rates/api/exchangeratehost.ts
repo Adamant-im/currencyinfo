@@ -53,7 +53,7 @@ export class ExchangeRateHost extends BaseApi {
     const { data } = await axios.get<ExchangeRateHostDto>(url);
 
     try {
-      const rates = {};
+      const rates: Record<string, number> = {};
 
       const decimals = this.config.get<number>('decimals');
 

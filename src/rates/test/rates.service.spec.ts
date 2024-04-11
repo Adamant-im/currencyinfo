@@ -15,8 +15,8 @@ const mockConfig = {
 
 const mockConfigService = {
   get: jest.fn().mockImplementation((propertyPath: string) => {
-    if (mockConfig[propertyPath]) {
-      return mockConfig[propertyPath];
+    if (propertyPath in mockConfig) {
+      return mockConfig[propertyPath as keyof typeof mockConfig];
     }
 
     if (propertyPath.includes('coins')) {

@@ -105,7 +105,7 @@ export class CoinmarketcapApi extends CoinIdFetcher {
     try {
       const decimals = this.config.get<number>('decimals');
 
-      const rates = {};
+      const rates: Record<string, number> = {};
       const unavailable: string[] = [];
 
       const coinmarketcapCoins = Object.values(data.data);

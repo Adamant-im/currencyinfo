@@ -11,7 +11,7 @@ export interface CurrencyApiRates {
 }
 
 export interface CurrencyApiDto {
-  rates: CurrencyApiRates;
+  usd: CurrencyApiRates;
 }
 
 export class CurrencyApi extends BaseApi {
