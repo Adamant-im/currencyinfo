@@ -67,7 +67,7 @@ export function formatMessageForAdamant(text: string) {
   return singleAsteriskToDouble(doubleAsterisksToSingle(text));
 }
 
-export function isPositiveOrZeroNumber(value: unknown) {
+export function isPositiveOrZeroNumber(value: number) {
   return isNumber(value) && value >= 0;
 }
 

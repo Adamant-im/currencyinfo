@@ -61,37 +61,40 @@ describe('RatesService', () => {
   });
 
   it('should notify about significant differs', () => {
-    ratesService.tickers = {
-      'USD/BTC': 0.00001,
+    ratesService.sourceTickers = {
+      'USD/BTC': {
+        source: 'Coingecko',
+        price: 0.00001,
+      },
     };
 
-    const error = ratesService.mergeTickers(
+    const success = ratesService.mergeTickers(
       {
-        'USD/BTC': 0.000016,
+        'USD/BTC': 0.0000016,
       },
       { name: 'Test' },
     );
 
-    expect(error).toMatch(/46\%/);
+    expect(success).toBeFalsy();
   });
 
   it('should normalize and merge tickers', () => {
-    ratesService.tickers = {
-      'USD/RUB': 91,
-      'JPY/USD': 0.0067,
+    ratesService.sourceTickers = {
+      'USD/RUB': { source: 'MOEX', price: 91 },
+      'JPY/USD': { source: 'MOEX', price: 0.0067 },
 
-      'USD/BTC': 0.000016,
-      'ETH/USD': 3467,
+      'USD/BTC': { source: 'MOEX', price: 0.000016 },
+      'ETH/USD': { source: 'MOEX', price: 3467 },
     };
 
-    const error = ratesService.mergeTickers(
+    const success = ratesService.mergeTickers(
       {
         'USD/BTC': 0.0000157,
       },
       { name: 'Test' },
     );
 
-    expect(error).toBeUndefined();
+    expect(success).toBeTruthy();
     expect(ratesService.tickers).toEqual({
       'USD/RUB': 91,
       'JPY/USD': 0.0067,

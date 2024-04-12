@@ -12,7 +12,7 @@ import {
   isPositiveOrZeroNumber,
 } from 'src/shared/utils';
 
-import { Tickers } from './api/dto/tickers.dto';
+import { Tickers, SourceTickers } from './api/dto/tickers.dto';
 import { Ticker } from './schemas/ticker.schema';
 
 import { BaseApi } from './api/base';
@@ -34,8 +34,8 @@ const BASE_CURRENCY = 'USD';
 
 @Injectable()
 export class RatesService {
-  tickers: Tickers = {};
   lastUpdated = 0;
+  sourceTickers: SourceTickers = {};
 
   private sources: BaseApi[];
   private sourceCount: number;
@@ -63,6 +63,16 @@ export class RatesService {
     this.sourceCount = this.sources.filter((source) => source.enabled).length;
 
     this.init();
+  }
+
+  get tickers(): Tickers {
+    const tickers: Tickers = {};
+
+    for (const [rate, ticker] of Object.entries(this.sourceTickers)) {
+      tickers[rate] = ticker.price;
+    }
+
+    return tickers;
   }
 
   /**
@@ -277,10 +287,9 @@ export class RatesService {
   }
 
   /**
-   * Updates the latest tickers from the given data,
-   * avoiding significant changes.
+   * Checks incoming tickers for significant changes against saved ones
    */
-  mergeTickers(data: Tickers, options: { name: string }) {
+  compareTickers(data: Tickers, options: { name: string }) {
     const acceptableDifference = this.config.get(
       'rateDifferencePercentThreshold',
     );
@@ -289,14 +298,21 @@ export class RatesService {
     const alerts: string[] = [];
 
     for (const [key, income] of Object.entries(data)) {
-      const saved = this.tickers[key];
+      const saved = this.sourceTickers[key];
 
-      if (isPositiveOrZeroNumber(income) && isPositiveOrZeroNumber(saved)) {
-        const difference = calculatePercentageDifference(income, saved);
+      if (!saved) {
+        continue;
+      }
+
+      if (
+        isPositiveOrZeroNumber(income) &&
+        isPositiveOrZeroNumber(saved.price)
+      ) {
+        const difference = calculatePercentageDifference(income, saved.price);
 
         if (difference > acceptableDifference) {
           alerts.push(
-            `**${key}** ${difference.toFixed(0)}%: ${income.toFixed(decimals)} (${options.name}) — ${saved.toFixed(decimals)}`,
+            `**${key}** ${difference.toFixed(0)}%: ${income.toFixed(decimals)} (${options.name}) — ${saved.price.toFixed(decimals)} (${saved.source})`,
           );
         }
       }
@@ -305,14 +321,35 @@ export class RatesService {
     if (alerts.length) {
       const alertString = alerts.join(', ');
 
-      this.fail(
-        `Error: rates from different sources significantly differs: ${alertString}. InfoService will provide previous rates; historical rates wouldn't be saved.`,
-      );
+      return `Error: rates from different sources significantly differs: ${alertString}. InfoService will provide previous rates; historical rates wouldn't be saved.`;
+    }
+  }
 
+  /**
+   * Updates the latest tickers from the given data,
+   * avoiding significant changes.
+   */
+  mergeTickers(data: Tickers, options: { name: string }) {
+    const error = this.compareTickers(data, options);
+
+    if (error) {
+      this.fail(error);
       return false;
     }
 
-    this.tickers = this.normalizeTickers({ ...this.tickers, ...data });
+    const sourceTickers: SourceTickers = {};
+
+    for (const [rate, price] of Object.entries(data)) {
+      sourceTickers[rate] = {
+        price,
+        source: options.name,
+      };
+    }
+
+    this.sourceTickers = this.normalizeTickers({
+      ...this.sourceTickers,
+      ...sourceTickers,
+    });
 
     return true;
   }
@@ -320,26 +357,30 @@ export class RatesService {
   /**
    * Adjusts the rates for each base coin using the USD rate.
    */
-  normalizeTickers(tickers: Tickers) {
+  normalizeTickers(tickers: SourceTickers) {
     const baseCoins = this.config.get<string[]>('base_coins');
     const decimals = this.config.get<number>('decimals');
 
     baseCoins?.forEach((baseCoin) => {
       const price =
-        tickers[`USD/${baseCoin}`] || 1 / tickers[`${baseCoin}/USD`];
+        tickers[`USD/${baseCoin}`]?.price ||
+        1 / tickers[`${baseCoin}/USD`]?.price;
 
       if (!price) {
         return;
       }
 
       this.getAllCoins().forEach((coin) => {
-        const priceAlt = 1 / tickers[`${coin}/USD`];
+        const priceAlt = 1 / tickers[`${coin}/USD`]?.price;
 
         if (!priceAlt) {
           return;
         }
 
-        tickers[`${coin}/${baseCoin}`] = +(price / priceAlt).toFixed(decimals);
+        tickers[`${coin}/${baseCoin}`] = {
+          price: +(price / priceAlt).toFixed(decimals),
+          source: tickers[`${coin}/USD`].source,
+        };
       });
     });
 

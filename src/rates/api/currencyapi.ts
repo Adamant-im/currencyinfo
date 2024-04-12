@@ -47,8 +47,6 @@ export class CurrencyApi extends BaseApi {
 
     const { data } = await axios.get<CurrencyApiDto>(url);
 
-    console.log(data);
-
     try {
       const rates: Tickers = {};
 
