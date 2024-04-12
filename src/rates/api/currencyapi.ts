@@ -47,19 +47,21 @@ export class CurrencyApi extends BaseApi {
 
     const { data } = await axios.get<CurrencyApiDto>(url);
 
+    console.log(data);
+
     try {
       const rates: Tickers = {};
 
       const decimals = this.config.get<number>('decimals');
 
       this.baseCoins.forEach((symbol) => {
-        const coin = symbol.toUpperCase();
-
-        const rate = data['usd'][symbol];
+        const rate = data['usd'][symbol.toLowerCase()];
 
         if (!rate) {
           return;
         }
+
+        const coin = symbol.toUpperCase();
 
         rates[`USD/${coin}`] = +rate.toFixed(decimals);
         rates[`${coin}/USD`] = +(1 / +rate).toFixed(decimals);
