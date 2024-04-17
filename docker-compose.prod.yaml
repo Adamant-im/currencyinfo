@@ -19,6 +19,7 @@ services:
       - mongo_data:/data/db
     networks:
       - app_network
+    command: --quiet --logpath /dev/null
 
 networks:
   app_network:
