@@ -33,6 +33,8 @@
   },
   "log_level": "log", // Specifies the verbosity of logs (none, log, warn, error)
 
+  "base_coins": ["USD", "RUB", "EUR", "CNY", "JPY", "BTC", "ETH"], // List of base coins for calculating all available pairs
+
   "moex": {
     // Enable or disable Moex API (optional)
     "enabled": true,
@@ -46,8 +48,6 @@
       // ...
     }
   },
-
-  "base_coins": ["USD", "RUB", "EUR", "CNY", "JPY", "BTC", "ETH"], // List of base coins for calculating all available pairs
 
   "currency_api": {
     // Enable or disable CurrencyApi (optional)
