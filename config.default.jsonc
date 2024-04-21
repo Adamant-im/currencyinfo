@@ -1,8 +1,22 @@
 {
   "decimals": 12, // Number of decimal places for rate values
-  "rateDifferencePercentThreshold": 25, // Percentage threshold for notifying significant rate deviations
+
+  "strategy": "priority", // Strategy to handle rates with close prices
+
+  "rateDifferencePercentThreshold": 25, // Percentage to group rates with close prices
+  "groupPercentage": 65, // Percentage threshold for notifying significant group deviations
+
   "refreshInterval": 10, // The frequency of rate updates from sources in minutes (optional). Frequent refreshes may require paid API keys
   "minSources": 1, // Minimum number of sources required for rate calculation
+
+  "priorities": [
+    "CurrencyApi",
+    "ExchangeRateHost",
+    "MOEX",
+    "Coinmarketcap",
+    "CryptoCompare",
+    "Coingecko"
+  ],
 
   "server": {
     "port": 36661, // Port number for the API service, e.g., http://localhost:36668
