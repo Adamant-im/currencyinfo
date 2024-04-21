@@ -5,8 +5,7 @@
   "minSources": 1, // Minimum number of sources required for rate calculation
 
   "server": {
-    // Port number for the API service, e.g., http://localhost:36668
-    "port": 36661,
+    "port": 36661, // Port number for the API service, e.g., http://localhost:36668
     "mongodb": {
       "host": "mongodb",
       "port": 27017
