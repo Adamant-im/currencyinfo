@@ -18,6 +18,7 @@ export class CurrencyApi extends BaseApi {
   static resourceName = 'CurrencyApi';
 
   public enabled: boolean;
+  public weight = this.config.get<number>('currency_api.weight') || 10;
 
   private baseCoins: string[];
 

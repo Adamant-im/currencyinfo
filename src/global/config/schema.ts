@@ -22,24 +22,32 @@ export const discordWebhookUrl = z.custom<string>(
   'Invalid Discord webhook url. The format is `https://discord.com/api/webhooks/123456789012345678/aBCdeFg9h0iJKl1-_mNoPqRST2uvwXYZ3ab4cDefgH5ijklmnOPQrsTuvWxYZaBC-de_`. Read more at https://discord.com/developers/docs/resources/webhook',
 );
 
-const databaseSchema = z.object({
-  port: z.number(),
-  host: z.string(),
+const apiSourceSchema = z.object({
+  enabled: z.boolean(),
+  weight: z.number().optional(),
 });
 
 export const schema = z
   .object({
-    // Formatting
     decimals: z.number().default(12),
 
+    strategy: z.enum(['avg', 'min', 'max', 'priority', 'weight']),
+
     rateDifferencePercentThreshold: z.number().default(25),
-    refreshInterval: z.number().optional(),
+    groupPercentage: z.number(),
+
     minSources: z.number().default(1),
+    priorities: z.array(z.string()),
+
+    refreshInterval: z.number().optional(),
 
     // Server
     server: z.object({
       port: z.number(),
-      mongodb: databaseSchema,
+      mongodb: z.object({
+        port: z.number(),
+        host: z.string(),
+      }),
     }),
 
     // Logging
@@ -54,54 +62,48 @@ export const schema = z
       .optional(),
     log_level: z.enum(['none', 'log', 'warn', 'error']).default('log'),
 
+    base_coins: z.array(coinName),
+
     // API
-    moex: z
-      .object({
+    moex: apiSourceSchema
+      .extend({
         url: z.string().url(),
-        enabled: z.boolean().optional(),
         codes: z.record(z.string()),
       })
       .optional(),
 
-    base_coins: z.array(coinName),
-
-    currency_api: z
-      .object({
+    currency_api: apiSourceSchema
+      .extend({
         url: z.string().url(),
-        enabled: z.boolean().optional(),
         skip: z.array(coinName).default([]),
       })
       .optional(),
 
-    exchange_rate_host: z
-      .object({
-        enabled: z.boolean(),
+    exchange_rate_host: apiSourceSchema
+      .extend({
         api_key: z.string(),
         skip: z.array(coinName).default([]),
       })
       .partial()
       .optional(),
 
-    coinmarketcap: z
-      .object({
-        enabled: z.boolean(),
+    coinmarketcap: apiSourceSchema
+      .extend({
         api_key: z.string(),
         coins: z.array(coinName),
         ids: z.record(z.number()),
       })
       .partial()
       .optional(),
-    cryptocompare: z
-      .object({
-        enabled: z.boolean(),
+    cryptocompare: apiSourceSchema
+      .extend({
         api_key: z.string(),
         coins: z.array(coinName),
       })
       .partial()
       .optional(),
-    coingecko: z
-      .object({
-        enabled: z.boolean(),
+    coingecko: apiSourceSchema
+      .extend({
         coins: z.array(coinName),
         ids: z.array(z.string()),
       })

@@ -42,6 +42,8 @@ export class MoexApi extends BaseApi {
     !!Object.keys(this.config.get<Record<string, string>>('moex.codes') || {})
       .length;
 
+  public weight = this.config.get<number>('moex.weight') || 10;
+
   constructor(
     private config: ConfigService,
     private logger: LoggerService,

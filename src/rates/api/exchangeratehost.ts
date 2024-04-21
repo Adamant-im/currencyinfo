@@ -20,6 +20,7 @@ export class ExchangeRateHost extends BaseApi {
   static resourceName = 'ExchangeRateHost';
 
   public enabled: boolean;
+  public weight = this.config.get<number>('exchange_rate_host.weight') || 10;
 
   private baseCoins: string[];
 

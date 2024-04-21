@@ -17,6 +17,11 @@ export abstract class BaseApi {
   abstract enabled: boolean;
 
   /**
+   * Weight of the rates of the API
+   */
+  abstract weight: number;
+
+  /**
    * List of coin symbols with ID within corresponding API.
    */
   coins?: BaseCoin[];

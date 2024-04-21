@@ -65,6 +65,7 @@ export class CoinmarketcapApi extends CoinIdFetcher {
       this.config.get<string[]>('coinmarketcap.coins')?.length ||
       this.config.get<string[]>('coinmarketcap.ids')?.length
     );
+  public weight = this.config.get<number>('coinmarketcap.weight') || 10;
 
   private ready: Promise<void>;
 

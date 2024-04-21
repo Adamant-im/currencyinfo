@@ -28,6 +28,7 @@ export class CoingeckoApi extends CoinIdFetcher {
       this.config.get<string[]>('coingecko.coins')?.length ||
       this.config.get<string[]>('coingecko.ids')?.length
     );
+  public weight = this.config.get<number>('coingecko.weight') || 10;
 
   private ready: Promise<void>;
 

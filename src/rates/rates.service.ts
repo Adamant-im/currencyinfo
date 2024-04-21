@@ -7,12 +7,8 @@ import { Model, PipelineStage } from 'mongoose';
 import { AxiosError } from 'axios';
 
 import { Notifier } from 'src/global/notifier/notifier.service';
-import {
-  calculatePercentageDifference,
-  isPositiveOrZeroNumber,
-} from 'src/shared/utils';
 
-import { Tickers, SourceTickers } from './api/dto/tickers.dto';
+import { Tickers } from './api/dto/tickers.dto';
 import { Ticker } from './schemas/ticker.schema';
 
 import { BaseApi } from './api/base';
@@ -24,6 +20,7 @@ import { MoexApi } from './api/moex';
 import { CoinmarketcapApi } from './api/coinmarketcap';
 import { ExchangeRateHost } from './api/exchangeratehost';
 import { GetHistoryDto } from './schemas/getHistory.schema';
+import { RatesMerger, StrategyName } from './merger';
 
 const CronIntervals = {
   EVERY_10_MINUTES: 10 * 60 * 1000,
@@ -33,46 +30,66 @@ const CronIntervals = {
 const BASE_CURRENCY = 'USD';
 
 @Injectable()
-export class RatesService {
+export class RatesService extends RatesMerger {
   lastUpdated = 0;
-  sourceTickers: SourceTickers = {};
 
   private sources: BaseApi[];
   private sourceCount: number;
 
-  private readonly logger = new Logger();
+  private readonly logger;
 
   constructor(
     @InjectModel(Ticker.name) private tickerModel: Model<Ticker>,
     private schedulerRegistry: SchedulerRegistry,
     private config: ConfigService,
-    private notifier: Notifier,
+    public notifier: Notifier,
   ) {
-    this.sources = [
+    const decimals = config.get('decimals') as number;
+    const strategyName = config.get('strategy') as StrategyName;
+
+    const threshold = config.get('rateDifferencePercentThreshold') as number;
+    const groupPercentage = config.get('groupPercentage') as number;
+
+    const minSources = config.get('minSources') as number;
+    const priorities = config.get('priorities') as string[];
+
+    const baseCoins = config.get('base_coins') as string[];
+
+    const logger = new Logger();
+
+    const sources = [
       // Fiat tickers
-      new CurrencyApi(this.config, this.logger),
-      new ExchangeRateHost(this.config, this.logger),
-      new MoexApi(this.config, this.logger),
+      new CurrencyApi(config, logger),
+      new ExchangeRateHost(config, logger),
+      new MoexApi(config, logger),
 
       // Crypto tickers
-      new CoinmarketcapApi(this.config, this.logger, this.notifier),
-      new CryptoCompareApi(this.config, this.logger),
-      new CoingeckoApi(this.config, this.logger, this.notifier),
+      new CoinmarketcapApi(config, logger, notifier),
+      new CryptoCompareApi(config, logger),
+      new CoingeckoApi(config, logger, notifier),
     ];
+
+    const weights = sources.reduce((obj: Record<string, number>, source) => {
+      obj[source.resourceName] = source.weight;
+      return obj;
+    }, {});
+
+    super(strategyName, {
+      baseCoins,
+      weights,
+      decimals,
+      priorities,
+      threshold,
+      groupPercentage,
+      minSources,
+    });
+
+    this.logger = logger;
+    this.sources = sources;
 
     this.sourceCount = this.sources.filter((source) => source.enabled).length;
 
     this.init();
-  }
-
-  get tickers(): Tickers {
-    const tickers: Tickers = {};
-
-    for (const [rate, ticker] of Object.entries(this.sourceTickers)) {
-      tickers[rate] = ticker.price;
-    }
-
-    return tickers;
   }
 
   /**
@@ -100,6 +117,8 @@ export class RatesService {
     this.logger.log('Updating rates…');
 
     const minSources = this.config.get('minSources') as number;
+
+    this.setTickers({});
 
     let availableSources = 0;
 
@@ -286,106 +305,44 @@ export class RatesService {
     }
   }
 
-  /**
-   * Checks incoming tickers for significant changes against saved ones
-   */
-  compareTickers(data: Tickers, options: { name: string }) {
-    const acceptableDifference = this.config.get(
-      'rateDifferencePercentThreshold',
-    );
-    const decimals = this.config.get<number>('decimals');
+  // /**
+  //  * Checks incoming tickers for significant changes against saved ones
+  //  */
+  // compareTickers(data: Tickers, options: { name: string }) {
+  //   const acceptableDifference = this.config.get(
+  //     'rateDifferencePercentThreshold',
+  //   );
+  //   const decimals = this.config.get<number>('decimals');
 
-    const alerts: string[] = [];
+  //   const alerts: string[] = [];
 
-    for (const [key, income] of Object.entries(data)) {
-      const saved = this.sourceTickers[key];
+  //   for (const [key, income] of Object.entries(data)) {
+  //     const saved = this.sourceTickers[key];
 
-      if (!saved) {
-        continue;
-      }
+  //     if (!saved) {
+  //       continue;
+  //     }
 
-      if (
-        isPositiveOrZeroNumber(income) &&
-        isPositiveOrZeroNumber(saved.price)
-      ) {
-        const difference = calculatePercentageDifference(income, saved.price);
+  //     if (
+  //       isPositiveOrZeroNumber(income) &&
+  //       isPositiveOrZeroNumber(saved.price)
+  //     ) {
+  //       const difference = calculatePercentageDifference(income, saved.price);
 
-        if (difference > acceptableDifference) {
-          alerts.push(
-            `**${key}** ${difference.toFixed(0)}%: ${income.toFixed(decimals)} (${options.name}) — ${saved.price.toFixed(decimals)} (${saved.source})`,
-          );
-        }
-      }
-    }
+  //       if (difference > acceptableDifference) {
+  //         alerts.push(
+  //           `**${key}** ${difference.toFixed(0)}%: ${income.toFixed(decimals)} (${options.name}) — ${saved.price.toFixed(decimals)} (${saved.source})`,
+  //         );
+  //       }
+  //     }
+  //   }
 
-    if (alerts.length) {
-      const alertString = alerts.join(', ');
+  //   if (alerts.length) {
+  //     const alertString = alerts.join(', ');
 
-      return `Error: rates from different sources significantly differs: ${alertString}. InfoService will provide previous rates; historical rates wouldn't be saved.`;
-    }
-  }
-
-  /**
-   * Updates the latest tickers from the given data,
-   * avoiding significant changes.
-   */
-  mergeTickers(data: Tickers, options: { name: string }) {
-    const error = this.compareTickers(data, options);
-
-    if (error) {
-      this.fail(error);
-      return false;
-    }
-
-    const sourceTickers: SourceTickers = {};
-
-    for (const [rate, price] of Object.entries(data)) {
-      sourceTickers[rate] = {
-        price,
-        source: options.name,
-      };
-    }
-
-    this.sourceTickers = this.normalizeTickers({
-      ...this.sourceTickers,
-      ...sourceTickers,
-    });
-
-    return true;
-  }
-
-  /**
-   * Adjusts the rates for each base coin using the USD rate.
-   */
-  normalizeTickers(tickers: SourceTickers) {
-    const baseCoins = this.config.get<string[]>('base_coins');
-    const decimals = this.config.get<number>('decimals');
-
-    baseCoins?.forEach((baseCoin) => {
-      const price =
-        tickers[`USD/${baseCoin}`]?.price ||
-        1 / tickers[`${baseCoin}/USD`]?.price;
-
-      if (!price) {
-        return;
-      }
-
-      this.getAllCoins().forEach((coin) => {
-        const priceAlt = 1 / tickers[`${coin}/USD`]?.price;
-
-        if (!priceAlt) {
-          return;
-        }
-
-        tickers[`${coin}/${baseCoin}`] = {
-          price: +(price / priceAlt).toFixed(decimals),
-          source: tickers[`${coin}/USD`].source,
-        };
-      });
-    });
-
-    return tickers;
-  }
+  //     return `Error: rates from different sources significantly differs: ${alertString}. InfoService will provide previous rates; historical rates wouldn't be saved.`;
+  //   }
+  // }
 
   /**
    * Returns list of all the coin IDs from crypto tickers.

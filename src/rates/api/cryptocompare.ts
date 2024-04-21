@@ -16,6 +16,8 @@ export class CryptoCompareApi extends BaseApi {
     !!this.config.get<string>('cryptocompare.api_key') &&
     !!this.config.get<string[]>('cryptocompare.coins')?.length;
 
+  public weight = this.config.get<number>('cryptocompare.weight') || 10;
+
   constructor(
     private config: ConfigService,
     private logger: LoggerService,
