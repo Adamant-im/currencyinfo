@@ -89,6 +89,12 @@ export class RatesService extends RatesMerger {
 
     this.sourceCount = this.sources.filter((source) => source.enabled).length;
 
+    if (this.sourceCount < minSources) {
+      throw new Error(
+        'minSources is greater than number of enabled sources. Configure more sources or decrease minSources.',
+      );
+    }
+
     this.init();
   }
 
