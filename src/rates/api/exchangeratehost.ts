@@ -22,7 +22,7 @@ export class ExchangeRateHost extends BaseApi {
   public enabled: boolean;
   public weight = this.config.get<number>('exchange_rate_host.weight') || 10;
 
-  private baseCoins: string[];
+  private enabledCoins: string[];
 
   constructor(
     private config: ConfigService,
@@ -30,16 +30,12 @@ export class ExchangeRateHost extends BaseApi {
   ) {
     super();
 
-    const baseCoins = this.config.get('base_coins') as string[];
-    const skipCoins =
-      this.config.get<string[]>('exchange_rate_host.skip') || [];
-
-    this.baseCoins = baseCoins.filter((coin) => !skipCoins.includes(coin));
+    this.enabledCoins = this.config.get('currency_api.codes') as string[];
 
     this.enabled =
       this.config.get('exchange_rate_host.enabled') !== false &&
       !!this.config.get<string>('exchange_rate_host.api_key') &&
-      !!this.baseCoins.length;
+      !!this.enabledCoins.length;
   }
 
   async fetch(): Promise<Tickers> {
@@ -58,7 +54,7 @@ export class ExchangeRateHost extends BaseApi {
 
       const decimals = this.config.get<number>('decimals');
 
-      this.baseCoins.forEach((symbol) => {
+      this.enabledCoins.forEach((symbol) => {
         const coin = symbol.toUpperCase();
 
         const rate = data.quotes[`USD${coin}`];

@@ -82,7 +82,7 @@ export const schema = z
     exchange_rate_host: apiSourceSchema
       .extend({
         api_key: z.string(),
-        skip: z.array(coinName).default([]),
+        codes: z.array(coinName).default([]),
       })
       .partial()
       .optional(),

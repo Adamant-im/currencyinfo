@@ -74,7 +74,12 @@
   "exchange_rate_host": {
     "enabled": false, // Enable or disable ExchangeRate API (optional)
     "api_key": "API key for ExchangeRate.",
-    "skip": ["USD", "ETH"] // List of the coins to exclude from the base_coins for the ExchangeRateHost (optional)
+    "codes": [
+      // List of currency and coin codes to fetch rates from ExchangeRateHost (optional)
+      "USD",
+      "ETH"
+      // ...
+    ]
   },
 
   "coinmarketcap": {
