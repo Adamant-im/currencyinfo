@@ -30,7 +30,7 @@ export default () => {
     }.`,
   );
 
-  return userConfig;
+  return result.data;
 };
 
 function findConfig() {
