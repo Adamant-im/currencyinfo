@@ -20,7 +20,7 @@ export class CurrencyApi extends BaseApi {
   public enabled: boolean;
   public weight = this.config.get<number>('currency_api.weight') || 10;
 
-  private baseCoins: string[];
+  private enabledCoins: string[];
 
   constructor(
     private config: ConfigService,
@@ -28,15 +28,12 @@ export class CurrencyApi extends BaseApi {
   ) {
     super();
 
-    const baseCoins = this.config.get('base_coins') as string[];
-    const skipCoins = this.config.get<string[]>('currency_api.skip') || [];
-
-    this.baseCoins = baseCoins.filter((coin) => !skipCoins.includes(coin));
+    this.enabledCoins = this.config.get('currency_api.codes') as string[];
 
     this.enabled =
       this.config.get('currency_api.enabled') !== false &&
       this.config.get('currency_api.url') &&
-      !!this.baseCoins.length;
+      !!this.enabledCoins.length;
   }
 
   async fetch() {
@@ -53,7 +50,7 @@ export class CurrencyApi extends BaseApi {
 
       const decimals = this.config.get<number>('decimals');
 
-      this.baseCoins.forEach((symbol) => {
+      this.enabledCoins.forEach((symbol) => {
         const rate = data['usd'][symbol.toLowerCase()];
 
         if (!rate) {

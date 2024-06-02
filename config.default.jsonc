@@ -67,8 +67,12 @@
     "enabled": true,
     // API URL
     "url": "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json",
-    // List of the coins to exclude from the base_coins for CurrencyApi (optional)
-    "skip": ["USD", "ETH"]
+    "codes": [
+      // List of currency and coin codes to fetch rates from ExchangeRateHost (optional)
+      "USD",
+      "ETH"
+      // ...
+    ]
   },
 
   "exchange_rate_host": {

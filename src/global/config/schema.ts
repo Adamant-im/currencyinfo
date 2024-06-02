@@ -75,7 +75,7 @@ export const schema = z
     currency_api: apiSourceSchema
       .extend({
         url: z.string().url(),
-        skip: z.array(coinName).default([]),
+        codes: z.array(coinName).default([]),
       })
       .optional(),
 
