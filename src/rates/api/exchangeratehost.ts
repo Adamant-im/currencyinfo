@@ -30,7 +30,7 @@ export class ExchangeRateHost extends BaseApi {
   ) {
     super();
 
-    this.enabledCoins = this.config.get('currency_api.codes') as string[];
+    this.enabledCoins = this.config.get('exchange_rate_host.codes') as string[];
 
     this.enabled =
       this.config.get('exchange_rate_host.enabled') !== false &&
