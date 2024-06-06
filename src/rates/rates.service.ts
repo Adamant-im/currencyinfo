@@ -170,8 +170,7 @@ export class RatesService extends RatesMerger {
         `Rates from ${availableSources}/${this.sourceCount} sources saved successfully`,
       );
     } catch (error) {
-      this.notifier.notify(
-        'error',
+      this.fail(
         `Error: Unable to save new rates in history database: ${error}`,
       );
     }
@@ -310,62 +309,17 @@ export class RatesService extends RatesMerger {
 
       message.push(`Error: ${error}.`);
 
-      this.notifier.notify('error', message.join(' '));
+      this.fail(message.join(' '));
     }
   }
-
-  // /**
-  //  * Checks incoming tickers for significant changes against saved ones
-  //  */
-  // compareTickers(data: Tickers, options: { name: string }) {
-  //   const acceptableDifference = this.config.get(
-  //     'rateDifferencePercentThreshold',
-  //   );
-  //   const decimals = this.config.get<number>('decimals');
-
-  //   const alerts: string[] = [];
-
-  //   for (const [key, income] of Object.entries(data)) {
-  //     const saved = this.sourceTickers[key];
-
-  //     if (!saved) {
-  //       continue;
-  //     }
-
-  //     if (
-  //       isPositiveOrZeroNumber(income) &&
-  //       isPositiveOrZeroNumber(saved.price)
-  //     ) {
-  //       const difference = calculatePercentageDifference(income, saved.price);
-
-  //       if (difference > acceptableDifference) {
-  //         alerts.push(
-  //           `**${key}** ${difference.toFixed(0)}%: ${income.toFixed(decimals)} (${options.name}) — ${saved.price.toFixed(decimals)} (${saved.source})`,
-  //         );
-  //       }
-  //     }
-  //   }
-
-  //   if (alerts.length) {
-  //     const alertString = alerts.join(', ');
-
-  //     return `Error: rates from different sources significantly differs: ${alertString}. InfoService will provide previous rates; historical rates wouldn't be saved.`;
-  //   }
-  // }
 
   /**
    * Returns list of all the coin IDs from crypto tickers.
    */
   getAllCoins() {
-    const sources = this.sources.filter((source) =>
-      [CoingeckoApi.resourceName, CoinmarketcapApi.resourceName].includes(
-        source.resourceName,
-      ),
-    );
-
     const coins = new Set(
-      sources.flatMap(
-        (source) => source.coins?.map((coin) => coin.symbol) ?? [],
+      this.sources.flatMap(
+        (source) => source.coins?.map(({ symbol }) => symbol) ?? [],
       ),
     );
 
