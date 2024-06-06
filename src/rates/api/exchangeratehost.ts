@@ -22,7 +22,7 @@ export class ExchangeRateHost extends BaseApi {
   public enabled: boolean;
   public weight = this.config.get<number>('exchange_rate_host.weight') || 10;
 
-  private enabledCoins: string[];
+  public enabledCoins: string[];
 
   constructor(
     private config: ConfigService,

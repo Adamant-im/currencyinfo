@@ -22,9 +22,24 @@ export abstract class BaseApi {
   abstract weight: number;
 
   /**
-   * List of coin symbols with ID within corresponding API.
+   * List of fetched coin symbols by ID.
    */
   coins?: BaseCoin[];
+
+  /**
+   * List of enabled rate pairs for the API.
+   */
+  pairs?: string[];
+
+  /**
+   * Array of enabled coins for the API.
+   */
+  enabledCoins?: string[];
+
+  /**
+   * Promise fulfilled by fetching all coin IDs.
+   */
+  ready?: Promise<void>;
 
   /**
    * Readable API's name to get from inside the class.

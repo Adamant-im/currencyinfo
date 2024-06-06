@@ -33,6 +33,11 @@ const BASE_CURRENCY = 'USD';
 export class RatesService extends RatesMerger {
   lastUpdated = 0;
 
+  protected allCoins: string[] = [];
+  protected pairSources: Record<string, number> = {};
+
+  private ready: Promise<void>;
+
   private sources: BaseApi[];
   private sourceCount: number;
 
@@ -91,11 +96,7 @@ export class RatesService extends RatesMerger {
 
     this.sourceCount = this.sources.filter((source) => source.enabled).length;
 
-    if (this.sourceCount < minSources) {
-      throw new Error(
-        'minSources is greater than number of enabled sources. Configure more sources or decrease minSources.',
-      );
-    }
+    this.ready = this.getEnabledCoins();
 
     this.init();
   }
@@ -117,6 +118,44 @@ export class RatesService extends RatesMerger {
     this.updateTickers();
   }
 
+  async getEnabledCoins() {
+    const enabledSources = this.sources.filter((source) => source.enabled);
+
+    await Promise.all(enabledSources.map((source) => source.ready));
+
+    const coins = new Set<string>();
+
+    for (const source of enabledSources) {
+      const enabledCoins = new Set(
+        source.coins?.map(({ symbol }) => symbol) ||
+          source.pairs?.flatMap((pair) => pair.split('/')) ||
+          source.enabledCoins ||
+          [],
+      );
+
+      if (source.pairs) {
+        for (const pairName of source.pairs) {
+          this.pairSources[pairName] = (this.pairSources[pairName] || 0) + 1;
+        }
+      } else {
+        enabledCoins.forEach((baseCoin) => {
+          if (baseCoin !== 'USD') {
+            const pairNames = [`${baseCoin}/USD`, `USD/${baseCoin}`];
+
+            for (const pairName of pairNames) {
+              this.pairSources[pairName] =
+                (this.pairSources[pairName] || 0) + 1;
+            }
+          }
+        });
+      }
+
+      enabledCoins.forEach(coins.add, coins);
+    }
+
+    this.allCoins = [...coins];
+  }
+
   /**
    * Retrieves data from all enabled API sources and stores it in the
    * database if successful responses exceed the `config.minSources`.
@@ -125,6 +164,8 @@ export class RatesService extends RatesMerger {
     this.logger.log('Updating rates…');
 
     const minSources = this.config.get('minSources') as number;
+
+    await this.ready;
 
     let availableSources = 0;
 
@@ -311,19 +352,6 @@ export class RatesService extends RatesMerger {
 
       this.fail(message.join(' '));
     }
-  }
-
-  /**
-   * Returns list of all the coin IDs from crypto tickers.
-   */
-  getAllCoins() {
-    const coins = new Set(
-      this.sources.flatMap(
-        (source) => source.coins?.map(({ symbol }) => symbol) ?? [],
-      ),
-    );
-
-    return [...coins];
   }
 
   fail(reason: string) {

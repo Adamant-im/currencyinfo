@@ -57,6 +57,8 @@ const baseUrl =
 export class CoinmarketcapApi extends CoinIdFetcher {
   static resourceName = 'Coinmarketcap';
 
+  public ready: Promise<void>;
+
   public coins: CoinmarketcapCoin[] = [];
   public enabled =
     this.config.get('coinmarketcap.enabled') !== false &&
@@ -66,8 +68,6 @@ export class CoinmarketcapApi extends CoinIdFetcher {
       this.config.get<string[]>('coinmarketcap.ids')?.length
     );
   public weight = this.config.get<number>('coinmarketcap.weight') || 10;
-
-  private ready: Promise<void>;
 
   constructor(
     private config: ConfigService,

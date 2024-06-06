@@ -53,6 +53,9 @@ export abstract class RatesMerger {
 
   abstract notifier: Notifier;
 
+  protected abstract allCoins: string[];
+  protected abstract pairSources: Record<string, number>;
+
   constructor(strategyName: StrategyName, options: RatesMergerOptions) {
     this.strategy = strategies[strategyName];
 
@@ -71,8 +74,6 @@ export abstract class RatesMerger {
     this.tickers = {};
     this.sourceTickers = {};
   }
-
-  abstract getAllCoins(): string[];
 
   /**
    * Updates the latest tickers from the given data,
@@ -103,7 +104,7 @@ export abstract class RatesMerger {
   normalizeTickers(tickers: Tickers) {
     const decimals = this.decimals;
 
-    const enabledCoins = this.getAllCoins();
+    const enabledCoins = this.allCoins;
 
     this.baseCoins?.forEach((baseCoin) => {
       const price =
@@ -133,28 +134,39 @@ export abstract class RatesMerger {
       ...tickers,
     };
 
-    this.tickers = this.getTickersWithLifetime(this.rateLifetime);
+    this.tickers = this.getTickersWithLifetime(this.rateLifetime, true);
   }
 
-  getTickersWithLifetime(rateLifetime: number) {
-    const [squishedTickers, errors] = this.squishTickers(rateLifetime);
+  getTickersWithLifetime(rateLifetime: number, isPlannedUpdate = false) {
+    const [squishedTickers, rateDifferences] = this.squishTickers(rateLifetime);
 
-    if (errors.length && rateLifetime === this.rateLifetime) {
+    if (rateDifferences.length && isPlannedUpdate) {
       this.notifier.notify(
         'error',
-        `Error: rates from different sources significantly differs for pairs: ${errors.join(', ')}`,
+        `Error: rates from different sources significantly differs for pairs: ${rateDifferences.join(', ')}`,
       );
     }
 
+    const minimizedTickers = this.cutRatesBySourceCount(squishedTickers);
+
+    return this.normalizeTickers(minimizedTickers);
+  }
+
+  cutRatesBySourceCount(squishedTickers: Tickers) {
     const minimizedTickers: Tickers = {};
 
     for (const [rate, prices] of Object.entries(this.sourceTickers)) {
-      if (prices.length >= this.minSources) {
+      const minSourcesForPair = Math.min(
+        this.pairSources[rate] || 0,
+        this.minSources,
+      );
+
+      if (prices.length >= minSourcesForPair) {
         minimizedTickers[rate] = squishedTickers[rate];
       }
     }
 
-    return this.normalizeTickers(minimizedTickers);
+    return minimizedTickers;
   }
 
   /**

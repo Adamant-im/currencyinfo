@@ -37,10 +37,12 @@ export interface MoexResponseDto {
 export class MoexApi extends BaseApi {
   static resourceName = 'MOEX';
 
+  private codes = this.config.get<Record<string, string>>('moex.codes') || {};
+
+  public pairs: string[] = Object.keys(this.codes);
+
   public enabled =
-    this.config.get<boolean>('moex.enabled') !== false &&
-    !!Object.keys(this.config.get<Record<string, string>>('moex.codes') || {})
-      .length;
+    this.config.get<boolean>('moex.enabled') !== false && !!this.pairs.length;
 
   public weight = this.config.get<number>('moex.weight') || 10;
 
@@ -56,7 +58,6 @@ export class MoexApi extends BaseApi {
       return {};
     }
 
-    const pairs = this.config.get('moex.codes') as Record<string, string>;
     const url = this.config.get('moex.url') as string;
 
     const rates: Record<string, number> = {};
@@ -69,7 +70,7 @@ export class MoexApi extends BaseApi {
 
     const decimals = this.config.get<number>('decimals');
 
-    for (const [pair, code] of Object.entries(pairs)) {
+    for (const [pair, code] of Object.entries(this.codes)) {
       const ticker = data.find((ticker) => ticker[2] === code);
 
       if (!ticker) {

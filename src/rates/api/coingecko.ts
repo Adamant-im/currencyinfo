@@ -21,6 +21,8 @@ export interface CoingeckoCoin {
 export class CoingeckoApi extends CoinIdFetcher {
   static resourceName = 'Coingecko';
 
+  public ready: Promise<void>;
+
   public coins: CoingeckoCoin[] = [];
   public enabled =
     this.config.get('coingecko.enabled') !== false &&
@@ -29,8 +31,6 @@ export class CoingeckoApi extends CoinIdFetcher {
       this.config.get<string[]>('coingecko.ids')?.length
     );
   public weight = this.config.get<number>('coingecko.weight') || 10;
-
-  private ready: Promise<void>;
 
   constructor(
     private config: ConfigService,
