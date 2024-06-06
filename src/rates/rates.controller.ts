@@ -8,10 +8,11 @@ import {
 } from '@nestjs/common';
 
 import { HttpExceptionFilter } from 'src/http-exception.filter';
-import { ParseCoinsPipe } from 'src/parse-coins.pipe';
 import { ZodValidationPipe } from 'src/zod-validation.pipe';
 
 import { GetHistoryDto, getHistorySchema } from './schemas/getHistory.schema';
+import { GetRatesDto, getRatesSchema } from './schemas/getRates.schema';
+
 import { RatesService } from './rates.service';
 import { RatesInterceptor } from './rates.interceptor';
 
@@ -22,8 +23,12 @@ export class RatesController {
   constructor(private readonly ratesService: RatesService) {}
 
   @Get('get')
-  getRates(@Query('coin', ParseCoinsPipe) coins: string[]) {
-    return this.ratesService.getTickers(coins);
+  @UsePipes(new ZodValidationPipe(getRatesSchema))
+  getRates(
+    @Query()
+    query: GetRatesDto,
+  ) {
+    return this.ratesService.getTickers(query.coins, query.rateLifetime);
   }
 
   @Get('getHistory')

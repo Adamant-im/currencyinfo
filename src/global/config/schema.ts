@@ -40,6 +40,7 @@ export const schema = z
     priorities: z.array(z.string()),
 
     refreshInterval: z.number().optional(),
+    rateLifetime: z.number(),
 
     // Server
     server: z.object({

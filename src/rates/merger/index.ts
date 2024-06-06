@@ -17,6 +17,7 @@ interface RatesMergerOptions {
   threshold: number;
   groupPercentage: number;
   minSources: number;
+  rateLifetime: number;
 }
 
 export interface SourcePrice {
@@ -34,6 +35,8 @@ export abstract class RatesMerger {
   tickers: Tickers;
 
   sourceTickers: SourceTickers;
+
+  protected rateLifetime: number;
 
   private baseCoins: string[];
   private decimals: number;
@@ -63,6 +66,7 @@ export abstract class RatesMerger {
     this.groupPercentage = options.groupPercentage;
 
     this.minSources = options.minSources;
+    this.rateLifetime = options.rateLifetime;
 
     this.tickers = {};
     this.sourceTickers = {};
@@ -77,54 +81,46 @@ export abstract class RatesMerger {
   mergeTickers(data: Tickers, options: { name: string }) {
     const sourceTickers: SourceTickers = {};
 
+    const timestamp = this.getTimestamp();
     for (const [rate, price] of Object.entries(data)) {
-      const prices = this.sourceTickers[rate]?.prices || [];
+      const prices = this.sourceTickers[rate] || [];
 
-      prices.push([options.name, price]);
-
-      sourceTickers[rate] = {
-        price,
-        prices,
+      prices.push({
         source: options.name,
-      };
+        price,
+        timestamp,
+      });
+
+      sourceTickers[rate] = prices;
     }
 
-    this.setTickers(
-      this.normalizeTickers({
-        ...this.sourceTickers,
-        ...sourceTickers,
-      }),
-    );
-
-    return true;
+    this.setTickers(sourceTickers);
   }
 
   /**
    * Adjusts the rates for each base coin using the USD rate.
    */
-  normalizeTickers(tickers: SourceTickers) {
+  normalizeTickers(tickers: Tickers) {
     const decimals = this.decimals;
+
+    const enabledCoins = this.getAllCoins();
 
     this.baseCoins?.forEach((baseCoin) => {
       const price =
-        tickers[`USD/${baseCoin}`]?.price ||
-        1 / tickers[`${baseCoin}/USD`]?.price;
+        tickers[`USD/${baseCoin}`] || 1 / tickers[`${baseCoin}/USD`];
 
       if (!price) {
         return;
       }
 
-      this.getAllCoins().forEach((coin) => {
-        const priceAlt = 1 / tickers[`${coin}/USD`]?.price;
+      enabledCoins.forEach((coin) => {
+        const priceAlt = 1 / tickers[`${coin}/USD`];
 
         if (!priceAlt) {
           return;
         }
 
-        tickers[`${coin}/${baseCoin}`] = {
-          ...tickers[`${coin}/USD`],
-          price: +(price / priceAlt).toFixed(decimals),
-        };
+        tickers[`${coin}/${baseCoin}`] = +(price / priceAlt).toFixed(decimals);
       });
     });
 
@@ -132,11 +128,18 @@ export abstract class RatesMerger {
   }
 
   setTickers(tickers: SourceTickers) {
-    this.sourceTickers = tickers;
+    this.sourceTickers = {
+      ...this.sourceTickers,
+      ...tickers,
+    };
 
-    const [errors, squishedTickers] = this.squishTickers();
+    this.tickers = this.getTickersWithLifetime(this.rateLifetime);
+  }
 
-    if (errors.length) {
+  getTickersWithLifetime(rateLifetime: number) {
+    const [squishedTickers, errors] = this.squishTickers(rateLifetime);
+
+    if (errors.length && rateLifetime === this.rateLifetime) {
       this.notifier.notify(
         'error',
         `Error: rates from different sources significantly differs for pairs: ${errors.join(', ')}`,
@@ -145,25 +148,29 @@ export abstract class RatesMerger {
 
     const minimizedTickers: Tickers = {};
 
-    for (const [rate, ticker] of Object.entries(this.sourceTickers)) {
-      if (ticker.prices.length >= this.minSources) {
+    for (const [rate, prices] of Object.entries(this.sourceTickers)) {
+      if (prices.length >= this.minSources) {
         minimizedTickers[rate] = squishedTickers[rate];
       }
     }
 
-    this.tickers = minimizedTickers;
+    return this.normalizeTickers(minimizedTickers);
   }
 
   /**
    * Uses the chosen strategy to squish the tickers from
    * different sources into one piece.
    */
-  squishTickers() {
+  squishTickers(lifetime: number) {
     const tickers: Tickers = {};
     const errors: string[] = [];
 
-    for (const [pair, rate] of Object.entries(this.sourceTickers)) {
-      const [success, group] = this.getBiggestGroupPrice(rate.prices);
+    const timestamp = this.getTimestamp();
+
+    for (const [pair, prices] of Object.entries(this.sourceTickers)) {
+      const [success, group] = this.getBiggestGroupPrice(
+        prices.filter((price) => timestamp - price.timestamp < lifetime),
+      );
 
       if (success) {
         tickers[pair] = this.strategy(group.prices);
@@ -172,7 +179,7 @@ export abstract class RatesMerger {
       }
     }
 
-    return [errors, tickers] as const;
+    return [tickers, errors] as const;
   }
 
   /**
@@ -247,12 +254,14 @@ export abstract class RatesMerger {
    * ```
    */
   splitIntoGroups(prices: TickerPrice[]) {
-    const sorted = prices.sort(([, price1], [, price2]) => price1 - price2);
+    const sorted = prices.sort(
+      (ticker1, ticker2) => ticker1.price - ticker2.price,
+    );
     const groups = [];
 
     let prevSeparator = -1;
     for (const [startIndex, startPrice] of sorted.entries()) {
-      const [startSource, startNum] = startPrice;
+      const { source: startSource, price: startNum } = startPrice;
 
       const group: PriceGroup = {
         weight: this.weights[startSource],
@@ -268,7 +277,7 @@ export abstract class RatesMerger {
 
       for (let index = startIndex + 1; index < sorted.length; index++) {
         const price = sorted[index];
-        const [source, num] = price;
+        const { source, price: num } = price;
 
         const diff = calculatePercentageDifference(startNum, num);
 
@@ -301,5 +310,12 @@ export abstract class RatesMerger {
     const index = this.priorities.indexOf(source);
 
     return this.priorities.length - index - 1;
+  }
+
+  /**
+   * Returns unix timestamp in minutes
+   */
+  getTimestamp() {
+    return Math.floor(Date.now() / 1000 / 60);
   }
 }

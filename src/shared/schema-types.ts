@@ -1,14 +1,39 @@
 import { z } from 'zod';
 
-export const coinName = z.string().transform((value, ctx) => {
-  if (!value.match(/^[a-zA-Z]+$/)) {
+const coinNameRegexPattern = '[a-zA-Z]+';
+
+const coinRegex = new RegExp(`^${coinNameRegexPattern}$`);
+const coinListRegex = new RegExp(
+  `^${coinNameRegexPattern}(?:,${coinNameRegexPattern})*$`,
+);
+
+export const coinName = z.string().transform<string>((value, ctx) => {
+  if (!value.match(coinRegex)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: 'Invalid coin name',
+      fatal: true,
     });
 
-    return z.never;
+    return '';
   }
 
   return value.toUpperCase();
 });
+
+export const coinList = z.string().transform<string[]>((value, ctx) => {
+  if (!value.match(coinListRegex)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Invalid coin name list',
+    });
+
+    return [];
+  }
+
+  return value.toUpperCase().split(',');
+});
+
+export const nonnegativeNumber = z.coerce.number().nonnegative();
+
+export const positiveNumber = z.coerce.number().positive();

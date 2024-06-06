@@ -51,8 +51,9 @@ export class RatesService extends RatesMerger {
     const groupPercentage = config.get('groupPercentage') as number;
 
     const minSources = config.get('minSources') as number;
-    const priorities = config.get('priorities') as string[];
+    const rateLifetime = config.get('rateLifetime') as number;
 
+    const priorities = config.get('priorities') as string[];
     const baseCoins = config.get('base_coins') as string[];
 
     const logger = new Logger();
@@ -82,6 +83,7 @@ export class RatesService extends RatesMerger {
       threshold,
       groupPercentage,
       minSources,
+      rateLifetime,
     });
 
     this.logger = logger;
@@ -124,8 +126,6 @@ export class RatesService extends RatesMerger {
 
     const minSources = this.config.get('minSources') as number;
 
-    this.setTickers({});
-
     let availableSources = 0;
 
     for (const source of this.sources) {
@@ -143,11 +143,9 @@ export class RatesService extends RatesMerger {
         continue;
       }
 
-      const success = this.mergeTickers(tickers, { name: source.resourceName });
+      this.mergeTickers(tickers, { name: source.resourceName });
 
-      if (success) {
-        availableSources += 1;
-      }
+      availableSources += 1;
     }
 
     if (availableSources < minSources) {
@@ -183,16 +181,21 @@ export class RatesService extends RatesMerger {
    * Returns the latest cached tickers for specified coins.
    * To retrieve tickers for all available coins, pass an empty array.
    */
-  async getTickers(coins: string[]) {
+  async getTickers(coins: string[] = [], rateLifetime = this.rateLifetime) {
     const requestedCoins = new Set(coins);
 
+    const tickers =
+      rateLifetime === this.rateLifetime
+        ? this.tickers
+        : this.getTickersWithLifetime(rateLifetime);
+
     if (!requestedCoins.size) {
-      return this.tickers;
+      return tickers;
     }
 
     const filteredCoins: Tickers = {};
 
-    for (const [ticker, rate] of Object.entries(this.tickers)) {
+    for (const [ticker, rate] of Object.entries(tickers)) {
       const tickerCoins = ticker.split('/');
 
       // Check if the ticker includes any of the requested coins
