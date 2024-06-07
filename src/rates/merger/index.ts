@@ -168,6 +168,20 @@ export abstract class RatesMerger {
     return minimizedTickers;
   }
 
+  getRatesWithFewerSources() {
+    const rates: [string, expected: number, got: number][] = [];
+
+    for (const [rate, prices] of Object.entries(this.sourceTickers)) {
+      const minSourcesForPair = this.pairSources[rate] || 1;
+
+      if (prices.length < minSourcesForPair) {
+        rates.push([rate, minSourcesForPair, prices.length]);
+      }
+    }
+
+    return rates;
+  }
+
   /**
    * Uses the chosen strategy to squish the tickers from
    * different sources into one piece.

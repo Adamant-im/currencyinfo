@@ -162,8 +162,6 @@ export class RatesService extends RatesMerger {
   async updateTickers() {
     this.logger.log('Updating rates…');
 
-    const minSources = this.config.get('minSources') as number;
-
     await this.ready;
 
     let availableSources = 0;
@@ -176,8 +174,9 @@ export class RatesService extends RatesMerger {
       const tickers = await this.fetchTickers(source);
 
       if (!tickers) {
-        this.fail(
-          `Error: Unable to get data from ${source.resourceName}. InfoService will provide previous rates; historical rates wouldn't be saved.`,
+        this.notifier.notify(
+          'warn',
+          `Unable to get data from ${source.resourceName}. InfoService will provide previous rates; historical rates wouldn't be saved for the source.`,
         );
 
         continue;
@@ -188,9 +187,22 @@ export class RatesService extends RatesMerger {
       availableSources += 1;
     }
 
-    if (availableSources < minSources) {
+    if (availableSources <= 0) {
       return this.logger.warn(
-        `Unable to get new rates from ${this.sources.length - availableSources} sources. No data has been saved`,
+        `Unable to get new rates from all sources. No data has been saved`,
+      );
+    }
+
+    const ratesWithFewerSources = this.getRatesWithFewerSources();
+
+    if (ratesWithFewerSources.length) {
+      return this.logger.warn(
+        `The following rates have been fetched from fewer sources than expected and therefore won't be saved: ${ratesWithFewerSources
+          .map(
+            ([pair, expected, got]) =>
+              `${pair} (expected ${expected}, but got ${got})`,
+          )
+          .join('; ')}`,
       );
     }
 
