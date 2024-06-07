@@ -59,7 +59,9 @@ export class CoinmarketcapApi extends CoinIdFetcher {
 
   public ready: Promise<void>;
 
+  public enabledCoins: string[] = [];
   public coins: CoinmarketcapCoin[] = [];
+
   public enabled =
     this.config.get('coinmarketcap.enabled') !== false &&
     !!this.config.get<string>('coinmarketcap.api_key') &&
@@ -207,6 +209,8 @@ export class CoinmarketcapApi extends CoinIdFetcher {
         this.logger.error(`Could not fetch coin list for ${this.resourceName}`);
         process.exit(-1);
       }
+
+      this.enabledCoins = this.coins.map(({ symbol }) => symbol);
 
       this.logger.log(`${this.resourceName} coin ids fetched successfully`);
     } catch (error) {

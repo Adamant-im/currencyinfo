@@ -157,7 +157,7 @@ export abstract class RatesMerger {
 
     for (const [rate, prices] of Object.entries(this.sourceTickers)) {
       const minSourcesForPair = Math.min(
-        this.pairSources[rate] || 0,
+        this.pairSources[rate] || 1,
         this.minSources,
       );
 

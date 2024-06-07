@@ -63,7 +63,6 @@ export class ExchangeRateHost extends BaseApi {
           return;
         }
 
-        rates[`USD/${coin}`] = +rate.toFixed(decimals);
         rates[`${coin}/USD`] = +(1 / +rate).toFixed(decimals);
       });
 

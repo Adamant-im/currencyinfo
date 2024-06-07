@@ -3,6 +3,8 @@ import { LoggerService } from '@nestjs/common';
 
 import axios from 'axios';
 
+import { Notifier } from 'src/global/notifier/notifier.service';
+
 import { BaseApi } from './base';
 import { Tickers } from './dto/tickers.dto';
 
@@ -38,8 +40,11 @@ export class MoexApi extends BaseApi {
   static resourceName = 'MOEX';
 
   private codes = this.config.get<Record<string, string>>('moex.codes') || {};
+  private pairs: string[] = Object.keys(this.codes);
 
-  public pairs: string[] = Object.keys(this.codes);
+  public enabledCoins: string[] = this.pairs.map((pair) =>
+    pair === 'USD/RUB' ? 'RUB/USD' : pair.replace('/RUB', ''),
+  );
 
   public enabled =
     this.config.get<boolean>('moex.enabled') !== false && !!this.pairs.length;
@@ -49,6 +54,7 @@ export class MoexApi extends BaseApi {
   constructor(
     private config: ConfigService,
     private logger: LoggerService,
+    private notifier: Notifier,
   ) {
     super();
   }
@@ -70,39 +76,60 @@ export class MoexApi extends BaseApi {
 
     const decimals = this.config.get<number>('decimals');
 
-    for (const [pair, code] of Object.entries(this.codes)) {
-      const ticker = data.find((ticker) => ticker[2] === code);
+    const basePrice = this.getPrice('USD/RUB', data)!;
 
-      if (!ticker) {
+    if (!basePrice) {
+      this.notifier.notify(
+        'error',
+        `Unable to get all of MOEX rates: No base price for USD/RUB has been found. Ensure config has the code for the pair.`,
+      );
+    }
+
+    for (const pair of Object.keys(this.codes)) {
+      let price = this.getPrice(pair, data);
+
+      if (!price) {
         continue;
       }
-
-      const price1 = ticker[14];
-      const price2 = ticker[15];
-
-      if (!price1 || !price2) {
-        continue;
-      }
-
-      let price = (price1 + price2) / 2;
 
       if (pair === 'JPY/RUB') {
         price /= 100;
       }
 
-      rates[pair] = Number(price.toFixed(decimals));
-
       if (pair === 'USD/RUB') {
-        rates['RUB/USD'] = Number((1 / rates['USD/RUB']).toFixed(decimals));
+        rates['RUB/USD'] = Number((1 / basePrice).toFixed(decimals));
       } else {
-        const market = `USD/${pair.replace('/RUB', '')}`;
-        const price = rates['USD/RUB'] / rates[pair];
-        rates[market] = Number(price.toFixed(decimals));
+        rates[pair] = Number(price.toFixed(decimals));
+
+        const market = `${pair.replace('/RUB', '')}/USD`;
+        const altPrice = basePrice / rates[pair];
+
+        rates[market] = Number(altPrice.toFixed(decimals));
       }
     }
 
     this.logger.log(`${this.resourceName} rates updated successfully`);
 
     return rates;
+  }
+
+  getPrice(pair: string, data: MoexData[]) {
+    const code = this.codes[pair];
+    const ticker = data.find((ticker) => ticker[2] === code);
+
+    if (!ticker) {
+      return;
+    }
+
+    const price1 = ticker[14];
+    const price2 = ticker[15];
+
+    if (!price1 || !price2) {
+      return;
+    }
+
+    const price = (price1 + price2) / 2;
+
+    return price;
   }
 }

@@ -23,7 +23,9 @@ export class CoingeckoApi extends CoinIdFetcher {
 
   public ready: Promise<void>;
 
+  public enabledCoins: string[] = [];
   public coins: CoingeckoCoin[] = [];
+
   public enabled =
     this.config.get('coingecko.enabled') !== false &&
     !!(
@@ -138,6 +140,8 @@ export class CoingeckoApi extends CoinIdFetcher {
       this.logger.error(`Could not fetch coin list for ${this.resourceName}`);
       process.exit(-1);
     }
+
+    this.enabledCoins = this.coins.map(({ symbol }) => symbol);
 
     this.logger.log(`${this.resourceName} coin ids fetched successfully`);
   }

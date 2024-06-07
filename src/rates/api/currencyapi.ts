@@ -59,7 +59,6 @@ export class CurrencyApi extends BaseApi {
 
         const coin = symbol.toUpperCase();
 
-        rates[`USD/${coin}`] = +rate.toFixed(decimals);
         rates[`${coin}/USD`] = +(1 / +rate).toFixed(decimals);
       });
 

@@ -67,7 +67,7 @@ export class RatesService extends RatesMerger {
       // Fiat tickers
       new CurrencyApi(config, logger),
       new ExchangeRateHost(config, logger),
-      new MoexApi(config, logger),
+      new MoexApi(config, logger, notifier),
 
       // Crypto tickers
       new CoinmarketcapApi(config, logger, notifier),
@@ -126,31 +126,14 @@ export class RatesService extends RatesMerger {
     const coins = new Set<string>();
 
     for (const source of enabledSources) {
-      const enabledCoins = new Set(
-        source.coins?.map(({ symbol }) => symbol) ||
-          source.pairs?.flatMap((pair) => pair.split('/')) ||
-          source.enabledCoins ||
-          [],
-      );
-
-      if (source.pairs) {
-        for (const pairName of source.pairs) {
+      source.enabledCoins.forEach((baseCoin) => {
+        if (baseCoin !== 'USD') {
+          const pairName = `${baseCoin}/USD`;
           this.pairSources[pairName] = (this.pairSources[pairName] || 0) + 1;
+
+          coins.add(baseCoin);
         }
-      } else {
-        enabledCoins.forEach((baseCoin) => {
-          if (baseCoin !== 'USD') {
-            const pairNames = [`${baseCoin}/USD`, `USD/${baseCoin}`];
-
-            for (const pairName of pairNames) {
-              this.pairSources[pairName] =
-                (this.pairSources[pairName] || 0) + 1;
-            }
-          }
-        });
-      }
-
-      enabledCoins.forEach(coins.add, coins);
+      });
     }
 
     this.allCoins = [...coins];
