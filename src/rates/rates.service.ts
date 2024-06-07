@@ -196,7 +196,7 @@ export class RatesService extends RatesMerger {
     const ratesWithFewerSources = this.getRatesWithFewerSources();
 
     if (ratesWithFewerSources.length) {
-      return this.logger.warn(
+      this.logger.warn(
         `The following rates have been fetched from fewer sources than expected and therefore won't be saved: ${ratesWithFewerSources
           .map(
             ([pair, expected, got]) =>
@@ -204,6 +204,14 @@ export class RatesService extends RatesMerger {
           )
           .join('; ')}`,
       );
+    }
+
+    if (this.rateDifferences.length) {
+      const error = this.rateDifferences
+        .map((pair, error) => `${pair}: ${error}`)
+        .join('\n');
+
+      return this.fail(`The rates won't be saved:\n${error}`);
     }
 
     try {

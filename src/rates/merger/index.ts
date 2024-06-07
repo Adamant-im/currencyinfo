@@ -21,6 +21,7 @@ interface RatesMergerOptions {
 }
 
 export interface SourcePrice {
+  source: string;
   price: number;
   priority: number;
   weight: number;
@@ -35,6 +36,7 @@ export abstract class RatesMerger {
   tickers: Tickers;
 
   sourceTickers: SourceTickers;
+  rateDifferences: [string, string][] = [];
 
   protected rateLifetime: number;
   protected minSources: number;
@@ -133,18 +135,13 @@ export abstract class RatesMerger {
       ...tickers,
     };
 
-    this.tickers = this.getTickersWithLifetime(this.rateLifetime, true);
+    this.tickers = this.getTickersWithLifetime(this.rateLifetime);
   }
 
-  getTickersWithLifetime(rateLifetime: number, isPlannedUpdate = false) {
+  getTickersWithLifetime(rateLifetime: number) {
     const [squishedTickers, rateDifferences] = this.squishTickers(rateLifetime);
 
-    if (rateDifferences.length && isPlannedUpdate) {
-      this.notifier.notify(
-        'error',
-        `Error: rates from different sources significantly differs for pairs: ${rateDifferences.join(', ')}`,
-      );
-    }
+    this.rateDifferences = rateDifferences;
 
     const minimizedTickers = this.cutRatesBySourceCount(squishedTickers);
 
@@ -188,19 +185,19 @@ export abstract class RatesMerger {
    */
   squishTickers(lifetime: number) {
     const tickers: Tickers = {};
-    const errors: string[] = [];
+    const errors: [pair: string, error: string][] = [];
 
     const timestamp = this.getTimestamp();
 
     for (const [pair, prices] of Object.entries(this.sourceTickers)) {
-      const [success, group] = this.getBiggestGroupPrice(
+      const [error, group] = this.getBiggestGroupPrice(
         prices.filter((price) => timestamp - price.timestamp < lifetime),
       );
 
-      if (success) {
-        tickers[pair] = this.strategy(group.prices);
+      if (error) {
+        errors.push([pair, error]);
       } else {
-        errors.push(pair);
+        tickers[pair] = this.strategy(group!.prices);
       }
     }
 
@@ -215,10 +212,10 @@ export abstract class RatesMerger {
    */
   getBiggestGroupPrice(
     prices: TickerPrice[],
-  ): [true, PriceGroup] | [false, null] {
+  ): [null, PriceGroup] | [string, null] {
     // no prices, no groups
     if (!prices.length) {
-      return [false, null];
+      return ['No prices for the pair available', null];
     }
 
     const groups = this.splitIntoGroups(prices);
@@ -229,7 +226,7 @@ export abstract class RatesMerger {
 
     // only one group
     if (!secondBiggestGroup) {
-      return [true, biggestGroup];
+      return [null, biggestGroup];
     }
 
     const differenceBetweenBiggestGroups = calculatePercentageDifference(
@@ -238,10 +235,13 @@ export abstract class RatesMerger {
     );
 
     if (differenceBetweenBiggestGroups > this.groupPercentage) {
-      return [true, biggestGroup];
+      return [null, biggestGroup];
     }
 
-    return [false, null];
+    return [
+      `The difference between sources is too big: ${this.formatGroupPrices(biggestGroup)} against ${this.formatGroupPrices(secondBiggestGroup)}`,
+      null,
+    ];
   }
 
   /**
@@ -292,6 +292,7 @@ export abstract class RatesMerger {
         weight: this.weights[startSource],
         prices: [
           {
+            source: startSource,
             price: startNum,
             weight: this.weights[startSource],
             priority: this.getPriority(startSource),
@@ -314,6 +315,7 @@ export abstract class RatesMerger {
 
         group.weight += weight;
         group.prices.push({
+          source,
           weight,
           price: num,
           priority: this.getPriority(source),
@@ -335,6 +337,12 @@ export abstract class RatesMerger {
     const index = this.priorities.indexOf(source);
 
     return this.priorities.length - index - 1;
+  }
+
+  formatGroupPrices(group: PriceGroup) {
+    return group.prices
+      .map(({ price, source }) => `${price} (${source})`)
+      .join(';');
   }
 
   /**
