@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const coinNameRegexPattern = '[a-zA-Z]+';
+const coinNameRegexPattern = '[\\$a-zA-Z0-9]+';
 
 const coinRegex = new RegExp(`^${coinNameRegexPattern}$`);
 const coinListRegex = new RegExp(
