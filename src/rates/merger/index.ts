@@ -93,6 +93,10 @@ export abstract class RatesMerger {
         timestamp,
       });
 
+      if (prices.length > 100) {
+        prices.shift();
+      }
+
       sourceTickers[rate] = prices;
     }
 

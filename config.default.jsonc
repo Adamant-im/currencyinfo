@@ -9,7 +9,9 @@
   "refreshInterval": 10, // The frequency of rate updates from sources in minutes (optional). Frequent refreshes may require paid API keys
   "minSources": 1, // Minimum number of sources required for rate calculation
 
-  // Specifies the duration (in minutes) for which the rates are considered relevant.
+  // Specifies the duration (in minutes) for which the rates are considered relevant
+  // Rates this old can be saved in history
+  // You can override the rates lifetime in the /get endpoint up to 100 times the refreshInterval
   "rateLifetime": 60,
 
   "priorities": [
