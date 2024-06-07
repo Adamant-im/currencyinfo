@@ -136,6 +136,22 @@ export class RatesService extends RatesMerger {
       });
     }
 
+    const pairsWithLowSourceCount: [string, number][] = [];
+
+    for (const [pairName, sourceCount] of Object.entries(this.pairSources)) {
+      if (sourceCount < this.minSources) {
+        pairsWithLowSourceCount.push([pairName, sourceCount]);
+      }
+    }
+
+    if (pairsWithLowSourceCount.length) {
+      this.logger.warn(
+        `The following pairs have fewer enabled sources than the configured minimum (minSources=${this.minSources}), but they are going to be saved anyway: ${pairsWithLowSourceCount
+          .map(([pairName, sourceCount]) => `${pairName} (${sourceCount})`)
+          .join(', ')}`,
+      );
+    }
+
     this.allCoins = [...coins];
   }
 

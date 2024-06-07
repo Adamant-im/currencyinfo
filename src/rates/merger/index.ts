@@ -37,6 +37,7 @@ export abstract class RatesMerger {
   sourceTickers: SourceTickers;
 
   protected rateLifetime: number;
+  protected minSources: number;
 
   private baseCoins: string[];
   private decimals: number;
@@ -46,8 +47,6 @@ export abstract class RatesMerger {
 
   private threshold: number;
   private groupPercentage: number;
-
-  private minSources: number;
 
   private strategy: (prices: SourcePrice[]) => number;
 
