@@ -85,19 +85,30 @@ export abstract class RatesMerger {
 
     const timestamp = this.getTimestamp();
     for (const [rate, price] of Object.entries(data)) {
-      const prices = this.sourceTickers[rate] || [];
-
-      prices.push({
+      const newPrice = {
         source: options.name,
         price,
         timestamp,
-      });
+      };
 
-      if (prices.length > 100) {
-        prices.shift();
+      const prices = this.sourceTickers[rate];
+
+      if (prices) {
+        // Replace previous price for the specific source
+        const previousPriceIndex = prices.findIndex(
+          (previousPrice) => previousPrice.source === newPrice.source,
+        );
+
+        if (previousPriceIndex !== -1) {
+          prices[previousPriceIndex] = newPrice;
+        } else {
+          prices.push(newPrice);
+        }
+
+        sourceTickers[rate] = prices;
+      } else {
+        sourceTickers[rate] = [newPrice];
       }
-
-      sourceTickers[rate] = prices;
     }
 
     this.setTickers(sourceTickers);
