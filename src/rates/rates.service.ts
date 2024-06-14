@@ -80,6 +80,21 @@ export class RatesService extends RatesMerger {
       return obj;
     }, {});
 
+    const enabledCoinsSet = new Set<string>();
+    sources.forEach((source) => {
+      source.enabledCoins?.forEach((coin) => enabledCoinsSet.add(coin));
+    });
+
+    const unavailableBaseCoins = baseCoins.filter(
+      (coin) => !enabledCoinsSet.has(coin),
+    );
+
+    if (unavailableBaseCoins.length) {
+      logger.warn(
+        `No resources provide rates for the following base coins: ${unavailableBaseCoins.join(', ')}. As a result, the rates for these base coins will NOT be saved.`,
+      );
+    }
+
     super(strategyName, {
       baseCoins,
       weights,
