@@ -28,7 +28,7 @@ export class RatesController {
     @Query()
     query: GetRatesDto,
   ) {
-    return this.ratesService.getTickers(query.coins, query.rateLifetime);
+    return this.ratesService.getTickers(query.coin, query.rateLifetime);
   }
 
   @Get('getHistory')
