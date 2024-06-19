@@ -123,9 +123,16 @@ The source code is located under the `src` directory:
 
   - `api`: Contains all the API for each of the sources.
 
-  - `merger`: Module responsible for merging rates from multiple sources.
+  - `merger`
+
+    - `index`: Module responsible for merging rates from multiple sources and storing them.
+    - `strategy`: Exports all implementations of `strategy` configuration.
 
   - `rates.service.ts`: Service for fetching rates from all the available sources.
+
+  - `rates.interceptor.ts`: Formats the response of the endpoints.
+
+  - `rates.controller.ts`: Links the endpoints with the methods.
 
 ## Financial Contribution
 
