@@ -28,8 +28,11 @@ async function run() {
     }
 
     const config = JSON5.parse(await readFile(configFilePath, 'utf-8'));
+    const defaultConfig = JSON5.parse(
+      await readFile('./config.default.jsonc', 'utf-8'),
+    );
 
-    const transformed = transformConfig(config);
+    const transformed = transformConfig(config, defaultConfig);
 
     exchangeRateHostWasEnabled ||=
       transformed.exchange_rate_host.enabled !== false;
@@ -47,7 +50,7 @@ async function run() {
 /**
  * Migrate the config object from old version.
  */
-function transformConfig(config) {
+function transformConfig(config, defaultConfig) {
   const coinmarketcap = {
     enabled: wasEnabled(config, 'CoinMarketCap'),
     coins: config.crypto_cmc,
@@ -81,10 +84,10 @@ function transformConfig(config) {
     : undefined;
 
   return {
+    ...defaultConfig,
     decimals: config.decimals,
     rateDifferencePercentThreshold: config.rateDifferencePercentThreshold,
     refreshInterval: config.refreshInterval,
-    minSources: 2,
 
     server: {
       port: 36661,
