@@ -56,12 +56,14 @@
   // List of base coins for calculating all available pairs
   "base_coins": ["USD", "RUB", "EUR", "CNY", "JPY", "BTC", "ETH"],
 
-  // Moscow Exchange (https://moex.com) API configuration. Fiat currencies mostly.
-  // Using Russian proxy server, because MOEX may block requests from hostile countries. The proxy updates data every 3 minutes.
+  // Free Moscow Exchange (https://moex.com) API configuration. Fiat currencies mostly.
+  // Using a Russian proxy server because MOEX may block requests from hostile countries. The proxy updates data every 3 minutes.
   // The direct source link is https://iss.moex.com/iss/engines/currency/markets/selt/securities.jsonp
+  // USD, EUR, JPY, and some other currencies are probably outdated because trading them on MOEX has been prohibited since June 2024
+  // This source is disabled by default as it is not possible to get rate calculations against USD base
   "moex": {
     // Enable or disable Moex API (optional)
-    "enabled": true,
+    "enabled": false,
     // API URL
     "url": "https://rusdoor.adamant.im/securities.jsonp",
     // Record of fiat pairs and their codes to fetch rates from MOEX
@@ -73,7 +75,7 @@
     }
   },
 
-  // CurrencyAPI (https://github.com/fawazahmed0/exchange-api) configuration
+  // Free CurrencyAPI (https://github.com/fawazahmed0/exchange-api) configuration
   // The API updates data once a day, only fiat currencies are advised
   "currency_api": {
     // Enable or disable CurrencyApi (optional)
@@ -93,10 +95,13 @@
   // Spot exchange rate data is retrieved from several major forex data providers in real-time, validated, processed and delivered hourly, every 10 minutes, or even within the 60-second market window.
   "exchange_rate_host": {
     "enabled": false, // Enable or disable ExchangeRate API (optional)
-    "api_key": "API key for ExchangeRate.",
+    "api_key": "API key for ExchangeRate", // obligatory
     "codes": [
       // List of currency and coin codes to fetch rates from ExchangeRateHost (optional)
       "USD",
+      "EUR",
+      "RUB",
+      "CNY",
       "ETH"
       // ...
     ]
@@ -106,7 +111,7 @@
   // Comprehensive coin list with most endpoints update every 1 minute
   "coinmarketcap": {
     "enabled": false, // Enable or disable CoinMarketCap API (optional)
-    "api_key": "API key for CoinMarketCap",
+    "api_key": "API key for CoinMarketCap", // obligatory
     "coins": [
       // List of coins to fetch rates from CoinMarketCap (optional, deprecated)
       "BTC",
@@ -128,7 +133,7 @@
   // Comprehensive coin list with frequent updates
   "cryptocompare": {
     "enabled": true, // Enable or disable CryptoCompare API (optional)
-    "api_key": "API key for CryptoCompare",
+    "api_key": "API key for CryptoCompare", // optional
     "coins": [
       // List of coins to fetch rates from CryptoCompare (optional)
       "BTC",
@@ -138,7 +143,7 @@
     ]
   },
 
-  // CoinGecko (https://coingecko.com) configuration
+  // Free CoinGecko (https://coingecko.com) configuration
   // Comprehensive coin list. Endpoints are all cached to around 1 to 5 minutes and you can expect most data to be updated at similar intervals.
   "coingecko": {
     "enabled": true, // Enable or disable CoinGecko API (optional)
