@@ -20,7 +20,9 @@ export class CurrencyApi extends BaseApi {
   public enabled: boolean;
   public weight = this.config.get<number>('currency_api.weight') || 10;
 
-  public enabledCoins: string[];
+  public enabledCoins = new Set(
+    this.config.get<string[]>('currency_api.codes'),
+  );
 
   constructor(
     private config: ConfigService,
@@ -28,12 +30,10 @@ export class CurrencyApi extends BaseApi {
   ) {
     super();
 
-    this.enabledCoins = this.config.get('currency_api.codes') as string[];
-
     this.enabled =
       this.config.get('currency_api.enabled') !== false &&
       this.config.get('currency_api.url') &&
-      !!this.enabledCoins.length;
+      !!this.enabledCoins.size;
   }
 
   async fetch() {

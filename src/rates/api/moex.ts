@@ -42,8 +42,10 @@ export class MoexApi extends BaseApi {
   private codes = this.config.get<Record<string, string>>('moex.codes') || {};
   private pairs: string[] = Object.keys(this.codes);
 
-  public enabledCoins: string[] = this.pairs.map((pair) =>
-    pair === 'USD/RUB' ? 'RUB' : pair.replace('/RUB', ''),
+  public enabledCoins = new Set(
+    this.pairs.map((pair) =>
+      pair === 'USD/RUB' ? 'RUB' : pair.replace('/RUB', ''),
+    ),
   );
 
   public enabled =

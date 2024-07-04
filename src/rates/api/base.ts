@@ -24,12 +24,7 @@ export abstract class BaseApi {
   /**
    * Array of enabled coins for the API.
    */
-  abstract enabledCoins: string[];
-
-  /**
-   * List of fetched coin symbols by ID.
-   */
-  coins?: BaseCoin[];
+  abstract enabledCoins: Set<string>;
 
   /**
    * Promise fulfilled by fetching all coin IDs.

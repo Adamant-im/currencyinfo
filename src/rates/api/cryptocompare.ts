@@ -11,12 +11,14 @@ const url = 'https://min-api.cryptocompare.com/data/pricemulti';
 export class CryptoCompareApi extends BaseApi {
   static resourceName = 'CryptoCompare';
 
-  public enabledCoins = this.config.get<string[]>('cryptocompare.coins') || [];
+  public enabledCoins = new Set(
+    this.config.get<string[]>('cryptocompare.coins'),
+  );
 
   public enabled =
     this.config.get('cryptocompare.enabled') !== false &&
     !!this.config.get<string>('cryptocompare.api_key') &&
-    !!this.enabledCoins.length;
+    !!this.enabledCoins.size;
 
   public weight = this.config.get<number>('cryptocompare.weight') || 10;
 
@@ -35,7 +37,7 @@ export class CryptoCompareApi extends BaseApi {
     const apiKey = this.config.get('cryptocompare.api_key') as string;
 
     const params = {
-      fsyms: this.enabledCoins.join(),
+      fsyms: [...this.enabledCoins].join(),
       tsyms: baseCurrency,
       api_key: apiKey,
     };

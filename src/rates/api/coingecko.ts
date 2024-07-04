@@ -23,8 +23,8 @@ export class CoingeckoApi extends CoinIdFetcher {
 
   public ready: Promise<void>;
 
-  public enabledCoins: string[] = [];
-  public coins: CoingeckoCoin[] = [];
+  public enabledCoins: Set<string> = new Set();
+  private coins: CoingeckoCoin[] = [];
 
   public enabled =
     this.config.get('coingecko.enabled') !== false &&
@@ -141,7 +141,7 @@ export class CoingeckoApi extends CoinIdFetcher {
       process.exit(-1);
     }
 
-    this.enabledCoins = this.coins.map(({ symbol }) => symbol);
+    this.enabledCoins = new Set(this.coins.map(({ symbol }) => symbol));
 
     this.logger.log(`${this.resourceName} coin ids fetched successfully`);
   }
