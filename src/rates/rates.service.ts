@@ -144,7 +144,10 @@ export class RatesService extends RatesMerger {
       source.enabledCoins.forEach((baseCoin) => {
         if (baseCoin !== 'USD') {
           const pairName = `${baseCoin}/USD`;
-          this.pairSources[pairName] = (this.pairSources[pairName] || 0) + 1;
+          this.pairSources[pairName] = Math.min(
+            (this.pairSources[pairName] || 0) + 1,
+            this.minSources,
+          );
 
           coins.add(baseCoin);
         }

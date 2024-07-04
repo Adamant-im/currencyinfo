@@ -167,10 +167,7 @@ export abstract class RatesMerger {
     const minimizedTickers: Tickers = {};
 
     for (const [rate, prices] of Object.entries(this.sourceTickers)) {
-      const minSourcesForPair = Math.min(
-        this.pairSources[rate] || 1,
-        this.minSources,
-      );
+      const minSourcesForPair = this.pairSources[rate] || 1;
 
       if (prices.length >= minSourcesForPair) {
         minimizedTickers[rate] = squishedTickers[rate];
