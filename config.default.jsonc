@@ -83,9 +83,12 @@
     // API URL
     "url": "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json",
     "codes": [
-      // List of currency and coin codes to fetch rates from ExchangeRateHost (optional)
+      // List of currency and coin codes to fetch rates from CurrencyAPI (optional)
       "USD",
-      "ETH"
+      "EUR",
+      "RUB",
+      "CNY",
+      "JPY"
       // ...
     ]
   },
@@ -102,7 +105,8 @@
       "EUR",
       "RUB",
       "CNY",
-      "ETH"
+      "JPY",
+      "BTC"
       // ...
     ]
   },
@@ -130,12 +134,17 @@
   },
 
   // CryptoCompare (https://cryptocompare.com) configuration
-  // Comprehensive coin list with frequent updates
+  // Comprehensive coin and fiat list with frequent updates
   "cryptocompare": {
     "enabled": true, // Enable or disable CryptoCompare API (optional)
     "api_key": "API key for CryptoCompare", // optional
     "coins": [
       // List of coins to fetch rates from CryptoCompare (optional)
+      "USD",
+      "EUR",
+      "RUB",
+      "CNY",
+      "JPY",
       "BTC",
       "ETH",
       "ADM"
