@@ -33,7 +33,7 @@ Hi! We're really excited that you are interested in contributing to ADAMANT. Bef
 
 ## Development Setup
 
-You will need [Node.js](https://nodejs.org) **version 20.11+**, [PNPM](https://pnpm.io) **version 8+** and [MongoDB](https://www.mongodb.com/) **version 6+** or Docker Compose.
+You will need [Node.js](https://nodejs.org) **version 20.11+**, [PNPM](https://pnpm.io) **version 9+** and [MongoDB](https://www.mongodb.com/) **version 6+** or Docker Compose.
 
 A high level overview of tools used:
 
