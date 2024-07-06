@@ -34,15 +34,14 @@ async function run() {
 
     const transformed = transformConfig(config, defaultConfig);
 
-    exchangeRateHostWasEnabled ||=
-      transformed.exchange_rate_host.enabled !== false;
+    exchangeRateHostWasEnabled = wasEnabled(config, 'ExchangeRate');
 
     await writeFile(configWithComments, JSON.stringify(transformed, null, 2));
   }
 
   if (exchangeRateHostWasEnabled) {
     console.warn(
-      'Warning: ExchangeRateHost now requires an API key. Consider getting one at https://exchangerate.host/product',
+      'Warning: ExchangeRateHost now requires an API key. Please obtain an API key at https://exchangerate.host/product and update the configuration file to keep getting the rates from the API.',
     );
   }
 }
@@ -53,14 +52,13 @@ async function run() {
 function transformConfig(config, defaultConfig) {
   const coinmarketcap = {
     enabled: wasEnabled(config, 'CoinMarketCap'),
-    coins: config.crypto_cmc,
-    ids: config.crypto_cmc_coinids,
     api_key: config.cmcApiKey,
-  };
-
-  const exchange_rate_host = {
-    // Currencyinfo v1 doesn't support ExchangeRate API key
-    enabled: wasEnabled(config, 'ExchangeRate'),
+    coins: config.crypto_cmc,
+    // The CurrencyInfo v1 config had the wrong type of
+    // the default value for `crypto_cmc_coinids`
+    ids: Array.isArray(config.crypto_cmc_coinids)
+      ? undefined
+      : config.crypto_cmc_coinids,
   };
 
   const cryptocompare = {
@@ -75,11 +73,18 @@ function transformConfig(config, defaultConfig) {
     ids: config.crypto_cg_coinids,
   };
 
-  const moex = config.fiat;
+  const moex = {
+    enabled: wasEnabled(config, 'MOEX'),
+    url: defaultConfig.moex.url,
+    codes: config.fiat,
+  };
 
   const notify = config.slack
     ? {
-        slack: config.slack,
+        slack: config.slack.filter(
+          (slackWebhook) =>
+            slackWebhook !== 'https://hooks.slack.com/services/..',
+        ),
       }
     : undefined;
 
@@ -89,21 +94,12 @@ function transformConfig(config, defaultConfig) {
     rateDifferencePercentThreshold: config.rateDifferencePercentThreshold,
     refreshInterval: config.refreshInterval,
 
-    server: {
-      port: 36661,
-      mongodb: {
-        port: 27017,
-        host: 'mongodb',
-      },
-    },
-
     notify,
     log_level: config.log_level,
 
     moex,
     base_coins: config.baseCoins,
 
-    exchange_rate_host,
     coinmarketcap,
     cryptocompare,
     coingecko,
@@ -117,6 +113,8 @@ function wasEnabled(config, apiName) {
   if (config.skipApi?.[apiName] === true) {
     return false;
   }
+
+  return true;
 }
 
 async function findConfigFiles() {
