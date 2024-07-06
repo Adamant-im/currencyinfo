@@ -39,4 +39,4 @@ Example response:
 }
 ```
 
-For usage, see [InfoServices API documentation](https://github.com/Adamant-im/currencyinfo/wiki/InfoServices-API-documentation).
+For usage, see [InfoServices API documentation](https://github.com/Adamant-im/currencyinfo/wiki/API-specification).
