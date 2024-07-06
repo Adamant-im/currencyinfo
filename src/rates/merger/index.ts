@@ -36,7 +36,7 @@ export abstract class RatesMerger {
   tickers: Tickers;
 
   sourceTickers: SourceTickers;
-  rateDifferences: [string, string][] = [];
+  rateDifferences: Array<[string, string]> = [];
 
   protected rateLifetime: number;
   protected minSources: number;
@@ -178,7 +178,7 @@ export abstract class RatesMerger {
   }
 
   getRatesWithFewerSources() {
-    const rates: [string, expected: number, got: number][] = [];
+    const rates: Array<[string, expected: number, got: number]> = [];
 
     for (const [rate, prices] of Object.entries(this.sourceTickers)) {
       const minSourcesForPair = this.pairSources[rate] || 1;
@@ -197,7 +197,7 @@ export abstract class RatesMerger {
    */
   squishTickers(lifetime: number) {
     const tickers: Tickers = {};
-    const errors: [pair: string, error: string][] = [];
+    const errors: Array<[pair: string, error: string]> = [];
 
     const timestamp = this.getTimestamp();
 

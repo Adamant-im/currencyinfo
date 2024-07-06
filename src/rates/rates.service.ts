@@ -154,7 +154,7 @@ export class RatesService extends RatesMerger {
       });
     }
 
-    const pairsWithLowSourceCount: [string, number][] = [];
+    const pairsWithLowSourceCount: Array<[string, number]> = [];
 
     for (const [pairName, sourceCount] of Object.entries(this.pairSources)) {
       if (sourceCount < this.minSources) {
