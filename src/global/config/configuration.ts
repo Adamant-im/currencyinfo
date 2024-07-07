@@ -2,12 +2,17 @@ import { existsSync, readFileSync } from 'fs';
 import JSON5 from 'json5';
 import { schema, Schema } from './schema';
 
-const isDev = process.argv.includes('dev');
+const isDev = process.env.NODE_ENV === 'development';
 
 export default () => {
   const configPath = findConfig();
-  const json = readFileSync(configPath, 'utf-8');
 
+  if (!configPath) {
+    console.error(`No config found. Cannot start the app.`);
+    process.exit(-1);
+  }
+
+  const json = readFileSync(configPath, 'utf-8');
   const userConfig: Schema = JSON5.parse(json);
 
   const result = schema.safeParse(userConfig);
@@ -20,12 +25,12 @@ export default () => {
   }
 
   console.info(
-    `InfoService successfully read a config-file '${configPath}'${
+    `InfoService successfully read the config-file '${configPath}'${
       isDev ? ' (dev)' : ''
     }.`,
   );
 
-  return userConfig;
+  return result.data;
 };
 
 function findConfig() {
@@ -38,8 +43,6 @@ function findConfig() {
   if (existsSync('./config.jsonc')) {
     return './config.jsonc';
   }
-
-  return './config.default.jsonc';
 }
 
 function formatZodErrors(errors: any, tab = 0, property?: string) {

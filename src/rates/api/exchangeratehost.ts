@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import { LoggerService } from '@nestjs/common';
 
 import axios from 'axios';
 
@@ -14,18 +15,27 @@ export interface ExchangeRateHostDto {
 }
 
 const baseUrl = `https://api.exchangerate.host/live`;
-const skipCoins = ['USD', 'ETH'];
 
 export class ExchangeRateHost extends BaseApi {
   static resourceName = 'ExchangeRateHost';
 
-  public enabled =
-    this.config.get('exchange_rate_host.enabled') !== false &&
-    !!this.config.get<string>('exchange_rate_host.api_key') &&
-    !!this.config.get<string[]>('base_coins')?.length;
+  public enabled: boolean;
+  public weight = this.config.get<number>('exchange_rate_host.weight') || 10;
 
-  constructor(private config: ConfigService) {
+  public enabledCoins = new Set(
+    this.config.get<string[]>('exchange_rate_host.codes'),
+  );
+
+  constructor(
+    private config: ConfigService,
+    private logger: LoggerService,
+  ) {
     super();
+
+    this.enabled =
+      this.config.get('exchange_rate_host.enabled') !== false &&
+      !!this.config.get<string>('exchange_rate_host.api_key') &&
+      !!this.enabledCoins.size;
   }
 
   async fetch(): Promise<Tickers> {
@@ -40,17 +50,12 @@ export class ExchangeRateHost extends BaseApi {
     const { data } = await axios.get<ExchangeRateHostDto>(url);
 
     try {
-      const rates = {};
+      const rates: Record<string, number> = {};
 
-      const baseCoins = this.config.get('base_coins') as string[];
       const decimals = this.config.get<number>('decimals');
 
-      baseCoins.forEach((symbol) => {
+      this.enabledCoins.forEach((symbol) => {
         const coin = symbol.toUpperCase();
-
-        if (skipCoins.includes(coin)) {
-          return;
-        }
 
         const rate = data.quotes[`USD${coin}`];
 
@@ -58,9 +63,10 @@ export class ExchangeRateHost extends BaseApi {
           return;
         }
 
-        rates[`USD/${coin}`] = +rate.toFixed(decimals);
         rates[`${coin}/USD`] = +(1 / +rate).toFixed(decimals);
       });
+
+      this.logger.log(`${this.resourceName} rates updated successfully`);
 
       return rates;
     } catch (error) {

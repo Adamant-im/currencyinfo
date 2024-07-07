@@ -5,7 +5,7 @@ import axios from 'axios';
 
 import { Notifier } from 'src/global/notifier/notifier.service';
 
-import { BaseApi } from './base';
+import { CoinIdFetcher } from './coin-id-fetcher';
 import { Tickers } from './dto/tickers.dto';
 
 export interface CoingeckoCoinDto {
@@ -18,24 +18,30 @@ export interface CoingeckoCoin {
   cg_id: string;
 }
 
-export class CoingeckoApi extends BaseApi {
+export class CoingeckoApi extends CoinIdFetcher {
   static resourceName = 'Coingecko';
 
-  public coins: CoingeckoCoin[] = [];
+  public ready: Promise<void>;
+
+  public enabledCoins: Set<string> = new Set();
+  private coins: CoingeckoCoin[] = [];
+
   public enabled =
     this.config.get('coingecko.enabled') !== false &&
-    !!this.config.get<string[]>('coingecko.coins')?.length;
-
-  private ready: Promise<void>;
+    !!(
+      this.config.get<string[]>('coingecko.coins')?.length ||
+      this.config.get<string[]>('coingecko.ids')?.length
+    );
+  public weight = this.config.get<number>('coingecko.weight') || 10;
 
   constructor(
     private config: ConfigService,
     private logger: LoggerService,
     private notifier: Notifier,
   ) {
-    super();
+    super(logger);
 
-    this.ready = this.getCoinIds();
+    this.ready = this.fetchCoinIds();
   }
 
   async fetch(baseCurrency: string): Promise<Tickers> {
@@ -65,12 +71,19 @@ export class CoingeckoApi extends BaseApi {
     const coingeckoBaseCoin = baseCurrency.toLowerCase();
 
     this.coins?.forEach(({ symbol, cg_id }) => {
-      exchangeRates[`${symbol}/${baseCurrency}`] =
-        +data[cg_id][coingeckoBaseCoin].toFixed(decimals);
+      const rate = data[cg_id][coingeckoBaseCoin];
+
+      if (!rate) {
+        return this.logger.warn(
+          `Unable to get rates for ${this.resourceName} id '${cg_id}'`,
+        );
+      }
+
+      exchangeRates[`${symbol}/${baseCurrency}`] = +rate.toFixed(decimals);
     });
 
     this.logger.log(
-      `Coingecko rates updated against ${baseCurrency} successfully`,
+      `${this.resourceName} rates updated against ${baseCurrency} successfully`,
     );
 
     return exchangeRates;
@@ -95,7 +108,7 @@ export class CoingeckoApi extends BaseApi {
       if (!coin) {
         return this.notifier.notify(
           'warn',
-          `Unable to get ticker for Coingecko symbol '${symbol}'. Check if the coin exists: ${coinsListUrl}.`,
+          `Unable to get ticker for ${this.resourceName} symbol '${symbol}'. Check if the coin exists: ${coinsListUrl}.`,
         );
       }
 
@@ -113,7 +126,7 @@ export class CoingeckoApi extends BaseApi {
       if (!coin?.symbol) {
         return this.notifier.notify(
           'warn',
-          `Unable to get ticker for Coingecko id '${id}'. Check if the coin exists: ${coinsListUrl}.`,
+          `Unable to get ticker for ${this.resourceName} id '${id}'. Check if the coin exists: ${coinsListUrl}.`,
         );
       }
 
@@ -123,6 +136,13 @@ export class CoingeckoApi extends BaseApi {
       });
     });
 
-    this.logger.log('Coingecko coin ids fetched successfully');
+    if (!this.coins.length) {
+      this.logger.error(`Could not fetch coin list for ${this.resourceName}`);
+      process.exit(-1);
+    }
+
+    this.enabledCoins = new Set(this.coins.map(({ symbol }) => symbol));
+
+    this.logger.log(`${this.resourceName} coin ids fetched successfully`);
   }
 }

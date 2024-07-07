@@ -3,6 +3,7 @@ docker-compose.override.yml
 
 # configs
 config.jsonc
+config.test.jsonc
 .env
 
 # compiled output
@@ -33,6 +34,7 @@ lerna-debug.log*
 *.launch
 .settings/
 *.sublime-workspace
+.vscode
 
 # IDE - VSCode
 .vscode/*

@@ -1,25 +1,15 @@
 import { z } from 'zod';
-import { coinName } from 'src/shared/schema-types';
-
-const positiveNumber = z.union([z.string(), z.number()]).transform((value) => {
-  if (typeof value === 'number') {
-    return value;
-  }
-
-  const parsedValue = parseFloat(value);
-
-  if (isNaN(parsedValue)) {
-    throw new Error('Invalid number');
-  }
-
-  return parsedValue;
-});
+import {
+  coinName,
+  nonnegativeNumber,
+  positiveNumber,
+} from 'src/shared/schema-types';
 
 export const getHistorySchema = z
   .object({
-    timestamp: positiveNumber,
-    from: positiveNumber,
-    to: positiveNumber,
+    timestamp: nonnegativeNumber,
+    from: nonnegativeNumber,
+    to: nonnegativeNumber,
     limit: positiveNumber,
     coin: coinName,
   })
