@@ -130,14 +130,18 @@ export abstract class RatesMerger {
         return;
       }
 
-      enabledCoins.forEach((coin) => {
-        const priceAlt = 1 / tickers[`${coin}/USD`];
-
-        if (!priceAlt) {
+      [...this.baseCoins, ...enabledCoins].forEach((coin) => {
+        if (tickers[`${coin}/${baseCoin}`]) {
           return;
         }
 
-        tickers[`${coin}/${baseCoin}`] = +(price / priceAlt).toFixed(decimals);
+        const coinPrice = tickers[`${coin}/USD`];
+
+        if (!coinPrice) {
+          return;
+        }
+
+        tickers[`${coin}/${baseCoin}`] = +(price * coinPrice).toFixed(decimals);
       });
     });
 
