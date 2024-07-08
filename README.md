@@ -21,14 +21,14 @@ GET http://localhost:36661/get?coin=ADM
 
 ## Features
 
-- 🏠 Self-hosted — Operate your own instance without relying on external services
-- 🔍 Reliable Monitoring — Checks multiple sources for discrepancies and alerts on significant changes
+- 🏠 Self-hosted — Operate your own instance with control over rates sources
+- 🔒 Reliable — Checks multiple sources for discrepancies and alerts on significant changes
 - 📉 Efficient API Calls — Compatible with free API keys to minimize costs
 - 📬 Notification Integration — Sends alerts via Slack, Discord, and [ADAMANT Messenger](https://adamant.im)
-- 📊 Local Rate History — Stores rate history on the server, eliminating additional requests
-- 🛠 Easy Setup — Configuration via a simple config file
+- 📊 Local Rate History — Stores rate history on the server, avoiding additional requests
+- 🛠 Flexible Configuration — Easily tailor CurrencyInfo to your needs using a configuration file
 - 🚀 Fast Performance — Provides RESTful API access with minimal hardware requirements
-- 🔓 Open-source — Free for any use
+- 💻 Open-source — Free for any use
 
 ## Exchange Rates API
 
