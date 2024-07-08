@@ -32,8 +32,8 @@ GET http://localhost:36661/get?coin=ADM
 
 ## Exchange Rates API
 
-<img src="./banner-light.png#gh-light-mode-only" height="320" align="right">
-<img src="./banner-dark.png#gh-dark-mode-only" height="320" align="right">
+<img src="./.github/banner-light.png#gh-light-mode-only" height="320" align="right">
+<img src="./.github/banner-dark.png#gh-dark-mode-only" height="320" align="right">
 
 <p align="left">
 CurrencyInfo collects data from several sources to provide the most accurate currency rates. The sources are listed below:
