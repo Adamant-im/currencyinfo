@@ -29,7 +29,8 @@
     "port": 36661, // Port number for the API service, e.g., http://localhost:36661
     "mongodb": {
       "host": "mongodb",
-      "port": 27017
+      "port": 27017,
+      "db": "tickersdb"
     }
   },
 
