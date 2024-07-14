@@ -41,7 +41,15 @@ export class RatesController {
 
   @Get('status')
   getStatus() {
-    const ready = this.ratesService.lastUpdated !== 0;
-    return { ready };
+    const { lastUpdated, refreshInterval, initializationTimestamp } =
+      this.ratesService;
+
+    const ready = lastUpdated !== 0;
+    const next_update = ready
+      ? lastUpdated + refreshInterval
+      : initializationTimestamp;
+    const updating = next_update < Date.now();
+
+    return { ready, updating, next_update };
   }
 }

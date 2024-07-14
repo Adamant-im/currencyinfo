@@ -24,9 +24,9 @@ export class RatesInterceptor implements NestInterceptor {
         return {
           success: true,
           date: Date.now(),
+          ...data,
           last_updated: lastUpdated || null,
           version,
-          ...data,
         };
       }),
     );
