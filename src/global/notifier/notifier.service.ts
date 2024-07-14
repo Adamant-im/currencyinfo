@@ -41,9 +41,13 @@ export class Notifier {
       return;
     }
 
-    this.notifySlack(notifyLevel, message);
-    this.notifyDiscord(notifyLevel, message);
-    this.notifyAdamant(notifyLevel, message);
+    const name = this.config.get('name') as string;
+
+    const notifyMessage = `**${name}**# ${message}`;
+
+    this.notifySlack(notifyLevel, notifyMessage);
+    this.notifyDiscord(notifyLevel, notifyMessage);
+    this.notifyAdamant(notifyLevel, notifyMessage);
   }
 
   async notifySlack(notifyLevel: LogLevelName, message: string) {

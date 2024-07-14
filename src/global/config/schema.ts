@@ -29,6 +29,8 @@ const apiSourceSchema = z.object({
 
 export const schema = z
   .object({
+    name: z.string().default('Currencyinfo'),
+
     decimals: z.number().default(12),
 
     strategy: z.enum(['avg', 'min', 'max', 'priority', 'weight']),

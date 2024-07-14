@@ -1,4 +1,6 @@
 {
+  "name": "Currencyinfo", // Name of the Currencyinfo instance that will be used for notifications (optional)
+
   "decimals": 12, // Number of decimal places for rate values
 
   // Read Dealing with Rate Differences from Multiple Sources
