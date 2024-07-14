@@ -233,7 +233,7 @@ export class RatesService extends RatesMerger {
         .map((pair, error) => `${pair}: ${error}`)
         .join('\n');
 
-      return this.fail(`The rates won't be saved:\n${error}`);
+      this.fail(`The rates won't be saved for the following pairs:\n${error}`);
     }
 
     try {
