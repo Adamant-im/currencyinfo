@@ -230,7 +230,7 @@ export class RatesService extends RatesMerger {
 
     if (this.rateDifferences.length) {
       const error = this.rateDifferences
-        .map((pair, error) => `${pair}: ${error}`)
+        .map(([pair, error]) => `${pair} ${error}`)
         .join('\n');
 
       this.fail(`The rates won't be saved for the following pairs:\n${error}`);
