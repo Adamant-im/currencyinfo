@@ -12,8 +12,6 @@ import { LoggerModule } from './global/logger/logger.module';
 import { NotifierModule } from './global/notifier/notifier.module';
 import { Logger } from './global/logger/logger.service';
 
-const MONGODB_NAME = 'tickersdb';
-
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -30,15 +28,16 @@ const MONGODB_NAME = 'tickersdb';
       useFactory: (config: ConfigService, logger: Logger) => {
         const port = config.get('server.mongodb.port');
         const host = config.get('server.mongodb.host');
+        const db = config.get('server.mongodb.db');
 
         return {
-          uri: `mongodb://${host}:${port}/${MONGODB_NAME}`,
+          uri: `mongodb://${host}:${port}/${db}`,
           retryAttempts: 0,
           serverSelectionTimeoutMS: 1000,
           connectionFactory(connection) {
             connection.on('connected', () => {
               logger.log(
-                `InfoService successfully connected to '${MONGODB_NAME}' MongoDB.`,
+                `InfoService successfully connected to '${db}' MongoDB.`,
               );
             });
             connection._events.connected();

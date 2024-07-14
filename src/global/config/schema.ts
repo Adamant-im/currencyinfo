@@ -48,6 +48,7 @@ export const schema = z
       mongodb: z.object({
         port: z.number(),
         host: z.string(),
+        db: z.string(),
       }),
     }),
 
