@@ -104,7 +104,7 @@ export class MoexApi extends BaseApi {
         rates[pair] = Number(price.toFixed(decimals));
 
         const market = `${pair.replace('/RUB', '')}/USD`;
-        const altPrice = basePrice / rates[pair];
+        const altPrice = rates[pair] / basePrice;
 
         rates[market] = Number(altPrice.toFixed(decimals));
       }
