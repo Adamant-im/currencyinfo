@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { InjectModel } from '@nestjs/mongoose';
@@ -293,12 +293,19 @@ export class RatesService extends RatesMerger {
 
     const queries: PipelineStage[] = [];
 
-    if (from && to) {
+    if (from !== undefined && to !== undefined) {
+      if (from > to) {
+        throw new HttpException(
+          "Wrong time interval: 'to' should be more, than 'from'",
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
       queries.push({
         $match: {
           date: {
-            $gte: from,
-            $lte: to,
+            $gte: from * 1000,
+            $lte: to * 1000,
           },
         },
       });
@@ -307,7 +314,7 @@ export class RatesService extends RatesMerger {
     let limit = Math.min(options.limit || 100, 100);
 
     if (timestamp) {
-      queries.push({ $match: { date: { $lte: timestamp } } });
+      queries.push({ $match: { date: { $lte: timestamp * 1000 } } });
 
       limit = 1;
     }
