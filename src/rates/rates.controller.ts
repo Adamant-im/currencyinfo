@@ -28,12 +28,28 @@ export class RatesController {
     @Query()
     query: GetRatesDto,
   ) {
-    return this.ratesService.getTickers(query.coin, query.rateLifetime);
+    const result = this.ratesService.getTickers(query.coin, query.rateLifetime);
+    return { result };
   }
 
   @Get('getHistory')
   @UsePipes(new ZodValidationPipe(getHistorySchema))
   getHistory(@Query() query: GetHistoryDto) {
-    return this.ratesService.getHistoryTickers(query);
+    const result = this.ratesService.getHistoryTickers(query);
+    return { result };
+  }
+
+  @Get('status')
+  getStatus() {
+    const { lastUpdated, refreshInterval, initializationTimestamp } =
+      this.ratesService;
+
+    const ready = lastUpdated !== 0;
+    const next_update = ready
+      ? lastUpdated + refreshInterval
+      : initializationTimestamp;
+    const updating = next_update < Date.now();
+
+    return { ready, updating, next_update };
   }
 }

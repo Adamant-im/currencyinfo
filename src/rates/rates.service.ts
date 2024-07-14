@@ -32,6 +32,8 @@ const BASE_CURRENCY = 'USD';
 @Injectable()
 export class RatesService extends RatesMerger {
   lastUpdated = 0;
+  refreshInterval: number;
+  initializationTimestamp = Date.now();
 
   protected allCoins: string[] = [];
   protected pairSources: Record<string, number> = {};
@@ -60,6 +62,8 @@ export class RatesService extends RatesMerger {
 
     const priorities = config.get('priorities') as string[];
     const baseCoins = config.get('base_coins') as string[];
+
+    const refreshInterval = config.get<number>('refreshInterval');
 
     const logger = new Logger();
 
@@ -109,6 +113,10 @@ export class RatesService extends RatesMerger {
     this.logger = logger;
     this.sources = sources;
 
+    this.refreshInterval = refreshInterval
+      ? refreshInterval * 60 * 1000
+      : CronIntervals.EVERY_10_MINUTES;
+
     this.sourceCount = this.sources.filter((source) => source.enabled).length;
 
     this.ready = this.getEnabledCoins();
@@ -120,13 +128,9 @@ export class RatesService extends RatesMerger {
    * Initializes the process of updating tickers and schedules it.
    */
   init() {
-    const refreshInterval = this.config.get<number>('refreshInterval');
-
     const interval = setInterval(
       this.updateTickers.bind(this),
-      refreshInterval
-        ? refreshInterval * 60 * 1000
-        : CronIntervals.EVERY_10_MINUTES,
+      this.refreshInterval,
     );
     this.schedulerRegistry.addInterval('tickers', interval);
 

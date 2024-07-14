@@ -18,13 +18,13 @@ export class RatesInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     return next.handle().pipe(
-      map(async (data) => {
+      map(async (data: object) => {
         const { lastUpdated } = this.ratesService;
 
         return {
           success: true,
           date: Date.now(),
-          result: data,
+          ...data,
           last_updated: lastUpdated || null,
           version,
         };
