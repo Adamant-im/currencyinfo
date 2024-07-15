@@ -24,18 +24,21 @@ export class RatesController {
 
   @Get('get')
   @UsePipes(new ZodValidationPipe(getRatesSchema))
-  getRates(
+  async getRates(
     @Query()
     query: GetRatesDto,
   ) {
-    const result = this.ratesService.getTickers(query.coin, query.rateLifetime);
+    const result = await this.ratesService.getTickers(
+      query.coin,
+      query.rateLifetime,
+    );
     return { result };
   }
 
   @Get('getHistory')
   @UsePipes(new ZodValidationPipe(getHistorySchema))
-  getHistory(@Query() query: GetHistoryDto) {
-    const result = this.ratesService.getHistoryTickers(query);
+  async getHistory(@Query() query: GetHistoryDto) {
+    const result = await this.ratesService.getHistoryTickers(query);
     return { result };
   }
 
