@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import { LoggerService } from '@nestjs/common';
 
 import axios from 'axios';
 
@@ -10,21 +11,29 @@ export interface CurrencyApiRates {
 }
 
 export interface CurrencyApiDto {
-  rates: CurrencyApiRates;
+  usd: CurrencyApiRates;
 }
-
-const url =
-  'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json';
-
-const skipCoins = ['USD', 'BTC', 'ETH'];
 
 export class CurrencyApi extends BaseApi {
   static resourceName = 'CurrencyApi';
 
-  public enabled = !!this.config.get<string[]>('base_coins')?.length;
+  public enabled: boolean;
+  public weight = this.config.get<number>('currency_api.weight') || 10;
 
-  constructor(private config: ConfigService) {
+  public enabledCoins = new Set(
+    this.config.get<string[]>('currency_api.codes'),
+  );
+
+  constructor(
+    private config: ConfigService,
+    private logger: LoggerService,
+  ) {
     super();
+
+    this.enabled =
+      this.config.get('currency_api.enabled') !== false &&
+      this.config.get('currency_api.url') &&
+      !!this.enabledCoins.size;
   }
 
   async fetch() {
@@ -32,7 +41,7 @@ export class CurrencyApi extends BaseApi {
       return {};
     }
 
-    const baseCoins = this.config.get('base_coins') as string[];
+    const url = this.config.get('currency_api.url') as string;
 
     const { data } = await axios.get<CurrencyApiDto>(url);
 
@@ -41,22 +50,19 @@ export class CurrencyApi extends BaseApi {
 
       const decimals = this.config.get<number>('decimals');
 
-      baseCoins.forEach((symbol) => {
-        const coin = symbol.toUpperCase();
-
-        if (skipCoins.includes(coin)) {
-          return;
-        }
-
-        const rate = data['usd'][symbol];
+      this.enabledCoins.forEach((symbol) => {
+        const rate = data['usd'][symbol.toLowerCase()];
 
         if (!rate) {
           return;
         }
 
-        rates[`USD/${coin}`] = +rate.toFixed(decimals);
+        const coin = symbol.toUpperCase();
+
         rates[`${coin}/USD`] = +(1 / +rate).toFixed(decimals);
       });
+
+      this.logger.log(`${this.resourceName} rates updated successfully`);
 
       return rates;
     } catch (error) {

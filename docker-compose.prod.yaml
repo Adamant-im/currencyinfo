@@ -1,0 +1,28 @@
+services:
+  app:
+    container_name: currencyinfo
+    build: .
+    restart: always
+    ports:
+      - '36661:36661'
+    depends_on:
+      - mongodb
+    volumes:
+      - ./config.jsonc:/usr/src/currencyinfo/config.jsonc
+    networks:
+      - app_network
+
+  mongodb:
+    container_name: mongodb
+    image: 'mongo:latest'
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - app_network
+    command: --quiet --logpath /dev/null
+
+networks:
+  app_network:
+
+volumes:
+  mongo_data:

@@ -5,25 +5,28 @@ import {
   CallHandler,
 } from '@nestjs/common';
 
-import { InjectRedis } from '@nestjs-modules/ioredis';
-import Redis from 'ioredis';
-
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
+import { version } from 'src/global/version';
+
+import { RatesService } from './rates.service';
+
 @Injectable()
 export class RatesInterceptor implements NestInterceptor {
-  constructor(@InjectRedis() private readonly redis: Redis) {}
+  constructor(private readonly ratesService: RatesService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     return next.handle().pipe(
-      map(async (data) => {
-        const lastUpdated = await this.redis.get('last_updated');
+      map(async (data: object) => {
+        const { lastUpdated } = this.ratesService;
 
         return {
-          result: data,
-          last_updated: lastUpdated ? Number(lastUpdated) : null,
-          version: process.env.APP_VERSION,
+          success: true,
+          date: Date.now(),
+          ...data,
+          last_updated: lastUpdated || null,
+          version,
         };
       }),
     );

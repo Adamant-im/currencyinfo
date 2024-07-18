@@ -1,26 +1,178 @@
 {
-  "decimals": 12,
-  "rateDifferencePercentThreshold": 25,
-  "port": 36661,
-  "refreshInterval": 10,
-  "minSources": 1,
+  "name": "Currencyinfo", // Name of the Currencyinfo instance that will be used for notifications (optional)
+
+  "decimals": 12, // Number of decimal places for rate values
+
+  // Read Dealing with Rate Differences from Multiple Sources
+  // https://github.com/Adamant-im/currencyinfo/wiki/Dealing-with-Rate-Differences-from-Multiple-Sources
+
+  "strategy": "priority", // Strategy to handle rates with close prices
+
+  "rateDifferencePercentThreshold": 25, // Percentage to group rates with close prices
+  "groupPercentage": 65, // Percentage threshold for notifying significant group deviations
+
+  "refreshInterval": 10, // The frequency of rate updates from sources in minutes (optional). Frequent refreshes may require paid API keys
+  "minSources": 2, // Minimum number of sources required for rate calculation
+
+  // Specifies the duration (in minutes) for which the rates are considered relevant
+  // Rates this old can be saved in history
+  "rateLifetime": 60,
+
+  "priorities": [
+    "ExchangeRateHost",
+    "Coinmarketcap",
+    "Coingecko",
+    "CryptoCompare",
+    "CurrencyApi",
+    "MOEX"
+  ],
+
+  "server": {
+    "port": 36661, // Port number for the API service, e.g., http://localhost:36661
+    "mongodb": {
+      "host": "mongodb",
+      "port": 27017,
+      "db": "tickersdb"
+    }
+  },
+
   "notify": {
-    "slack": ["https://hooks.slack.com/services/T192381293/B19283/XXXXX"],
+    // Array of Slack webhook URLs for sending notifications (optional)
+    "slack": [
+      // "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
+    ],
+
+    // Array of Discord webhook URLs for sending notifications (optional)
+    "discord": [
+      // "https://discord.com/api/webhooks/123456789012345678/aBCdeFg9h0iJKl1-_mNoPqRST2uvwXYZ3ab4cDefgH5ijklmnOPQrsTuvWxYZaBC-de_"
+    ],
+
+    // Secret passphrase for ADAMANT notifications (optional)
+    "adamantPassphrase": "apple banana...",
+    // Array of ADAMANT addresses for sending notifications (optional)
+    "adamant": [
+      // "U12345678901234567890"
+    ]
   },
-  "log_level": "log",
-  "coinmarketcap": {
-    "api_key": "hello_world",
-    "coins": ["BTC", "ETH"],
-    "ids": {
-      "BTC": 102,
-    },
-  },
-  "base_coins": ["USD", "RUB", "EUR", "CNY", "JPY", "BTC", "ETH", "KRW"],
+  "log_level": "log", // Specifies the verbosity of logs (none, log, warn, error)
+
+  // List of base coins for calculating all available pairs
+  "base_coins": ["USD", "RUB", "EUR", "CNY", "JPY", "BTC", "ETH"],
+
+  // Free Moscow Exchange (https://moex.com) API configuration. Fiat currencies mostly.
+  // Using a Russian proxy server because MOEX may block requests from hostile countries. The proxy updates data every 3 minutes.
+  // The direct source link is https://iss.moex.com/iss/engines/currency/markets/selt/securities.jsonp
+  // USD, EUR, JPY, and some other currencies are probably outdated because trading them on MOEX has been prohibited since June 2024
+  // This source is disabled by default as it is not possible to get rate calculations against USD base
   "moex": {
-    "USD/RUB": "USDRUB_TOM",
-    "EUR/RUB": "EURRUB_TOM",
-    "GBR/RUB": "GBPRUB_TOM",
-    "CNY/RUB": "CNYRUB_TOM",
-    "JPY/RUB": "JPYRUB_TOM",
+    // Enable or disable Moex API (optional)
+    "enabled": false,
+    // API URL
+    "url": "https://rusdoor.adamant.im/securities.jsonp",
+    // Record of fiat pairs and their codes to fetch rates from MOEX
+    "codes": {
+      "USD/RUB": "USDRUB_TOM",
+      "EUR/RUB": "EURRUB_TOM",
+      "CNY/RUB": "CNYRUB_TOM"
+      // ...
+    }
   },
+
+  // Free CurrencyAPI (https://github.com/fawazahmed0/exchange-api) configuration
+  // The API updates data once a day, only fiat currencies are advised
+  "currency_api": {
+    // Enable or disable CurrencyApi (optional)
+    "enabled": true,
+    // API URL
+    "url": "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json",
+    "codes": [
+      // List of currency and coin codes to fetch rates from CurrencyAPI (optional)
+      "USD",
+      "EUR",
+      "RUB",
+      "CNY",
+      "JPY"
+      // ...
+    ]
+  },
+
+  // ExchangeRate (https://exchangerate.host) configuration
+  // The API supports world currencies, precious metals and Bitcoin: https://exchangerate.host/currencies
+  // Spot exchange rate data is retrieved from several major forex data providers in real-time, validated, processed and delivered hourly, every 10 minutes, or even within the 60-second market window.
+  "exchange_rate_host": {
+    "enabled": false, // Enable or disable ExchangeRate API (optional)
+    "api_key": "API key for ExchangeRate", // obligatory
+    "codes": [
+      // List of currency and coin codes to fetch rates from ExchangeRateHost (optional)
+      "USD",
+      "EUR",
+      "RUB",
+      "CNY",
+      "JPY",
+      "BTC"
+      // ...
+    ]
+  },
+
+  // CoinMarketCap (https://coinmarketcap.com) configuration
+  // Comprehensive coin list with most endpoints update every 1 minute
+  "coinmarketcap": {
+    "enabled": false, // Enable or disable CoinMarketCap API (optional)
+    "api_key": "API key for CoinMarketCap", // obligatory
+    "coins": [
+      // List of coins to fetch rates from CoinMarketCap (optional, deprecated)
+      "BTC",
+      "ETH",
+      "ADM"
+      // ...
+    ],
+    "ids": {
+      // Record of CoinMarketCap SymbolId/UCID pairs for specific coin rates (optional, preferred)
+      // Search for UCID on a specific coin page, e.g., https://coinmarketcap.com/currencies/adamant-messenger/
+      "BTC": 1,
+      "ETH": 1027,
+      "ADM": 3703
+      // ...
+    }
+  },
+
+  // CryptoCompare (https://cryptocompare.com) configuration
+  // Comprehensive coin and fiat list with frequent updates
+  "cryptocompare": {
+    "enabled": true, // Enable or disable CryptoCompare API (optional)
+    "api_key": "API key for CryptoCompare", // optional
+    "coins": [
+      // List of coins to fetch rates from CryptoCompare (optional)
+      "USD",
+      "EUR",
+      "RUB",
+      "CNY",
+      "JPY",
+      "BTC",
+      "ETH",
+      "ADM"
+      // ...
+    ]
+  },
+
+  // Free CoinGecko (https://coingecko.com) configuration
+  // Comprehensive coin list. Endpoints are all cached to around 1 to 5 minutes and you can expect most data to be updated at similar intervals.
+  "coingecko": {
+    "enabled": true, // Enable or disable CoinGecko API (optional)
+    "coins": [
+      // List of coins to fetch rates from CoinGecko (optional, deprecated)
+      "BTC",
+      "ETH",
+      "ADM"
+      // ...
+    ],
+    "ids": [
+      // Array of CoinGecko coin IDs for specific coin rates (optional, preferred)
+      // Search for API ID on a specific coin page, e.g., https://www.coingecko.com/en/coins/adamant-messenger
+      "bitcoin",
+      "ethereum",
+      "adamant-messenger"
+      // ...
+    ]
+  }
 }

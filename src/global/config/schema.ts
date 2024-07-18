@@ -16,74 +16,109 @@ export const adamantAddress = z.custom<string>(
 
 export const discordWebhookUrl = z.custom<string>(
   (val) =>
-    /^https:\/\/discord\.com\/api\/webhooks\/\d+\/[A-Za-z0-9_\-]+$/.test(
+    /^https:\/\/discord(app)?\.com\/api\/webhooks\/\d+\/[A-Za-z0-9_\-]+$/.test(
       val as string,
     ),
   'Invalid Discord webhook url. The format is `https://discord.com/api/webhooks/123456789012345678/aBCdeFg9h0iJKl1-_mNoPqRST2uvwXYZ3ab4cDefgH5ijklmnOPQrsTuvWxYZaBC-de_`. Read more at https://discord.com/developers/docs/resources/webhook',
 );
 
+const apiSourceSchema = z.object({
+  enabled: z.boolean(),
+  weight: z.number().optional(),
+});
+
 export const schema = z
   .object({
-    // Formatting
-    decimals: z.number(),
+    name: z.string().default('Currencyinfo'),
 
-    rateDifferencePercentThreshold: z.number(),
+    decimals: z.number().default(12),
+
+    strategy: z.enum(['avg', 'min', 'max', 'priority', 'weight']),
+
+    rateDifferencePercentThreshold: z.number().default(25),
+    groupPercentage: z.number(),
+
+    minSources: z.number().default(1),
+    priorities: z.array(z.string()),
+
     refreshInterval: z.number().optional(),
-    minSources: z.number(),
+    rateLifetime: z.number(),
 
     // Server
-    port: z.number(),
+    server: z.object({
+      port: z.number(),
+      mongodb: z.object({
+        port: z.number(),
+        host: z.string(),
+        db: z.string(),
+      }),
+    }),
 
     // Logging
-    passphrase: z.string().optional(),
     notify: z
       .object({
-        slack: slackWebhookUrl.array().optional(),
-        discord: discordWebhookUrl.array().optional(),
-        adamant: adamantAddress.array().optional(),
+        slack: slackWebhookUrl.array(),
+        discord: discordWebhookUrl.array(),
+        adamant: adamantAddress.array(),
+        adamantPassphrase: z.string().optional(),
       })
+      .partial()
       .optional(),
-    log_level: z.enum(['none', 'log', 'info', 'warn', 'error']),
+    log_level: z.enum(['none', 'log', 'warn', 'error']).default('log'),
 
-    // API
-    moex: z.record(z.string()),
     base_coins: z.array(coinName),
 
-    exchange_rate_host: z
-      .object({
-        enabled: z.boolean().optional(),
-        api_key: z.string(),
+    // API
+    moex: apiSourceSchema
+      .extend({
+        url: z.string().url(),
+        codes: z.record(z.string()),
       })
       .optional(),
 
-    coinmarketcap: z
-      .object({
-        enabled: z.boolean().optional(),
-        api_key: z.string(),
-        coins: z.array(coinName).optional(),
-        ids: z.record(z.number()).optional(),
+    currency_api: apiSourceSchema
+      .extend({
+        url: z.string().url(),
+        codes: z.array(coinName).default([]),
       })
       .optional(),
-    cryptocompare: z
-      .object({
-        enabled: z.boolean().optional(),
+
+    exchange_rate_host: apiSourceSchema
+      .extend({
         api_key: z.string(),
-        coins: z.array(coinName).optional(),
+        codes: z.array(coinName).default([]),
       })
+      .partial()
       .optional(),
-    coingecko: z
-      .object({
-        enabled: z.boolean().optional(),
-        coins: z.array(coinName).optional(),
-        ids: z.array(z.string()).optional(),
+
+    coinmarketcap: apiSourceSchema
+      .extend({
+        api_key: z.string(),
+        coins: z.array(coinName),
+        ids: z.record(z.number()),
       })
+      .partial()
+      .optional(),
+    cryptocompare: apiSourceSchema
+      .extend({
+        api_key: z.string(),
+        coins: z.array(coinName),
+      })
+      .partial()
+      .optional(),
+    coingecko: apiSourceSchema
+      .extend({
+        coins: z.array(coinName),
+        ids: z.array(z.string()),
+      })
+      .partial()
       .optional(),
   })
-  .strict() /* Throw error on unkown properties. This will help users to migrate from the
+  .strict() /* Throw error on unknown properties. This will help users to migrate from the
    * older versions of the app that use different config schema
    */
   .refine(
-    (schema) => !(schema.notify?.adamant && !schema.passphrase),
+    (schema) => !(schema.notify?.adamant && !schema.notify?.adamantPassphrase),
     'Provide passphrase to use ADAMANT notifier',
   );
 

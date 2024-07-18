@@ -1,26 +1,11 @@
 services:
-  app:
-    container_name: currencyinfo
-    build: .
+  mongodb:
+    container_name: mongodb
+    image: 'mongo:latest'
     ports:
-      - '36661:36661'
-    depends_on:
-      - redis
-    networks:
-      - app_network
-    extra_hosts:
-      - 'host.docker.internal:host-gateway'
-    environment:
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      MONGODB_HOST: host.docker.internal
-      MONGODB_PORT: 27017
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
 
-  redis:
-    container_name: redis
-    image: 'redis:latest'
-    networks:
-      - app_network
-
-networks:
-  app_network:
+volumes:
+  mongo_data:
