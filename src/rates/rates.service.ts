@@ -210,7 +210,7 @@ export class RatesService extends RatesMerger {
     }
 
     if (availableSources <= 0) {
-      return this.logger.warn(
+      return this.fail(
         `Unable to get new rates from all sources. No data has been saved`,
       );
     }
@@ -218,7 +218,8 @@ export class RatesService extends RatesMerger {
     const ratesWithFewerSources = this.getRatesWithFewerSources();
 
     if (ratesWithFewerSources.length) {
-      this.logger.warn(
+      this.notifier.notify(
+        'warn',
         `The following rates have been fetched from fewer sources than expected and therefore won't be saved: ${ratesWithFewerSources
           .map(
             ([pair, expected, got]) =>
