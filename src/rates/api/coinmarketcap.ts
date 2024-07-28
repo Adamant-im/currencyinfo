@@ -94,8 +94,6 @@ export class CoinmarketcapApi extends CoinIdFetcher {
 
     const url = `${baseUrl}?id=${coinIds.join(',')}&convert=${baseCurrency}`;
 
-    const coins = this.config.get('coinmarketcap.coins') as string[];
-
     const { data } = await axios<CoinmarketcapResponseDto>({
       url,
       method: 'get',
@@ -113,7 +111,7 @@ export class CoinmarketcapApi extends CoinIdFetcher {
 
       const coinmarketcapCoins = Object.values(data.data);
 
-      coins.forEach((symbol) => {
+      this.coins.forEach(({ symbol }) => {
         const coin = coinmarketcapCoins.find(
           (coin) => coin.symbol === symbol.toUpperCase(),
         );
@@ -127,14 +125,16 @@ export class CoinmarketcapApi extends CoinIdFetcher {
         }
       });
 
+      const totalCoinsNumber = this.coins.length;
+
       if (!unavailable.length) {
         this.logger.log(
           `${this.resourceName} rates updated against ${baseCurrency} successfully`,
         );
-      } else if (unavailable.length === coins?.length) {
+      } else if (unavailable.length === totalCoinsNumber) {
         this.notifier.notify(
           'error',
-          `Unable to get all of ${coins?.length} coin rates from request to ${url}. Check ${this.resourceName} service and config file.`,
+          `Unable to get all of ${totalCoinsNumber} coin rates from request to ${url}. Check ${this.resourceName} service and config file.`,
         );
       } else {
         this.logger.warn(
