@@ -10,6 +10,7 @@ import { Notifier } from 'src/global/notifier/notifier.service';
 
 import { Tickers } from './api/dto/tickers.dto';
 import { Ticker } from './schemas/ticker.schema';
+import { Timestamp } from './schemas/timestamp.schema';
 
 import { BaseApi } from './api/base';
 
@@ -21,6 +22,17 @@ import { CoinmarketcapApi } from './api/coinmarketcap';
 import { ExchangeRateHost } from './api/exchangeratehost';
 import { GetHistoryDto } from './schemas/getHistory.schema';
 import { RatesMerger, StrategyName } from './merger';
+
+interface HistoricalResult {
+  _id: number;
+  docs: Ticker[];
+  id: [
+    {
+      _id: string;
+      date: number;
+    },
+  ];
+}
 
 const CronIntervals = {
   EVERY_10_MINUTES: 10 * 60 * 1000,
@@ -47,6 +59,7 @@ export class RatesService extends RatesMerger {
 
   constructor(
     @InjectModel(Ticker.name) private tickerModel: Model<Ticker>,
+    @InjectModel(Timestamp.name) private timestampModel: Model<Timestamp>,
     private schedulerRegistry: SchedulerRegistry,
     private config: ConfigService,
     public notifier: Notifier,
@@ -238,16 +251,7 @@ export class RatesService extends RatesMerger {
     }
 
     try {
-      const timestamp = Date.now();
-
-      const createdTicker = new this.tickerModel({
-        date: timestamp,
-        tickers: this.tickers,
-      });
-
-      await createdTicker.save();
-
-      this.lastUpdated = timestamp;
+      await this.saveTickers();
 
       this.logger.log(
         `Rates from ${availableSources}/${this.sourceCount} sources saved successfully`,
@@ -257,6 +261,30 @@ export class RatesService extends RatesMerger {
         `Error: Unable to save new rates in history database: ${error}`,
       );
     }
+  }
+
+  async saveTickers() {
+    const date = Date.now();
+
+    const tickers = [];
+
+    for (const [pair, rate] of Object.entries(this.tickers)) {
+      const [base, quote] = pair.split('/');
+
+      tickers.push({
+        base,
+        quote,
+        rate,
+        date,
+      });
+    }
+
+    await this.timestampModel.create({
+      date,
+    });
+    await this.tickerModel.create(tickers);
+
+    this.lastUpdated = date;
   }
 
   /**
@@ -316,59 +344,76 @@ export class RatesService extends RatesMerger {
       });
     }
 
-    let limit = Math.min(options.limit || 100, 100);
+    const limit = Math.min(options.limit || 100, 100);
 
     if (timestamp) {
-      queries.push({ $match: { date: { $lte: timestamp * 1000 } } });
+      const lastTimestamp = await this.timestampModel.findOne(
+        {
+          date: { $lte: timestamp * 1000 },
+        },
+        null,
+        { sort: { date: -1 } },
+      );
 
-      limit = 1;
+      if (!lastTimestamp) {
+        return [];
+      }
+
+      queries.push({
+        $match: { date: lastTimestamp.date },
+      });
     }
 
     if (coin) {
-      queries.push(
-        {
-          $addFields: {
-            tickersArray: { $objectToArray: '$tickers' },
-          },
-        },
-        {
-          $addFields: {
-            tickersArray: {
-              $filter: {
-                input: '$tickersArray',
-                as: 'item',
-                cond: {
-                  $regexMatch: { input: '$$item.k', regex: coin },
-                },
-              },
-            },
-          },
-        },
-        {
-          $addFields: {
-            tickers: { $arrayToObject: '$tickersArray' },
-          },
-        },
-        {
+      if (coin.includes('/')) {
+        const [quoteCoin, baseCoin] = coin.split('/');
+
+        const match: { quote?: string; base?: string } = {};
+        if (quoteCoin) {
+          match.quote = quoteCoin;
+        }
+        if (baseCoin) {
+          match.base = baseCoin;
+        }
+
+        queries.push({ $match: match });
+      } else {
+        queries.push({
           $match: {
-            'tickersArray.0': { $exists: true },
+            $or: [{ base: coin }, { quote: coin }],
           },
-        },
-        {
-          $project: {
-            tickersArray: 0,
-          },
-        },
-      );
+        });
+      }
     }
 
-    const result = await this.tickerModel.aggregate([
-      ...queries,
-      { $sort: { date: -1 } },
+    queries.push(
+      { $group: { _id: '$date', docs: { $push: '$$ROOT' } } },
+      { $sort: { _id: -1 } },
       { $limit: limit },
-    ]);
+      {
+        $lookup: {
+          from: 'timestamps',
+          localField: '_id',
+          foreignField: 'date',
+          as: 'id',
+        },
+      },
+    );
 
-    return result;
+    const results = await this.tickerModel.aggregate(queries);
+
+    return this.formatHistoricalResults(results);
+  }
+
+  formatHistoricalResults(results: HistoricalResult[]) {
+    return results.map((result) => ({
+      _id: result.id[0]._id,
+      date: result._id,
+      tickers: result.docs.reduce(
+        (obj, doc) => ({ ...obj, [`${doc.quote}/${doc.base}`]: doc.rate }),
+        {},
+      ),
+    }));
   }
 
   /**
