@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { InjectModel } from '@nestjs/mongoose';
 
-import { Model, PipelineStage } from 'mongoose';
+import { Model, PipelineStage, Types } from 'mongoose';
 import { AxiosError } from 'axios';
 
 import { Notifier } from 'src/global/notifier/notifier.service';
@@ -23,15 +23,10 @@ import { ExchangeRateHost } from './api/exchangeratehost';
 import { GetHistoryDto } from './schemas/getHistory.schema';
 import { RatesMerger, StrategyName } from './merger';
 
-interface HistoricalResult {
-  _id: number;
-  docs: Ticker[];
-  id: [
-    {
-      _id: string;
-      date: number;
-    },
-  ];
+export interface HistoricalResult {
+  _id: Types.ObjectId;
+  date: number;
+  tickers: Tickers;
 }
 
 const CronIntervals = {
@@ -344,7 +339,7 @@ export class RatesService extends RatesMerger {
       });
     }
 
-    const limit = Math.min(options.limit || 100, 100);
+    let limit = Math.min(options.limit || 100, 100);
 
     if (timestamp) {
       const lastTimestamp = await this.timestampModel.findOne(
@@ -386,34 +381,42 @@ export class RatesService extends RatesMerger {
       }
     }
 
-    queries.push(
-      { $group: { _id: '$date', docs: { $push: '$$ROOT' } } },
-      { $sort: { _id: -1 } },
-      { $limit: limit },
-      {
-        $lookup: {
-          from: 'timestamps',
-          localField: '_id',
-          foreignField: 'date',
-          as: 'id',
-        },
-      },
-    );
+    queries.push({ $sort: { _id: -1 } });
 
-    const results = await this.tickerModel.aggregate(queries);
+    const results: HistoricalResult[] = [];
 
-    return this.formatHistoricalResults(results);
-  }
+    const cursor = this.tickerModel
+      .aggregate(queries)
+      .cursor({ batchSize: 100 });
 
-  formatHistoricalResults(results: HistoricalResult[]) {
-    return results.map((result) => ({
-      _id: result.id[0]._id,
-      date: result._id,
-      tickers: result.docs.reduce(
-        (obj, doc) => ({ ...obj, [`${doc.quote}/${doc.base}`]: doc.rate }),
-        {},
-      ),
-    }));
+    let doc: Ticker | null = await cursor.next();
+
+    if (!doc) {
+      return [];
+    }
+
+    let lastDate = doc?.date;
+    let tickers: Tickers = {};
+
+    while (limit > 0) {
+      if (!doc) {
+        this.addTickerWithTimestamp(results, tickers, lastDate);
+        break;
+      }
+
+      if (doc.date !== lastDate) {
+        this.addTickerWithTimestamp(results, tickers, lastDate);
+        lastDate = doc.date;
+        tickers = {};
+        limit -= 1;
+      }
+
+      tickers[`${doc.quote}/${doc.base}`] = doc.rate;
+
+      doc = await cursor.next();
+    }
+
+    return results;
   }
 
   /**
@@ -445,6 +448,22 @@ export class RatesService extends RatesMerger {
       message.push(`Error: ${error}.`);
 
       this.fail(message.join(' '));
+    }
+  }
+
+  async addTickerWithTimestamp(
+    results: HistoricalResult[],
+    tickers: Tickers,
+    date: number,
+  ) {
+    const timestamp = await this.timestampModel.findOne({ date });
+
+    if (timestamp) {
+      results.push({
+        _id: timestamp._id,
+        date,
+        tickers,
+      });
     }
   }
 

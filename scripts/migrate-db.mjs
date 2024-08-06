@@ -19,7 +19,7 @@ async function migrate() {
 
     const db = mongoose.connection.db;
 
-    db.renameCollection('tickers', 'timestamps');
+    // db.renameCollection('tickers', 'timestamps');
 
     const timestamps = db.collection('timestamps');
     const tickers = db.collection('tickers');
