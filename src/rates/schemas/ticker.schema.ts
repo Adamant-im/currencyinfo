@@ -21,4 +21,6 @@ export class Ticker {
 export const TickerSchema = SchemaFactory.createForClass(Ticker);
 
 TickerSchema.index({ date: 1 });
+TickerSchema.index({ base: 1 });
+TickerSchema.index({ quote: 1 });
 TickerSchema.index({ base: 1, quote: 1 });
