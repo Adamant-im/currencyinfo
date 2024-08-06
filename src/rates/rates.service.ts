@@ -398,7 +398,7 @@ export class RatesService extends RatesMerger {
     let lastDate = doc?.date;
     let tickers: Tickers = {};
 
-    while (limit >= 0) {
+    while (limit > 0) {
       if (!doc) {
         await this.addTickerWithTimestamp(results, tickers, lastDate);
         break;
