@@ -387,7 +387,7 @@ export class RatesService extends RatesMerger {
 
     const cursor = this.tickerModel
       .aggregate(queries)
-      .cursor({ batchSize: 100 });
+      .cursor({ batchSize: 200 });
 
     let doc: Ticker | null = await cursor.next();
 
