@@ -400,12 +400,12 @@ export class RatesService extends RatesMerger {
 
     while (limit >= 0) {
       if (!doc) {
-        this.addTickerWithTimestamp(results, tickers, lastDate);
+        await this.addTickerWithTimestamp(results, tickers, lastDate);
         break;
       }
 
       if (doc.date !== lastDate) {
-        this.addTickerWithTimestamp(results, tickers, lastDate);
+        await this.addTickerWithTimestamp(results, tickers, lastDate);
         lastDate = doc.date;
         tickers = {};
         limit -= 1;
