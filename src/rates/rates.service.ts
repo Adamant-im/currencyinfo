@@ -212,7 +212,9 @@ export class RatesService extends RatesMerger {
         continue;
       }
 
-      this.mergeTickers(tickers, { name: source.resourceName });
+      this.mergeTickers(this.applyMappings(tickers), {
+        name: source.resourceName,
+      });
 
       availableSources += 1;
     }
@@ -465,6 +467,27 @@ export class RatesService extends RatesMerger {
         tickers,
       });
     }
+  }
+
+  applyMappings(tickers: Tickers) {
+    const mappings = this.config.get('mappings') as Record<string, string>;
+
+    if (!mappings) {
+      return tickers;
+    }
+
+    for (const [pair, price] of Object.entries(tickers)) {
+      let [quote, base] = pair.split('/');
+
+      quote = mappings[quote] || quote;
+      base = mappings[base] || base;
+
+      delete tickers[pair];
+
+      tickers[`${quote}/${base}`] = price;
+    }
+
+    return tickers;
   }
 
   fail(reason: string) {
