@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import {
-  coinName,
+  coinNameOrPair,
   nonnegativeNumber,
   positiveNumber,
 } from 'src/shared/schema-types';
@@ -11,7 +11,7 @@ export const getHistorySchema = z
     from: nonnegativeNumber,
     to: nonnegativeNumber,
     limit: positiveNumber,
-    coin: coinName,
+    coin: coinNameOrPair,
   })
   .partial()
   .refine((data) => !!Object.values(data).length, {

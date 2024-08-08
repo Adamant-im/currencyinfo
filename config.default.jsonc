@@ -59,6 +59,11 @@
   // List of base coins for calculating all available pairs
   "base_coins": ["USD", "RUB", "EUR", "CNY", "JPY", "BTC", "ETH"],
 
+  // A mapping of symbols to their standardized names for consistency across different sources
+  "mappings": {
+    "CWIF": "$CWIF"
+  },
+
   // Free Moscow Exchange (https://moex.com) API configuration. Fiat currencies mostly.
   // Using a Russian proxy server because MOEX may block requests from hostile countries. The proxy updates data every 3 minutes.
   // The direct source link is https://iss.moex.com/iss/engines/currency/markets/selt/securities.jsonp
