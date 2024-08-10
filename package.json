@@ -8,6 +8,7 @@
   "scripts": {
     "build": "nest build",
     "migrate": "node scripts/migrate.mjs",
+    "migrate-db": "node scripts/migrate-db.mjs",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "NODE_ENV=development pnpm run start -- --watch",

@@ -6,10 +6,7 @@ async function migrate() {
   try {
     const url = process.argv[2];
 
-    await mongoose.connect(url, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    await mongoose.connect(url);
 
     console.log(
       `Database '${url}' connected successfully. Starting in 3 seconds...`,
