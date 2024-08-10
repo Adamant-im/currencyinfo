@@ -34,20 +34,9 @@ async function migrate() {
     for await (const doc of cursor) {
       processedDocs += 1;
 
-      if (doc.coins?.length) {
-        console.log(
-          `Skipping ${processedDocs}/${totalDocs} document: ${doc._id}`,
-        );
-        continue;
-      }
-
       console.log(
         `Processing ${processedDocs}/${totalDocs} document: ${doc._id}`,
       );
-
-      if (!doc.tickers) {
-        console.log(doc);
-      }
 
       const tickeres = [];
 
