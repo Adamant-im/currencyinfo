@@ -368,7 +368,7 @@ export class RatesService extends RatesMerger {
   }
 
   applyMappings(tickers: Tickers) {
-    const mappings = this.config.get<Record<string, string>>('mappings');
+    const mappings = this.config.get('mappings') as Record<string, string>;
 
     if (!mappings) {
       return tickers;
