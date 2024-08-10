@@ -17,9 +17,9 @@ async function migrate() {
 
     await new Promise((resolve) => setTimeout(() => resolve(), 3000));
 
-    const db = mongoose.connection.db;
+    const { db } = mongoose.connection;
 
-    // db.renameCollection('tickers', 'timestamps');
+    await db.renameCollection('tickers', 'timestamps');
 
     const timestamps = db.collection('timestamps');
     const tickers = db.collection('tickers');
@@ -31,8 +31,7 @@ async function migrate() {
 
     const cursor = timestamps.find();
 
-    let doc;
-    while ((doc = await cursor.next())) {
+    for await (const doc of cursor) {
       processedDocs += 1;
 
       if (doc.coins?.length) {
