@@ -150,10 +150,14 @@ export class RatesService extends RatesMerger {
 
     await Promise.all(enabledSources.map((source) => source.ready));
 
+    const mappings = this.config.get<Record<string, string>>('mappings');
+
     const coins = new Set<string>();
 
     for (const source of enabledSources) {
-      source.enabledCoins.forEach((baseCoin) => {
+      source.enabledCoins.forEach((enabledCoin) => {
+        const baseCoin = mappings?.[enabledCoin] ?? enabledCoin;
+
         if (baseCoin !== 'USD') {
           const pairName = `${baseCoin}/USD`;
           this.pairSources[pairName] = Math.min(
@@ -470,7 +474,7 @@ export class RatesService extends RatesMerger {
   }
 
   applyMappings(tickers: Tickers) {
-    const mappings = this.config.get('mappings') as Record<string, string>;
+    const mappings = this.config.get<Record<string, string>>('mappings');
 
     if (!mappings) {
       return tickers;
