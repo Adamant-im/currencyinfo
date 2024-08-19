@@ -285,7 +285,7 @@ export class RatesService extends RatesMerger {
       this.fail(
         `Error: Unable to save new rates in history database: ${error}. See logs for details`,
       );
-      console.error(JSON.stringify(tickers));
+      this.logger.error(JSON.stringify(tickers));
     }
   }
 
