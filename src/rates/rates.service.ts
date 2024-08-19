@@ -251,20 +251,10 @@ export class RatesService extends RatesMerger {
       this.fail(`The rates won't be saved for the following pairs:\n${error}`);
     }
 
-    try {
-      await this.saveTickers();
-
-      this.logger.log(
-        `Rates from ${availableSources}/${this.sourceCount} sources saved successfully`,
-      );
-    } catch (error) {
-      this.fail(
-        `Error: Unable to save new rates in history database: ${error}`,
-      );
-    }
+    await this.saveTickers(availableSources);
   }
 
-  async saveTickers() {
+  async saveTickers(availableSources: number) {
     const date = Date.now();
 
     const tickers = [];
@@ -280,12 +270,23 @@ export class RatesService extends RatesMerger {
       });
     }
 
-    await this.timestampModel.create({
-      date,
-    });
-    await this.tickerModel.create(tickers);
+    try {
+      await this.tickerModel.create(tickers);
+      await this.timestampModel.create({
+        date,
+      });
 
-    this.lastUpdated = date;
+      this.lastUpdated = date;
+
+      this.logger.log(
+        `Rates from ${availableSources}/${this.sourceCount} sources saved successfully`,
+      );
+    } catch (error) {
+      this.fail(
+        `Error: Unable to save new rates in history database: ${String(error).replace(/(\.)+?$/, '')}. See logs for details`,
+      );
+      this.logger.error(JSON.stringify(tickers));
+    }
   }
 
   /**
