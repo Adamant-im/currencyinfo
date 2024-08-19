@@ -283,7 +283,7 @@ export class RatesService extends RatesMerger {
       );
     } catch (error) {
       this.fail(
-        `Error: Unable to save new rates in history database: ${error}. See logs for details`,
+        `Error: Unable to save new rates in history database: ${String(error).replace(/(\.)+?$/, '')}. See logs for details`,
       );
       this.logger.error(JSON.stringify(tickers));
     }
