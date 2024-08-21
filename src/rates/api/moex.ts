@@ -91,19 +91,17 @@ export class MoexApi extends BaseApi {
         price /= 100;
       }
 
-      if (basePrice) {
-        if (pair === 'USD/RUB') {
-          rates['RUB/USD'] = Number((1 / basePrice).toFixed(decimals));
-        } else {
-          rates[pair] = Number(price.toFixed(decimals));
+      if (pair === 'USD/RUB') {
+        rates['RUB/USD'] = Number((1 / basePrice).toFixed(decimals));
+      } else {
+        rates[pair] = Number(price.toFixed(decimals));
 
+        if (basePrice) {
           const market = `${pair.replace('/RUB', '')}/USD`;
           const altPrice = rates[pair] / basePrice;
 
           rates[market] = Number(altPrice.toFixed(decimals));
         }
-      } else {
-        rates[pair] = price;
       }
     }
 
