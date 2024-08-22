@@ -80,13 +80,6 @@ export class MoexApi extends BaseApi {
 
     const basePrice = this.getPrice('USD/RUB', data)!;
 
-    if (!basePrice) {
-      this.notifier.notify(
-        'error',
-        `Unable to get all of MOEX rates: No base price for USD/RUB has been found. Ensure config has the code for the pair.`,
-      );
-    }
-
     for (const pair of Object.keys(this.codes)) {
       let price = this.getPrice(pair, data);
 
@@ -103,10 +96,12 @@ export class MoexApi extends BaseApi {
       } else {
         rates[pair] = Number(price.toFixed(decimals));
 
-        const market = `${pair.replace('/RUB', '')}/USD`;
-        const altPrice = rates[pair] / basePrice;
+        if (basePrice) {
+          const market = `${pair.replace('/RUB', '')}/USD`;
+          const altPrice = rates[pair] / basePrice;
 
-        rates[market] = Number(altPrice.toFixed(decimals));
+          rates[market] = Number(altPrice.toFixed(decimals));
+        }
       }
     }
 

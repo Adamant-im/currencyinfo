@@ -1,6 +1,6 @@
 {
   "name": "currencyinfo",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "description": "Self-hosted crypto and fiat currency rates service provider",
   "author": "ADAMANT Foundation <devs@adamant.im> (https://adamant.im)",
   "private": true,
@@ -8,6 +8,7 @@
   "scripts": {
     "build": "nest build",
     "migrate": "node scripts/migrate.mjs",
+    "migrate-db": "node scripts/migrate-db.mjs",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "NODE_ENV=development pnpm run start -- --watch",

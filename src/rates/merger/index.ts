@@ -91,9 +91,11 @@ export abstract class RatesMerger {
         timestamp,
       };
 
-      const prices = this.sourceTickers[rate];
+      const previousPrices = this.sourceTickers[rate];
 
-      if (prices) {
+      if (previousPrices) {
+        const prices = [...previousPrices];
+
         // Replace previous price for the specific source
         const previousPriceIndex = prices.findIndex(
           (previousPrice) => previousPrice.source === newPrice.source,
@@ -149,6 +151,12 @@ export abstract class RatesMerger {
   }
 
   setTickers(tickers: SourceTickers) {
+    const [, errors] = this.squishTickers(tickers, this.rateLifetime);
+
+    for (const [pair] of errors) {
+      delete tickers[pair];
+    }
+
     this.sourceTickers = {
       ...this.sourceTickers,
       ...tickers,
@@ -158,7 +166,10 @@ export abstract class RatesMerger {
   }
 
   getTickersWithLifetime(rateLifetime: number) {
-    const [squishedTickers, rateDifferences] = this.squishTickers(rateLifetime);
+    const [squishedTickers, rateDifferences] = this.squishTickers(
+      this.sourceTickers,
+      rateLifetime,
+    );
 
     this.rateDifferences = rateDifferences;
 
@@ -170,11 +181,12 @@ export abstract class RatesMerger {
   cutRatesBySourceCount(squishedTickers: Tickers) {
     const minimizedTickers: Tickers = {};
 
-    for (const [rate, prices] of Object.entries(this.sourceTickers)) {
+    for (const [rate, price] of Object.entries(squishedTickers)) {
       const minSourcesForPair = this.pairSources[rate] || 1;
+      const prices = this.sourceTickers[rate];
 
       if (prices.length >= minSourcesForPair) {
-        minimizedTickers[rate] = squishedTickers[rate];
+        minimizedTickers[rate] = price;
       }
     }
 
@@ -199,13 +211,13 @@ export abstract class RatesMerger {
    * Uses the chosen strategy to squish the tickers from
    * different sources into one piece.
    */
-  squishTickers(lifetime: number) {
+  squishTickers(sourceTickers: SourceTickers, lifetime: number) {
     const tickers: Tickers = {};
     const errors: Array<[pair: string, error: string]> = [];
 
     const timestamp = this.getTimestamp();
 
-    for (const [pair, prices] of Object.entries(this.sourceTickers)) {
+    for (const [pair, prices] of Object.entries(sourceTickers)) {
       const [error, group] = this.getBiggestGroupPrice(
         prices.filter((price) => timestamp - price.timestamp < lifetime),
       );

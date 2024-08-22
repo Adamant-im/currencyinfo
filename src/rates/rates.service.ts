@@ -3,13 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { InjectModel } from '@nestjs/mongoose';
 
-import { Model, PipelineStage } from 'mongoose';
+import { Model, PipelineStage, Types } from 'mongoose';
 import { AxiosError } from 'axios';
 
 import { Notifier } from 'src/global/notifier/notifier.service';
 
 import { Tickers } from './api/dto/tickers.dto';
 import { Ticker } from './schemas/ticker.schema';
+import { Timestamp } from './schemas/timestamp.schema';
 
 import { BaseApi } from './api/base';
 
@@ -21,6 +22,12 @@ import { CoinmarketcapApi } from './api/coinmarketcap';
 import { ExchangeRateHost } from './api/exchangeratehost';
 import { GetHistoryDto } from './schemas/getHistory.schema';
 import { RatesMerger, StrategyName } from './merger';
+
+export interface HistoricalResult {
+  _id: Types.ObjectId;
+  date: number;
+  tickers: Tickers;
+}
 
 const CronIntervals = {
   EVERY_10_MINUTES: 10 * 60 * 1000,
@@ -47,6 +54,7 @@ export class RatesService extends RatesMerger {
 
   constructor(
     @InjectModel(Ticker.name) private tickerModel: Model<Ticker>,
+    @InjectModel(Timestamp.name) private timestampModel: Model<Timestamp>,
     private schedulerRegistry: SchedulerRegistry,
     private config: ConfigService,
     public notifier: Notifier,
@@ -142,10 +150,14 @@ export class RatesService extends RatesMerger {
 
     await Promise.all(enabledSources.map((source) => source.ready));
 
+    const mappings = this.config.get<Record<string, string>>('mappings');
+
     const coins = new Set<string>();
 
     for (const source of enabledSources) {
-      source.enabledCoins.forEach((baseCoin) => {
+      source.enabledCoins.forEach((enabledCoin) => {
+        const baseCoin = mappings?.[enabledCoin] ?? enabledCoin;
+
         if (baseCoin !== 'USD') {
           const pairName = `${baseCoin}/USD`;
           this.pairSources[pairName] = Math.min(
@@ -204,13 +216,15 @@ export class RatesService extends RatesMerger {
         continue;
       }
 
-      this.mergeTickers(tickers, { name: source.resourceName });
+      this.mergeTickers(this.applyMappings(tickers), {
+        name: source.resourceName,
+      });
 
       availableSources += 1;
     }
 
     if (availableSources <= 0) {
-      return this.logger.warn(
+      return this.fail(
         `Unable to get new rates from all sources. No data has been saved`,
       );
     }
@@ -218,7 +232,8 @@ export class RatesService extends RatesMerger {
     const ratesWithFewerSources = this.getRatesWithFewerSources();
 
     if (ratesWithFewerSources.length) {
-      this.logger.warn(
+      this.notifier.notify(
+        'warn',
         `The following rates have been fetched from fewer sources than expected and therefore won't be saved: ${ratesWithFewerSources
           .map(
             ([pair, expected, got]) =>
@@ -236,25 +251,41 @@ export class RatesService extends RatesMerger {
       this.fail(`The rates won't be saved for the following pairs:\n${error}`);
     }
 
-    try {
-      const timestamp = Date.now();
+    await this.saveTickers(availableSources);
+  }
 
-      const createdTicker = new this.tickerModel({
-        date: timestamp,
-        tickers: this.tickers,
+  async saveTickers(availableSources: number) {
+    const date = Date.now();
+
+    const tickers = [];
+
+    for (const [pair, rate] of Object.entries(this.tickers)) {
+      const [base, quote] = pair.split('/');
+
+      tickers.push({
+        base,
+        quote,
+        rate,
+        date,
+      });
+    }
+
+    try {
+      await this.tickerModel.create(tickers);
+      await this.timestampModel.create({
+        date,
       });
 
-      await createdTicker.save();
-
-      this.lastUpdated = timestamp;
+      this.lastUpdated = date;
 
       this.logger.log(
         `Rates from ${availableSources}/${this.sourceCount} sources saved successfully`,
       );
     } catch (error) {
       this.fail(
-        `Error: Unable to save new rates in history database: ${error}`,
+        `Error: Unable to save new rates in history database: ${String(error).replace(/(\.)+?$/, '')}. See logs for details`,
       );
+      this.logger.error(JSON.stringify(tickers));
     }
   }
 
@@ -318,56 +349,81 @@ export class RatesService extends RatesMerger {
     let limit = Math.min(options.limit || 100, 100);
 
     if (timestamp) {
-      queries.push({ $match: { date: { $lte: timestamp * 1000 } } });
+      const lastTimestamp = await this.timestampModel.findOne(
+        {
+          date: { $lte: timestamp * 1000 },
+        },
+        null,
+        { sort: { date: -1 } },
+      );
 
-      limit = 1;
+      if (!lastTimestamp) {
+        return [];
+      }
+
+      queries.push({
+        $match: { date: lastTimestamp.date },
+      });
     }
 
     if (coin) {
-      queries.push(
-        {
-          $addFields: {
-            tickersArray: { $objectToArray: '$tickers' },
-          },
-        },
-        {
-          $addFields: {
-            tickersArray: {
-              $filter: {
-                input: '$tickersArray',
-                as: 'item',
-                cond: {
-                  $regexMatch: { input: '$$item.k', regex: coin },
-                },
-              },
-            },
-          },
-        },
-        {
-          $addFields: {
-            tickers: { $arrayToObject: '$tickersArray' },
-          },
-        },
-        {
+      if (coin.includes('/')) {
+        const [quoteCoin, baseCoin] = coin.split('/');
+
+        const match: { quote?: string; base?: string } = {};
+        if (quoteCoin) {
+          match.quote = quoteCoin;
+        }
+        if (baseCoin) {
+          match.base = baseCoin;
+        }
+
+        queries.push({ $match: match });
+      } else {
+        queries.push({
           $match: {
-            'tickersArray.0': { $exists: true },
+            $or: [{ base: coin }, { quote: coin }],
           },
-        },
-        {
-          $project: {
-            tickersArray: 0,
-          },
-        },
-      );
+        });
+      }
     }
 
-    const result = await this.tickerModel.aggregate([
-      ...queries,
-      { $sort: { date: -1 } },
-      { $limit: limit },
-    ]);
+    queries.push({ $sort: { _id: -1 } });
 
-    return result;
+    const results: HistoricalResult[] = [];
+
+    const cursor = this.tickerModel
+      .aggregate(queries)
+      .cursor({ batchSize: 200 });
+
+    let doc: Ticker | null = await cursor.next();
+
+    if (!doc) {
+      return [];
+    }
+
+    let lastDate = doc?.date;
+    let tickers: Tickers = {};
+
+    while (limit > 0) {
+      if (!doc) {
+        await this.addTickerWithTimestamp(results, tickers, lastDate);
+        break;
+      }
+
+      if (doc.date !== lastDate) {
+        await this.addTickerWithTimestamp(results, tickers, lastDate);
+        lastDate = doc.date;
+        tickers = {};
+        limit -= 1;
+      }
+
+      tickers[`${doc.quote}/${doc.base}`] = doc.rate;
+
+      doc = await cursor.next();
+    }
+
+    return results;
   }
 
   /**
@@ -400,6 +456,43 @@ export class RatesService extends RatesMerger {
 
       this.fail(message.join(' '));
     }
+  }
+
+  async addTickerWithTimestamp(
+    results: HistoricalResult[],
+    tickers: Tickers,
+    date: number,
+  ) {
+    const timestamp = await this.timestampModel.findOne({ date });
+
+    if (timestamp) {
+      results.push({
+        _id: timestamp._id,
+        date,
+        tickers,
+      });
+    }
+  }
+
+  applyMappings(tickers: Tickers) {
+    const mappings = this.config.get<Record<string, string>>('mappings');
+
+    if (!mappings) {
+      return tickers;
+    }
+
+    for (const [pair, price] of Object.entries(tickers)) {
+      let [quote, base] = pair.split('/');
+
+      quote = mappings[quote] || quote;
+      base = mappings[base] || base;
+
+      delete tickers[pair];
+
+      tickers[`${quote}/${base}`] = price;
+    }
+
+    return tickers;
   }
 
   fail(reason: string) {
