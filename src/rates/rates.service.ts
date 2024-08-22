@@ -30,6 +30,12 @@ export interface HistoricalResult {
   tickers: Tickers;
 }
 
+export interface HistoricalResult {
+  _id: Types.ObjectId;
+  date: number;
+  tickers: Tickers;
+}
+
 const CronIntervals = {
   EVERY_10_MINUTES: 10 * 60 * 1000,
   EVERY_SECOND: 1000, // For debugging
