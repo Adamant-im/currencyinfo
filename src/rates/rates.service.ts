@@ -8,20 +8,15 @@ import { AxiosError } from 'axios';
 
 import { Notifier } from 'src/global/notifier/notifier.service';
 
-import { Tickers } from './api/dto/tickers.dto';
+import { SourceTickers, Tickers } from './sources/api/dto/tickers.dto';
+import { BaseApi } from './sources/api/base';
+
 import { Ticker } from './schemas/ticker.schema';
 import { Timestamp } from './schemas/timestamp.schema';
 
-import { BaseApi } from './api/base';
-
-import { CurrencyApi } from './api/currencyapi';
-import { CoingeckoApi } from './api/coingecko';
-import { CryptoCompareApi } from './api/cryptocompare';
-import { MoexApi } from './api/moex';
-import { CoinmarketcapApi } from './api/coinmarketcap';
-import { ExchangeRateHost } from './api/exchangeratehost';
 import { GetHistoryDto } from './schemas/getHistory.schema';
 import { RatesMerger, StrategyName } from './merger';
+import { SourcesManager } from './sources/sources-manager';
 
 export interface HistoricalResult {
   _id: Types.ObjectId;
@@ -42,13 +37,11 @@ export class RatesService extends RatesMerger {
   refreshInterval: number;
   initializationTimestamp = Date.now();
 
-  protected allCoins: string[] = [];
+  public rateLifetime = this.config.get('rateLifetime');
+  public allCoins: string[] = [];
   protected pairSources: Record<string, number> = {};
 
   private ready: Promise<void>;
-
-  private sources: BaseApi[];
-  private sourceCount: number;
 
   private readonly logger;
 
@@ -56,78 +49,26 @@ export class RatesService extends RatesMerger {
     @InjectModel(Ticker.name) private tickerModel: Model<Ticker>,
     @InjectModel(Timestamp.name) private timestampModel: Model<Timestamp>,
     private schedulerRegistry: SchedulerRegistry,
-    private config: ConfigService,
+    protected config: ConfigService,
+    private sourceManager: SourcesManager,
     public notifier: Notifier,
   ) {
-    const decimals = config.get('decimals') as number;
-    const strategyName = config.get('strategy') as StrategyName;
-
-    const threshold = config.get('rateDifferencePercentThreshold') as number;
-    const groupPercentage = config.get('groupPercentage') as number;
-
-    const minSources = config.get('minSources') as number;
-    const rateLifetime = config.get('rateLifetime') as number;
-
-    const priorities = config.get('priorities') as string[];
-    const baseCoins = config.get('base_coins') as string[];
-
     const refreshInterval = config.get<number>('refreshInterval');
 
     const logger = new Logger();
 
-    const sources = [
-      // Fiat tickers
-      new CurrencyApi(config, logger),
-      new ExchangeRateHost(config, logger),
-      new MoexApi(config, logger, notifier),
+    const weights = sourceManager.getSourceWeights();
+    const strategyName = config.get('strategy') as StrategyName;
 
-      // Crypto tickers
-      new CoinmarketcapApi(config, logger, notifier),
-      new CryptoCompareApi(config, logger),
-      new CoingeckoApi(config, logger, notifier),
-    ];
-
-    const weights = sources.reduce((obj: Record<string, number>, source) => {
-      obj[source.resourceName] = source.weight;
-      return obj;
-    }, {});
-
-    const enabledCoinsSet = new Set<string>();
-    sources.forEach((source) => {
-      source.enabledCoins?.forEach((coin) => enabledCoinsSet.add(coin));
-    });
-
-    const unavailableBaseCoins = baseCoins.filter(
-      (coin) => !enabledCoinsSet.has(coin),
-    );
-
-    if (unavailableBaseCoins.length) {
-      logger.warn(
-        `No resources provide rates for the following base coins: ${unavailableBaseCoins.join(', ')}. As a result, the rates for these base coins will NOT be saved.`,
-      );
-    }
-
-    super(strategyName, {
-      baseCoins,
-      weights,
-      decimals,
-      priorities,
-      threshold,
-      groupPercentage,
-      minSources,
-      rateLifetime,
-    });
+    super(strategyName, weights);
 
     this.logger = logger;
-    this.sources = sources;
 
     this.refreshInterval = refreshInterval
       ? refreshInterval * 60 * 1000
       : CronIntervals.EVERY_10_MINUTES;
 
-    this.sourceCount = this.sources.filter((source) => source.enabled).length;
-
-    this.ready = this.getEnabledCoins();
+    this.ready = sourceManager.initialize();
 
     this.init();
   }
@@ -145,50 +86,6 @@ export class RatesService extends RatesMerger {
     this.updateTickers();
   }
 
-  async getEnabledCoins() {
-    const enabledSources = this.sources.filter((source) => source.enabled);
-
-    await Promise.all(enabledSources.map((source) => source.ready));
-
-    const mappings = this.config.get<Record<string, string>>('mappings');
-
-    const coins = new Set<string>();
-
-    for (const source of enabledSources) {
-      source.enabledCoins.forEach((enabledCoin) => {
-        const baseCoin = mappings?.[enabledCoin] ?? enabledCoin;
-
-        if (baseCoin !== 'USD') {
-          const pairName = `${baseCoin}/USD`;
-          this.pairSources[pairName] = Math.min(
-            (this.pairSources[pairName] || 0) + 1,
-            this.minSources,
-          );
-
-          coins.add(baseCoin);
-        }
-      });
-    }
-
-    const pairsWithLowSourceCount: Array<[string, number]> = [];
-
-    for (const [pairName, sourceCount] of Object.entries(this.pairSources)) {
-      if (sourceCount < this.minSources) {
-        pairsWithLowSourceCount.push([pairName, sourceCount]);
-      }
-    }
-
-    if (pairsWithLowSourceCount.length) {
-      this.logger.warn(
-        `The following pairs have fewer enabled sources than the configured minimum (minSources=${this.minSources}), but they are going to be saved anyway: ${pairsWithLowSourceCount
-          .map(([pairName, sourceCount]) => `${pairName} (${sourceCount})`)
-          .join(', ')}`,
-      );
-    }
-
-    this.allCoins = [...coins];
-  }
-
   /**
    * Retrieves data from all enabled API sources and stores it in the
    * database if successful responses exceed the `config.minSources`.
@@ -198,13 +95,10 @@ export class RatesService extends RatesMerger {
 
     await this.ready;
 
+    const sourceTickers: SourceTickers = {};
     let availableSources = 0;
 
-    for (const source of this.sources) {
-      if (!source.enabled) {
-        continue;
-      }
-
+    for (const source of this.sourceManager.getEnabledSources()) {
       const tickers = await this.fetchTickers(source);
 
       if (!tickers) {
@@ -216,12 +110,14 @@ export class RatesService extends RatesMerger {
         continue;
       }
 
-      this.mergeTickers(this.applyMappings(tickers), {
+      this.mergeTickers(sourceTickers, this.applyMappings(tickers), {
         name: source.resourceName,
       });
 
       availableSources += 1;
     }
+
+    this.setTickers(sourceTickers);
 
     if (availableSources <= 0) {
       return this.fail(
@@ -241,14 +137,6 @@ export class RatesService extends RatesMerger {
           )
           .join('; ')}`,
       );
-    }
-
-    if (this.rateDifferences.length) {
-      const error = this.rateDifferences
-        .map(([pair, error]) => `${pair} ${error}`)
-        .join('\n');
-
-      this.fail(`The rates won't be saved for the following pairs:\n${error}`);
     }
 
     await this.saveTickers(availableSources);
@@ -279,7 +167,7 @@ export class RatesService extends RatesMerger {
       this.lastUpdated = date;
 
       this.logger.log(
-        `Rates from ${availableSources}/${this.sourceCount} sources saved successfully`,
+        `Rates from ${availableSources}/${this.sourceManager.sourceCount} sources saved successfully`,
       );
     } catch (error) {
       this.fail(
@@ -296,7 +184,7 @@ export class RatesService extends RatesMerger {
   async getTickers(coins: string[] = [], rateLifetime = this.rateLifetime) {
     const requestedCoins = new Set(coins);
 
-    const tickers =
+    const tickers: Tickers =
       rateLifetime === this.rateLifetime
         ? this.tickers
         : this.getTickersWithLifetime(rateLifetime);

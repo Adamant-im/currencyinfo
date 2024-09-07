@@ -6,6 +6,7 @@ import { RatesService } from './rates.service';
 
 import { Ticker, TickerSchema } from './schemas/ticker.schema';
 import { Timestamp, TimestampSchema } from './schemas/timestamp.schema';
+import { SourcesManager } from './sources/sources-manager';
 
 @Module({
   imports: [
@@ -15,6 +16,6 @@ import { Timestamp, TimestampSchema } from './schemas/timestamp.schema';
     ]),
   ],
   controllers: [RatesController],
-  providers: [RatesService],
+  providers: [RatesService, SourcesManager],
 })
 export class RatesModule {}
