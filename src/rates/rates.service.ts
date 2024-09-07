@@ -418,7 +418,7 @@ export class RatesService extends RatesMerger {
         limit -= 1;
       }
 
-      tickers[`${doc.quote}/${doc.base}`] = doc.rate;
+      tickers[`${doc.base}/${doc.quote}`] = doc.rate;
 
       doc = await cursor.next();
     }
