@@ -67,7 +67,7 @@ export const schema = z
     log_level: z.enum(['none', 'log', 'warn', 'error']).default('log'),
 
     base_coins: z.array(coinName),
-    mappings: z.record(z.string()).optional(),
+    mappings: z.record(z.string()).default({}),
 
     // API
     moex: apiSourceSchema
