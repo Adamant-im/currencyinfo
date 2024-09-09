@@ -7,6 +7,7 @@ import {
 import * as strategies from './strategy';
 import { ConfigService } from '@nestjs/config';
 import { Notifier } from 'src/global/notifier/notifier.service';
+import { SourcesManager } from '../sources/sources-manager';
 
 export type StrategyName = keyof typeof strategies;
 
@@ -35,8 +36,8 @@ export abstract class RatesMerger {
   private strategy: (prices: SourcePrice[]) => number;
 
   public abstract rateLifetime: number;
-  public abstract allCoins: string[];
 
+  protected abstract sourcesManager: SourcesManager;
   protected abstract pairSources: Record<string, number>;
   protected abstract config: ConfigService;
   protected abstract notifier: Notifier;
@@ -97,7 +98,7 @@ export abstract class RatesMerger {
     const decimals = this.config.get('decimals') as number;
     const baseCoins = this.config.get('base_coins') as string[];
 
-    const enabledCoins = this.allCoins;
+    const enabledCoins = this.sourcesManager.allCoins;
 
     baseCoins.forEach((baseCoin) => {
       const price =
