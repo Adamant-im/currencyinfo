@@ -143,28 +143,45 @@ export abstract class RatesMerger {
   }
 
   notifyErrors(errors: [pair: string, errorMessage: string][]) {
-    const attentionNeeded: string[] = [];
-    const persistentIssues: string[] = [];
+    const needsAttention: string[] = [];
+    const recurringErrors: string[] = [];
+    const newErrors: string[] = [];
 
-    for (const [pair, errorMessage] of errors) {
-      if (!this.tickers[pair] && this.sourceTickers[pair]) {
-        persistentIssues.push(`${pair}: ${errorMessage}`);
+    for (const [pair, error] of errors) {
+      const errorMessage = `${pair}: ${error}`;
+
+      if (this.tickers[pair]) {
+        // The tickers are still within the rateLifetime
+        needsAttention.push(errorMessage);
       } else {
-        attentionNeeded.push(`${pair}: ${errorMessage}`);
+        if (this.sourceTickers[pair]) {
+          // The tickers are outdated
+          recurringErrors.push(errorMessage);
+        } else {
+          // No previous tickers found
+          newErrors.push(errorMessage);
+        }
       }
     }
 
-    if (persistentIssues.length) {
+    if (newErrors.length) {
       this.notifier.notify(
         'error',
-        `The rates won't be saved for the following pairs and the issues happen for more than ${this.rateLifetime} min: ${persistentIssues.join(', ')}`,
+        `The rates won't be saved for the following pairs, and there are no previous rates to fall back on: ${newErrors.join(', ')}`,
       );
     }
 
-    if (attentionNeeded.length) {
+    if (recurringErrors.length) {
+      this.notifier.notify(
+        'error',
+        `The rates won't be saved for the following pairs, and these errors have persisted for more than ${this.rateLifetime} minutes: ${recurringErrors.join(', ')}`,
+      );
+    }
+
+    if (needsAttention.length) {
       this.notifier.notify(
         'warn',
-        `The previously stored rates will be saved for the following pairs though they require attention: ${attentionNeeded.join(', ')}`,
+        `The previously stored rates will be saved for the following pairs, but they require attention: ${needsAttention.join(', ')}`,
       );
     }
   }

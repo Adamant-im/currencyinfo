@@ -105,16 +105,46 @@ describe('RatesService', () => {
     service.init();
     expect(initSpy).toHaveBeenCalled();
   });
-
-  it('should warn about a significant difference', async () => {
+  it('should warn about a significant difference with no previous rates', async () => {
     jest.spyOn(service, 'saveTickers').mockResolvedValue();
+
+    service.sourceTickers = {};
+
+    await service.updateTickers();
+
+    expect(notifier.notify).toHaveBeenCalledWith(
+      'error',
+      expect.stringContaining('difference between sources is too big'),
+    );
+
+    expect(notifier.notify).toHaveBeenCalledWith(
+      'error',
+      expect.stringContaining('no previous rates'),
+    );
+
+    expect(service.tickers).toStrictEqual({});
+  });
+
+  it('should warn about a significant difference and save previous rates', async () => {
+    jest.spyOn(service, 'saveTickers').mockResolvedValue();
+
+    service.sourceTickers = {
+      'Bitcoin/USD': [{ source: 'ASource', price: 100, timestamp: Date.now() }],
+    };
 
     await service.updateTickers();
 
     expect(notifier.notify).toHaveBeenCalledWith(
       'warn',
-      expect.stringContaining('The difference between sources is too big'),
+      expect.stringContaining('difference between sources is too big'),
     );
+
+    expect(notifier.notify).toHaveBeenCalledWith(
+      'warn',
+      expect.stringContaining('previously stored rates will be saved'),
+    );
+
+    expect(service.tickers).toStrictEqual({ 'Bitcoin/USD': 100 });
   });
 
   it('should notify the persistent error for long-standing differences', async () => {
@@ -128,8 +158,17 @@ describe('RatesService', () => {
 
     expect(notifier.notify).toHaveBeenCalledWith(
       'error',
-      expect.stringContaining('The difference between sources is too big'),
+      expect.stringContaining('difference between sources is too big'),
     );
+
+    expect(notifier.notify).toHaveBeenCalledWith(
+      'error',
+      expect.stringContaining(
+        'these errors have persisted for more than 60 minutes',
+      ),
+    );
+
+    expect(service.tickers).toStrictEqual({});
   });
 
   it('should save tickers to the database', async () => {
