@@ -121,6 +121,10 @@ export const schema = z
   .refine(
     (schema) => !(schema.notify?.adamant && !schema.notify?.adamantPassphrase),
     'Provide passphrase to use ADAMANT notifier',
-  );
+  )
+  .transform(({ base_coins: baseCoins, ...data }) => ({
+    ...data,
+    base_coins: baseCoins.map((coin) => data.mappings[coin] ?? coin),
+  }));
 
 export type Schema = z.infer<typeof schema>;

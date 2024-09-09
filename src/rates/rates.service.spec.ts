@@ -52,14 +52,14 @@ describe('RatesService', () => {
       get: jest.fn(
         (key: string) =>
           ({
-            decimals: 2,
+            decimals: 8,
             strategy: 'avg',
             rateDifferencePercentThreshold: 0.1,
             groupPercentage: 10,
             minSources: 3,
             rateLifetime: 60,
             priorities: ['ASource', 'BSource'],
-            base_coins: ['BTC', 'ETH', 'USD'],
+            base_coins: ['Bitcoin', 'Ethereum', 'USD'],
             refreshInterval: 10,
             mappings: { BTC: 'Bitcoin', ETH: 'Ethereum' },
           })[key],
@@ -106,15 +106,49 @@ describe('RatesService', () => {
     expect(initSpy).toHaveBeenCalled();
   });
 
-  it('should warn about a significant difference', async () => {
+  it('should warn about a significant difference with no previous rates', async () => {
     jest.spyOn(service, 'saveTickers').mockResolvedValue();
+
+    service.sourceTickers = {};
+
+    await service.updateTickers();
+
+    expect(notifier.notify).toHaveBeenCalledWith(
+      'error',
+      expect.stringContaining('difference between sources is too big'),
+    );
+
+    expect(notifier.notify).toHaveBeenCalledWith(
+      'error',
+      expect.stringContaining('no previous rates'),
+    );
+
+    expect(service.tickers).toStrictEqual({});
+  });
+
+  it('should warn about a significant difference and save previous rates', async () => {
+    jest.spyOn(service, 'saveTickers').mockResolvedValue();
+
+    service.sourceTickers = {
+      'Bitcoin/USD': [{ source: 'ASource', price: 100, timestamp: Date.now() }],
+    };
 
     await service.updateTickers();
 
     expect(notifier.notify).toHaveBeenCalledWith(
       'warn',
-      expect.stringContaining('The difference between sources is too big'),
+      expect.stringContaining('difference between sources is too big'),
     );
+
+    expect(notifier.notify).toHaveBeenCalledWith(
+      'warn',
+      expect.stringContaining('previously stored rates will be saved'),
+    );
+
+    expect(service.tickers).toStrictEqual({
+      'Bitcoin/Bitcoin': 1,
+      'Bitcoin/USD': 100,
+    });
   });
 
   it('should notify the persistent error for long-standing differences', async () => {
@@ -128,8 +162,17 @@ describe('RatesService', () => {
 
     expect(notifier.notify).toHaveBeenCalledWith(
       'error',
-      expect.stringContaining('The difference between sources is too big'),
+      expect.stringContaining('difference between sources is too big'),
     );
+
+    expect(notifier.notify).toHaveBeenCalledWith(
+      'error',
+      expect.stringContaining(
+        'these errors have persisted for more than 60 min',
+      ),
+    );
+
+    expect(service.tickers).toStrictEqual({});
   });
 
   it('should save tickers to the database', async () => {
@@ -159,5 +202,38 @@ describe('RatesService', () => {
     await service.fetchTickers(mockSource);
 
     expect(failSpy).toHaveBeenCalledWith(expect.stringContaining('API error'));
+  });
+
+  it('should use all base coins from the config', async () => {
+    jest.spyOn(service, 'saveTickers').mockResolvedValue();
+
+    sourceManager.sources = [
+      new MockedApi('ASource', {
+        'BTC/USD': 100,
+        'ETH/USD': 0.1,
+        'ADM/USD': 10000,
+        'USD/USD': 1,
+      }),
+    ];
+    await sourceManager.getEnabledCoins();
+
+    await service.updateTickers();
+
+    expect(service.tickers).toStrictEqual({
+      'Bitcoin/USD': 100,
+      'Ethereum/USD': 0.1,
+      'ADM/USD': 10000,
+      'USD/USD': 1,
+      'Bitcoin/Bitcoin': 1,
+      'Ethereum/Bitcoin': 0.001,
+      'USD/Bitcoin': 0.01,
+      'ADM/Bitcoin': 100,
+      'Bitcoin/Ethereum': 1000,
+      'Ethereum/Ethereum': 1,
+      'USD/Ethereum': 10,
+      'ADM/Ethereum': 100000,
+    });
+
+    expect(true).toBe(true);
   });
 });

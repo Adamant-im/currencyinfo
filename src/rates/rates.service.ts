@@ -38,7 +38,6 @@ export class RatesService extends RatesMerger {
   initializationTimestamp = Date.now();
 
   public rateLifetime = this.config.get('rateLifetime');
-  public allCoins: string[] = [];
   protected pairSources: Record<string, number> = {};
 
   private ready: Promise<void>;
@@ -50,14 +49,14 @@ export class RatesService extends RatesMerger {
     @InjectModel(Timestamp.name) private timestampModel: Model<Timestamp>,
     private schedulerRegistry: SchedulerRegistry,
     protected config: ConfigService,
-    private sourceManager: SourcesManager,
+    protected sourcesManager: SourcesManager,
     public notifier: Notifier,
   ) {
     const refreshInterval = config.get<number>('refreshInterval');
 
     const logger = new Logger();
 
-    const weights = sourceManager.getSourceWeights();
+    const weights = sourcesManager.getSourceWeights();
     const strategyName = config.get('strategy') as StrategyName;
 
     super(strategyName, weights);
@@ -68,7 +67,7 @@ export class RatesService extends RatesMerger {
       ? refreshInterval * 60 * 1000
       : CronIntervals.EVERY_10_MINUTES;
 
-    this.ready = sourceManager.initialize();
+    this.ready = sourcesManager.initialize();
 
     this.init();
   }
@@ -98,7 +97,7 @@ export class RatesService extends RatesMerger {
     const sourceTickers: SourceTickers = {};
     let availableSources = 0;
 
-    for (const source of this.sourceManager.getEnabledSources()) {
+    for (const source of this.sourcesManager.getEnabledSources()) {
       const tickers = await this.fetchTickers(source);
 
       if (!tickers) {
@@ -167,7 +166,7 @@ export class RatesService extends RatesMerger {
       this.lastUpdated = date;
 
       this.logger.log(
-        `Rates from ${availableSources}/${this.sourceManager.sourceCount} sources saved successfully`,
+        `Rates from ${availableSources}/${this.sourcesManager.sourceCount} sources saved successfully`,
       );
     } catch (error) {
       this.fail(

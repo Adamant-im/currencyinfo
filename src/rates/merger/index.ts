@@ -7,6 +7,7 @@ import {
 import * as strategies from './strategy';
 import { ConfigService } from '@nestjs/config';
 import { Notifier } from 'src/global/notifier/notifier.service';
+import { SourcesManager } from '../sources/sources-manager';
 
 export type StrategyName = keyof typeof strategies;
 
@@ -35,8 +36,8 @@ export abstract class RatesMerger {
   private strategy: (prices: SourcePrice[]) => number;
 
   public abstract rateLifetime: number;
-  public abstract allCoins: string[];
 
+  protected abstract sourcesManager: SourcesManager;
   protected abstract pairSources: Record<string, number>;
   protected abstract config: ConfigService;
   protected abstract notifier: Notifier;
@@ -97,7 +98,7 @@ export abstract class RatesMerger {
     const decimals = this.config.get('decimals') as number;
     const baseCoins = this.config.get('base_coins') as string[];
 
-    const enabledCoins = this.allCoins;
+    const enabledCoins = this.sourcesManager.allCoins;
 
     baseCoins.forEach((baseCoin) => {
       const price =
@@ -143,28 +144,45 @@ export abstract class RatesMerger {
   }
 
   notifyErrors(errors: [pair: string, errorMessage: string][]) {
-    const attentionNeeded: string[] = [];
-    const persistentIssues: string[] = [];
+    const needsAttention: string[] = [];
+    const recurringErrors: string[] = [];
+    const newErrors: string[] = [];
 
-    for (const [pair, errorMessage] of errors) {
-      if (!this.tickers[pair] && this.sourceTickers[pair]) {
-        persistentIssues.push(`${pair}: ${errorMessage}`);
+    for (const [pair, error] of errors) {
+      const errorMessage = `${pair}: ${error}`;
+
+      if (this.tickers[pair]) {
+        // The tickers are still within the rateLifetime
+        needsAttention.push(errorMessage);
       } else {
-        attentionNeeded.push(`${pair}: ${errorMessage}`);
+        if (this.sourceTickers[pair]) {
+          // The tickers are outdated
+          recurringErrors.push(errorMessage);
+        } else {
+          // No previous tickers found
+          newErrors.push(errorMessage);
+        }
       }
     }
 
-    if (persistentIssues.length) {
+    if (newErrors.length) {
       this.notifier.notify(
         'error',
-        `The rates won't be saved for the following pairs and the issues happen for more than ${this.rateLifetime} min: ${persistentIssues.join(', ')}`,
+        `The rates won't be saved for the following pairs, and there are no previous rates to fall back on: ${newErrors.join(', ')}`,
       );
     }
 
-    if (attentionNeeded.length) {
+    if (recurringErrors.length) {
+      this.notifier.notify(
+        'error',
+        `The rates won't be saved for the following pairs, and these errors have persisted for more than ${this.rateLifetime} min: ${recurringErrors.join(', ')}`,
+      );
+    }
+
+    if (needsAttention.length) {
       this.notifier.notify(
         'warn',
-        `The previously stored rates will be saved for the following pairs though they require attention: ${attentionNeeded.join(', ')}`,
+        `The previously stored rates will be saved for the following pairs, but they require attention: ${needsAttention.join(', ')}, but it persists not longer than ${this.rateLifetime} min`,
       );
     }
   }
