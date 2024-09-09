@@ -105,6 +105,7 @@ describe('RatesService', () => {
     service.init();
     expect(initSpy).toHaveBeenCalled();
   });
+
   it('should warn about a significant difference with no previous rates', async () => {
     jest.spyOn(service, 'saveTickers').mockResolvedValue();
 
@@ -164,7 +165,7 @@ describe('RatesService', () => {
     expect(notifier.notify).toHaveBeenCalledWith(
       'error',
       expect.stringContaining(
-        'these errors have persisted for more than 60 minutes',
+        'these errors have persisted for more than 60 min',
       ),
     );
 
