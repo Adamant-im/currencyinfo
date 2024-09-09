@@ -174,14 +174,14 @@ export abstract class RatesMerger {
     if (recurringErrors.length) {
       this.notifier.notify(
         'error',
-        `The rates won't be saved for the following pairs, and these errors have persisted for more than ${this.rateLifetime} minutes: ${recurringErrors.join(', ')}`,
+        `The rates won't be saved for the following pairs, and these errors have persisted for more than ${this.rateLifetime} min: ${recurringErrors.join(', ')}`,
       );
     }
 
     if (needsAttention.length) {
       this.notifier.notify(
         'warn',
-        `The previously stored rates will be saved for the following pairs, but they require attention: ${needsAttention.join(', ')}`,
+        `The previously stored rates will be saved for the following pairs, but they require attention: ${needsAttention.join(', ')}, but it persists not longer than ${this.rateLifetime} min`,
       );
     }
   }
