@@ -1,37 +1,44 @@
 import { Schema } from 'src/global/config/schema';
 import { RatesMerger } from '.';
 import { TickerPrice } from '../sources/api/dto/tickers.dto';
+import { SourcesManager } from '../sources/sources-manager';
 
 describe('SourcesManager', () => {
   const rateLifetime = 30;
+  const notifier = {
+    warn: jest.fn(),
+    error: jest.fn(),
+  } as any;
+  const config = {
+    get: jest.fn().mockImplementation((key: string) => {
+      const mockConfig = {
+        rateDifferencePercentThreshold: 25,
+        groupPercentage: 20,
+        minSources: 2,
+        priorities: [
+          'sourceName1',
+          'sourceName2',
+          'sourceName3',
+          'sourceName4',
+          'sourceName5',
+        ],
+      } as Partial<Schema>;
+      return mockConfig[key as keyof Schema];
+    }),
+  } as any;
+  const sourcesManager = new SourcesManager(config, notifier);
+  sourcesManager.allCoins = ['BTC', 'ETH', 'USD'];
 
   class RatesMergerMock extends RatesMerger {
+    sourcesManager = sourcesManager;
     allCoins = ['BTC', 'ETH', 'USD'];
     rateLifetime = rateLifetime;
     pairSources = {
       'BTC/USD': 3,
       'ETH/USD': 2,
     };
-    notifier = {
-      warn: jest.fn(),
-      error: jest.fn(),
-    } as any;
-    config = {
-      get: jest.fn().mockImplementation((key: string) => {
-        const mockConfig = {
-          rateDifferencePercentThreshold: 25,
-          groupPercentage: 20,
-          priorities: [
-            'sourceName1',
-            'sourceName2',
-            'sourceName3',
-            'sourceName4',
-            'sourceName5',
-          ],
-        } as Partial<Schema>;
-        return mockConfig[key as keyof Schema];
-      }),
-    } as any;
+    notifier = notifier;
+    config = config;
   }
 
   const currentTime = new Date(Date.UTC(2025, 1, 1)).valueOf() / 1000 / 60;
