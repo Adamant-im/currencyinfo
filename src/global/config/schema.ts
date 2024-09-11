@@ -67,7 +67,7 @@ export const schema = z
     log_level: z.enum(['none', 'log', 'warn', 'error']).default('log'),
 
     base_coins: z.array(coinName),
-    mappings: z.record(z.string()).optional(),
+    mappings: z.record(z.string()).default({}),
 
     // API
     moex: apiSourceSchema
@@ -121,6 +121,10 @@ export const schema = z
   .refine(
     (schema) => !(schema.notify?.adamant && !schema.notify?.adamantPassphrase),
     'Provide passphrase to use ADAMANT notifier',
-  );
+  )
+  .transform(({ base_coins: baseCoins, ...data }) => ({
+    ...data,
+    base_coins: baseCoins.map((coin) => data.mappings[coin] ?? coin),
+  }));
 
 export type Schema = z.infer<typeof schema>;
