@@ -154,7 +154,7 @@ export class SourcesManager {
     );
 
     const unavailableBaseCoins = baseCoins.filter(
-      (coin) => !this.allCoins.includes(coin),
+      (coin) => coin !== 'USD' && !this.allCoins.includes(coin),
     );
 
     if (unavailableBaseCoins.length) {
