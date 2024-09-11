@@ -128,7 +128,7 @@ describe('SourcesManager', () => {
 
       expect(logger.warn).toHaveBeenCalledWith(
         expect.stringContaining(
-          'No resources provide rates for the following base coins: ETH, USD.',
+          'No resources provide rates for the following base coins: ETH.',
         ),
       );
     });
