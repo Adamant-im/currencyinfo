@@ -1,6 +1,6 @@
-# <sub><img src="./.github/logo.png" height="30"></sub> CurrencyInfo <sup>v4</sup>
+# <sub><img src="./.github/logo.png" alt="ADAMANT Currencyinfo logo" height="30"></sub> ADAMANT Currencyinfo <sup>v4</sup>
 
-<i>Self-hosted crypto and fiat currency rates service provider.</i>
+<i>Reliable self-hosted crypto and fiat currency rates service provider.</i>
 
 ```md
 GET http://localhost:36661/get?coin=ADM
@@ -32,8 +32,8 @@ GET http://localhost:36661/get?coin=ADM
 
 ## Exchange Rates API
 
-<img src="./.github/banner-light.png#gh-light-mode-only" height="320" align="right">
-<img src="./.github/banner-dark.png#gh-dark-mode-only" height="320" align="right">
+<img src="./.github/banner-light.png#gh-light-mode-only" alt="Data sources for light theme" height="320" align="right">
+<img src="./.github/banner-dark.png#gh-dark-mode-only" alt="Data sources for dark theme" height="320" align="right">
 
 <p align="left">
 CurrencyInfo collects data from several sources to provide the most accurate currency rates. The sources are listed below:
@@ -57,7 +57,7 @@ CurrencyInfo collects data from several sources to provide the most accurate cur
 
 ## Installation
 
-Please follow the documentation at [Github Wiki](https://github.com/Adamant-im/currencyinfo/wiki/Installation)
+Please follow the documentation at [Github Wiki](https://github.com/Adamant-im/currencyinfo/wiki/Installation).
 
 ## Usage
 
