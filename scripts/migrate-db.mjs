@@ -38,7 +38,7 @@ async function migrate() {
       const tickeres = [];
 
       for (const [pair, rate] of Object.entries(doc.tickers)) {
-        const [quote, base] = pair.split('/');
+        const [base, quote] = pair.split('/');
 
         tickeres.push({
           base,
