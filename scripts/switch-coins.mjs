@@ -20,7 +20,7 @@ async function migrate() {
 
     console.log('Starting switching coins...');
 
-    const cursor = timestamps.find({ date: { $lte: 1723404948930 } });
+    const cursor = tickers.find({ date: { $lte: 1723404948930 } });
 
     for await (const doc of cursor) {
       processedDocs += 1;
