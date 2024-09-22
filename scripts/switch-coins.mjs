@@ -17,6 +17,7 @@ async function migrate() {
     const { db } = mongoose.connection;
 
     const tickers = db.collection('tickers');
+    let processedDocs = 0;
 
     console.log('Starting switching coins...');
 
