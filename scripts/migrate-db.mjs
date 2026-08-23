@@ -8,9 +8,7 @@ async function migrate() {
 
     await mongoose.connect(url);
 
-    console.log(
-      `Database '${url}' connected successfully. Starting in 3 seconds...`,
-    );
+    console.log(`Database '${url}' connected successfully. Starting in 3 seconds...`);
 
     await new Promise((resolve) => setTimeout(() => resolve(), 3000));
 
@@ -31,16 +29,14 @@ async function migrate() {
     for await (const doc of cursor) {
       processedDocs += 1;
 
-      console.log(
-        `Processing ${processedDocs}/${totalDocs} document: ${doc._id}`,
-      );
+      console.log(`Processing ${processedDocs}/${totalDocs} document: ${doc._id}`);
 
-      const tickeres = [];
+      const tickers = [];
 
       for (const [pair, rate] of Object.entries(doc.tickers)) {
         const [base, quote] = pair.split('/');
 
-        tickeres.push({
+        tickers.push({
           base,
           quote,
           rate,
@@ -48,7 +44,7 @@ async function migrate() {
         });
       }
 
-      await tickers.insertMany(tickeres);
+      await tickers.insertMany(tickers);
 
       await timestamps.updateOne(
         { _id: doc._id },
