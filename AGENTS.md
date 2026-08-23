@@ -102,7 +102,7 @@ When creating an issue:
 
 - Use Conventional Commits style for PR titles: `Type: Short summary` (for example: `Docs: Add AGENTS.md`)
 - Do not use issue-style square-bracket prefixes in PR titles (`[Docs]`, `[Bug]`, etc. are reserved for Issues)
-- Target the `dev` branch for all development pull requests (never submit PRs directly against `master`)
+- Target the `develop` branch for all development pull requests (never submit PRs directly against `master`)
 - Reference issues in the PR body with closing keywords where appropriate (`Closes #123`)
 - Follow the org PR template structure (`Description`, `Related issue`, `Breaking changes`, `How to test`, `Notes for reviewers`, `Checklist`)
 
@@ -117,7 +117,7 @@ gh issue create \
   --label "documentation,Guideline,TypeScript,NodeJS,Task"
 
 gh pr create \
-  --base dev \
+  --base develop \
   --title "Docs: Add AI Agent Operating Manual" \
   --body-file .ai-ignored/temp.YYYY-MM-DD.pr-description.md
 ```
@@ -292,7 +292,7 @@ Before finalizing a PR, verify all:
 - [ ] Strict config validation in `schema.ts` matches `config.default.jsonc`
 - [ ] Unit tests added or updated where appropriate
 - [ ] `pnpm test`, `pnpm run lint`, and `pnpm run build` pass cleanly
-- [ ] PR targets the `dev` branch and references the corresponding issue (`Closes #...`)
+- [ ] PR targets the `develop` branch and references the corresponding issue (`Closes #...`)
 
 ## Definition of Done
 
@@ -301,7 +301,7 @@ A change is considered done only when:
 - Rate calculation accuracy and merging integrity are preserved
 - Security and secret-handling rules are fully maintained
 - All validation commands (`pnpm test`, `pnpm run lint`, `pnpm run build`) pass
-- PR is submitted to `dev` following the naming, structure, and linking conventions
+- PR is submitted to `develop` following the naming, structure, and linking conventions
 - All repository artifacts are strictly in English
 
 ## Related Repositories
