@@ -150,6 +150,7 @@ export class CoinmarketcapApi extends CoinIdFetcher {
     } catch (error) {
       throw new Error(
         `Unable to process data from ${url}. Check ${this.resourceName} API key. Error: ${error}`,
+        { cause: error },
       );
     }
   }
@@ -195,7 +196,10 @@ export class CoinmarketcapApi extends CoinIdFetcher {
           });
         });
       } catch (error) {
-        throw new Error(`Unable to get ${this.resourceName} coin IDs from ${url}. Error: ${error}`);
+        throw new Error(
+          `Unable to get ${this.resourceName} coin IDs from ${url}. Error: ${error}`,
+          { cause: error },
+        );
       }
     }
 

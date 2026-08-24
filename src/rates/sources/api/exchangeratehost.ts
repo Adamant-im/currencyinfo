@@ -71,7 +71,9 @@ export class ExchangeRateHost extends BaseApi {
 
       return rates;
     } catch (error) {
-      throw new Error(`Unable to process data from ${url}. Error: ${error}`);
+      throw new Error(`Unable to process data from ${url}. Error: ${error}`, {
+        cause: error,
+      });
     }
   }
 }

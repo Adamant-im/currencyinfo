@@ -24,8 +24,7 @@ export const adamantAddress = z.custom<string>(
  * Zod validation schema for Discord incoming webhook URLs.
  */
 export const discordWebhookUrl = z.custom<string>(
-  (val) =>
-    /^https:\/\/discord(app)?\.com\/api\/webhooks\/\d+\/[A-Za-z0-9_\-]+$/.test(val as string),
+  (val) => /^https:\/\/discord(app)?\.com\/api\/webhooks\/\d+\/[A-Za-z0-9_-]+$/.test(val as string),
   'Invalid Discord webhook url. The format is `https://discord.com/api/webhooks/123456789012345678/aBCdeFg9h0iJKl1-_mNoPqRST2uvwXYZ3ab4cDefgH5ijklmnOPQrsTuvWxYZaBC-de_`. Read more at https://discord.com/developers/docs/resources/webhook',
 );
 
@@ -67,9 +66,20 @@ export const schema = z
             host: z.string().default('127.0.0.1'),
             db: z.string().default('tickersdb'),
           })
-          .default({}),
+          .default({
+            port: 27017,
+            host: '127.0.0.1',
+            db: 'tickersdb',
+          }),
       })
-      .default({}),
+      .default({
+        port: 36661,
+        mongodb: {
+          port: 27017,
+          host: '127.0.0.1',
+          db: 'tickersdb',
+        },
+      }),
 
     // Logging & Notifications
     notify: z
@@ -84,13 +94,13 @@ export const schema = z
     log_level: z.enum(['none', 'error', 'warn', 'log', 'info']).default('log'),
 
     base_coins: z.array(coinName),
-    mappings: z.record(z.string()).default({}),
+    mappings: z.record(z.string(), z.string()).default({}),
 
     // Sources API
     moex: apiSourceSchema
       .extend({
         url: z.string().url(),
-        codes: z.record(z.string()),
+        codes: z.record(z.string(), z.string()),
       })
       .optional(),
 
@@ -113,7 +123,7 @@ export const schema = z
       .extend({
         api_key: z.string(),
         coins: z.array(coinName),
-        ids: z.record(z.number()),
+        ids: z.record(z.string(), z.number()),
       })
       .partial()
       .optional(),
