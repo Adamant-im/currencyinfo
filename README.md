@@ -2,6 +2,9 @@
 
 *Reliable self-hosted crypto and fiat currency exchange rates service provider.*
 
+> Brought to you by the ADAMANT developer community and cryptofoundry.
+> Custom crypto software, trading bots, payment systems and blockchain infrastructure — built for production. [Tell us what to build](https://adamant.business#contact).
+
 ```http
 GET http://localhost:36661/get?coin=ADM,BTC,ETH
 ```
