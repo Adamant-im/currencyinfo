@@ -1,8 +1,8 @@
-import { LoggerService } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import axios from 'axios';
 
+import { Logger } from 'src/global/logger/logger.service';
 import { Tickers } from './dto/tickers.dto';
 import { BaseApi } from './base';
 
@@ -20,7 +20,7 @@ export class CryptoCompareApi extends BaseApi {
 
   constructor(
     private config: ConfigService,
-    private logger: LoggerService,
+    private logger: Logger,
   ) {
     super();
 
@@ -62,7 +62,7 @@ export class CryptoCompareApi extends BaseApi {
       }
     });
 
-    this.logger.log(`${this.resourceName} rates updated against ${baseCurrency} successfully.`);
+    this.logger.info(`${this.resourceName} rates updated against ${baseCurrency} successfully.`);
 
     return exchangeRates;
   }

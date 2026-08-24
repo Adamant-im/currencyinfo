@@ -43,6 +43,7 @@ describe('Configuration Loader', () => {
 
     const config = configuration();
     expect(existsSyncSpy).toHaveBeenCalledWith('./config.jsonc');
+    expect(readFileSyncSpy).toHaveBeenCalledWith('./config.jsonc', 'utf-8');
     expect(config.server.port).toBe(36661);
 
     existsSyncSpy.mockRestore();
@@ -66,6 +67,7 @@ describe('Configuration Loader', () => {
 
     const config = configuration();
     expect(existsSyncSpy).toHaveBeenCalledWith('./config.default.jsonc');
+    expect(readFileSyncSpy).toHaveBeenCalledWith('./config.default.jsonc', 'utf-8');
     expect(config.server.port).toBe(36661);
 
     existsSyncSpy.mockRestore();

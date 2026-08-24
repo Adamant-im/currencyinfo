@@ -18,6 +18,10 @@ import { Timestamp } from './schemas/timestamp.schema';
 import { GetHistoryDto } from './schemas/getHistory.schema';
 import { RatesMerger, StrategyName } from './merger';
 import { SourcesManager } from './sources/sources-manager';
+import {
+  sanitizeErrorMessage as sanitizeString,
+  sanitizeParams as sanitizeObjectParams,
+} from 'src/shared/utils';
 
 export interface HistoricalResult {
   _id: Types.ObjectId;
@@ -312,45 +316,14 @@ export class RatesService extends RatesMerger {
    * Sanitizes sensitive query parameters, JSON fields, and tokens from error messages.
    */
   public sanitizeErrorMessage(text: string): string {
-    return text
-      .replace(
-        /([?&](?:access_key|api_key|apikey|key|token|secret|passphrase|password)=)[^& "'\s]+/gi,
-        '$1***',
-      )
-      .replace(
-        /("?(?:access_key|api_key|apikey|key|token|secret|passphrase|password)"?\s*:\s*")([^"]+)(")/gi,
-        '$1***$3',
-      )
-      .replace(
-        /("?(?:access_key|api_key|apikey|key|token|secret|passphrase|password)"?\s*:\s*)([a-zA-Z0-9_-]+)([,}\s])/gi,
-        '$1***$3',
-      );
+    return sanitizeString(text);
   }
 
   /**
    * Deeply sanitizes sensitive properties from an object (e.g. Axios request params).
    */
   public sanitizeParams(params: unknown): unknown {
-    if (!params || typeof params !== 'object') {
-      return params;
-    }
-
-    if (Array.isArray(params)) {
-      return params.map((item) => this.sanitizeParams(item));
-    }
-
-    const sanitized: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
-      if (/^(access_key|api_key|apikey|key|token|secret|passphrase|password)$/i.test(key)) {
-        sanitized[key] = '***';
-      } else if (typeof value === 'object' && value !== null) {
-        sanitized[key] = this.sanitizeParams(value);
-      } else {
-        sanitized[key] = value;
-      }
-    }
-
-    return sanitized;
+    return sanitizeObjectParams(params);
   }
 
   /**

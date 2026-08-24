@@ -25,7 +25,9 @@ async function bootstrap() {
   await app.listen(port);
 
   const notifier = app.get(Notifier);
-  notifier.notify('info', `Infoservice v${version} started on port ${port}`);
+  notifier
+    .notify('info', `Infoservice v${version} started on port ${port}`)
+    .catch((error) => logger.error(`Failed to send startup notification: ${error}`));
 }
 
 bootstrap();

@@ -7,6 +7,15 @@ function isDev(): boolean {
 }
 
 /**
+ * Terminates the application on unrecoverable configuration errors.
+ */
+function fail(message: string): never {
+  console.error(message);
+  process.exit(-1);
+  throw new Error(message);
+}
+
+/**
  * Loads and validates configuration from JSONC configuration files.
  * Checks config.test.jsonc, config.jsonc, and falls back to config.default.jsonc in development.
  *
@@ -16,9 +25,7 @@ export default (): Schema => {
   const configPath = findConfig();
 
   if (!configPath) {
-    console.error('No configuration file found. Cannot start the app.');
-    process.exit(-1);
-    throw new Error('No configuration file found.');
+    fail('No configuration file found. Cannot start the app.');
   }
 
   const json = readFileSync(configPath, 'utf-8');
@@ -28,10 +35,7 @@ export default (): Schema => {
 
   if (!result.success) {
     const message = formatZodErrors(result.error.format());
-
-    console.error(`App configuration is invalid:\n${message}Cannot start the app.`);
-    process.exit(-1);
-    throw new Error(`App configuration is invalid: ${message}`);
+    fail(`App configuration is invalid:\n${message}Cannot start the app.`);
   }
 
   console.info(

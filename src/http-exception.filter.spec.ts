@@ -80,4 +80,20 @@ describe('HttpExceptionFilter', () => {
 
     loggerSpy.mockRestore();
   });
+
+  it('should redact bearer tokens and plain key-value passwords from unhandled exception logs', () => {
+    const loggerSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    const error = new Error(
+      'Auth failed with Authorization: Bearer SECRET_BEARER_123 and password=SUPER_SECRET_PW',
+    );
+
+    filter.catch(error, mockArgumentsHost);
+
+    expect(loggerSpy).toHaveBeenCalledWith(expect.not.stringContaining('SECRET_BEARER_123'));
+    expect(loggerSpy).toHaveBeenCalledWith(expect.not.stringContaining('SUPER_SECRET_PW'));
+    expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining('Authorization: Bearer ***'));
+    expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining('password=***'));
+
+    loggerSpy.mockRestore();
+  });
 });

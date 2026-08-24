@@ -1,8 +1,8 @@
 import { ConfigService } from '@nestjs/config';
-import { LoggerService } from '@nestjs/common';
 
 import axios from 'axios';
 
+import { Logger } from 'src/global/logger/logger.service';
 import { BaseApi } from './base';
 import { Tickers } from './dto/tickers.dto';
 
@@ -26,7 +26,7 @@ export class CurrencyApi extends BaseApi {
 
   constructor(
     private config: ConfigService,
-    private logger: LoggerService,
+    private logger: Logger,
   ) {
     super();
 
@@ -64,7 +64,7 @@ export class CurrencyApi extends BaseApi {
         rates[`${coin}/USD`] = +(1 / +rate).toFixed(decimals);
       });
 
-      this.logger.log(`${this.resourceName} rates updated successfully.`);
+      this.logger.info(`${this.resourceName} rates updated successfully.`);
 
       return rates;
     } catch (error) {

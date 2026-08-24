@@ -10,6 +10,8 @@ import {
   isPositiveOrZeroNumber,
   makeBoldForSlack,
   removeMarkdown,
+  sanitizeErrorMessage,
+  sanitizeParams,
   singleAsteriskToDouble,
 } from './utils';
 
@@ -90,6 +92,73 @@ describe('Shared Utils', () => {
     it('should return 200 if one value is 0 and the other is non-zero', () => {
       expect(calculatePercentageDifference(0, 50)).toBe(200);
       expect(calculatePercentageDifference(50, 0)).toBe(200);
+    });
+  });
+
+  describe('sanitizeErrorMessage', () => {
+    it('should redact URI credentials', () => {
+      expect(sanitizeErrorMessage('mongodb://admin:supersecret@127.0.0.1:27017/db')).toBe(
+        'mongodb://***:***@127.0.0.1:27017/db',
+      );
+    });
+
+    it('should redact Bearer authorization tokens', () => {
+      expect(sanitizeErrorMessage('Authorization: Bearer secret_token_12345')).toBe(
+        'Authorization: Bearer ***',
+      );
+    });
+
+    it('should redact query string credentials', () => {
+      expect(
+        sanitizeErrorMessage('https://api.exchangerate.host/live?access_key=SECRET_KEY&format=1'),
+      ).toBe('https://api.exchangerate.host/live?access_key=***&format=1');
+      expect(
+        sanitizeErrorMessage('https://api.cryptocompare.com/data/price?api_key=SECRET_CC&fsym=BTC'),
+      ).toBe('https://api.cryptocompare.com/data/price?api_key=***&fsym=BTC');
+    });
+
+    it('should redact JSON property values', () => {
+      expect(
+        sanitizeErrorMessage(
+          'Request failed with params: {"access_key":"SECRET_VAL","pair":"BTC/USD"}',
+        ),
+      ).toBe('Request failed with params: {"access_key":"***","pair":"BTC/USD"}');
+    });
+
+    it('should redact unstructured key-value pairs', () => {
+      expect(sanitizeErrorMessage('Error with password=VERY_SECRET and key: MY_KEY')).toBe(
+        'Error with password=*** and key: ***',
+      );
+    });
+  });
+
+  describe('sanitizeParams', () => {
+    it('should deeply sanitize sensitive keys in nested objects and arrays', () => {
+      const input = {
+        symbol: 'BTC',
+        api_key: 'SECRET_API_KEY',
+        nested: {
+          access_key: 'ANOTHER_SECRET',
+          safeField: 123,
+        },
+        list: [{ token: 'SECRET_TOKEN' }, { name: 'safe' }],
+      };
+
+      expect(sanitizeParams(input)).toEqual({
+        symbol: 'BTC',
+        api_key: '***',
+        nested: {
+          access_key: '***',
+          safeField: 123,
+        },
+        list: [{ token: '***' }, { name: 'safe' }],
+      });
+    });
+
+    it('should return primitive values unchanged', () => {
+      expect(sanitizeParams('string')).toBe('string');
+      expect(sanitizeParams(123)).toBe(123);
+      expect(sanitizeParams(null)).toBe(null);
     });
   });
 });

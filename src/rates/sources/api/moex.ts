@@ -1,8 +1,8 @@
 import { ConfigService } from '@nestjs/config';
-import { LoggerService } from '@nestjs/common';
 
 import axios from 'axios';
 
+import { Logger } from 'src/global/logger/logger.service';
 import { Notifier } from 'src/global/notifier/notifier.service';
 
 import { BaseApi } from './base';
@@ -51,7 +51,7 @@ export class MoexApi extends BaseApi {
 
   constructor(
     private config: ConfigService,
-    private logger: LoggerService,
+    private logger: Logger,
     private notifier: Notifier,
   ) {
     super();
@@ -108,7 +108,7 @@ export class MoexApi extends BaseApi {
       }
     }
 
-    this.logger.log(`${this.resourceName} rates updated successfully.`);
+    this.logger.info(`${this.resourceName} rates updated successfully.`);
 
     return rates;
   }

@@ -131,3 +131,68 @@ export function calculatePercentageDifference(a: number, b: number): number {
   }
   return 100 * Math.abs((a - b) / ((a + b) / 2));
 }
+
+/**
+ * Sanitizes sensitive URI credentials, Bearer tokens, query parameters, JSON fields,
+ * and key-value pairs from error messages and logs.
+ *
+ * @param text - Raw message or error text
+ * @returns Sanitized string with sensitive information redacted
+ */
+export function sanitizeErrorMessage(text: string): string {
+  if (typeof text !== 'string') {
+    text = String(text);
+  }
+
+  return (
+    text
+      // 1. URI credentials (e.g. mongodb://user:pass@host)
+      .replace(/\/\/[^:]+:[^@]+@/g, '//***:***@')
+      // 2. Authorization / Bearer tokens (e.g. Bearer eyJhbGci...)
+      .replace(/\b(Bearer\s+)[a-zA-Z0-9_\-.~+/]+=*/gi, '$1***')
+      // 3. Query string parameters (e.g. ?api_key=secret or &password=secret)
+      .replace(
+        /([?&](?:access_key|api_key|apikey|key|token|secret|passphrase|password)=)[^& "'\s]+/gi,
+        '$1***',
+      )
+      // 4. JSON properties (e.g. "api_key": "secret", "password": 12345)
+      .replace(
+        /("(?:\b(?:access_key|api_key|apikey|key|token|secret|passphrase|password)\b)"\s*:\s*)("[^"]*"|'[^']*'|[^\s,{}]+)/gi,
+        '$1"***"',
+      )
+      // 5. Plain key=value or key: value (unquoted or quoted)
+      .replace(
+        /(?<![?&])\b((?:access_key|api_key|apikey|key|token|secret|passphrase|password)\b\s*[:=]\s*)(["']?)[^\s"',;&]+(\2)/gi,
+        '$1$2***$3',
+      )
+  );
+}
+
+/**
+ * Deeply sanitizes sensitive properties from an object (e.g. Axios request params).
+ *
+ * @param params - Object or array to sanitize
+ * @returns Sanitized clone of the input data
+ */
+export function sanitizeParams(params: unknown): unknown {
+  if (!params || typeof params !== 'object') {
+    return params;
+  }
+
+  if (Array.isArray(params)) {
+    return params.map((item) => sanitizeParams(item));
+  }
+
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
+    if (/^(access_key|api_key|apikey|key|token|secret|passphrase|password)$/i.test(key)) {
+      sanitized[key] = '***';
+    } else if (typeof value === 'object' && value !== null) {
+      sanitized[key] = sanitizeParams(value);
+    } else {
+      sanitized[key] = value;
+    }
+  }
+
+  return sanitized;
+}

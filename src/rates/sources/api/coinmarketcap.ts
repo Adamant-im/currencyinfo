@@ -1,8 +1,8 @@
-import { LoggerService } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import axios from 'axios';
 
+import { Logger } from 'src/global/logger/logger.service';
 import { Notifier } from 'src/global/notifier/notifier.service';
 
 import { CoinIdFetcher } from './coin-id-fetcher';
@@ -66,7 +66,7 @@ export class CoinmarketcapApi extends CoinIdFetcher {
 
   constructor(
     private config: ConfigService,
-    private logger: LoggerService,
+    private logger: Logger,
     private notifier: Notifier,
   ) {
     super(logger, notifier);
@@ -132,7 +132,9 @@ export class CoinmarketcapApi extends CoinIdFetcher {
       const totalCoinsNumber = this.coins.length;
 
       if (!unavailable.length) {
-        this.logger.log(`${this.resourceName} rates updated against ${baseCurrency} successfully.`);
+        this.logger.info(
+          `${this.resourceName} rates updated against ${baseCurrency} successfully.`,
+        );
       } else if (unavailable.length === totalCoinsNumber) {
         this.notifier.notify(
           'error',
@@ -224,6 +226,6 @@ export class CoinmarketcapApi extends CoinIdFetcher {
     }
 
     this.enabledCoins = new Set(this.coins.map(({ symbol }) => symbol));
-    this.logger.log(`${this.resourceName} coin IDs fetched successfully.`);
+    this.logger.info(`${this.resourceName} coin IDs fetched successfully.`);
   }
 }

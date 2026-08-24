@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 import { ZodError } from 'zod';
+import { sanitizeErrorMessage } from './shared/utils';
 
 /**
  * Global HTTP exception filter catching ZodError, HttpException, and unexpected exceptions,
@@ -38,7 +39,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     } else {
       const rawText =
         exception instanceof Error ? exception.stack || exception.message : String(exception);
-      const sanitizedLog = this.sanitizeError(rawText);
+      const sanitizedLog = sanitizeErrorMessage(rawText);
 
       this.logger.error(`Unhandled exception: ${sanitizedLog}`);
       errorMessage = 'Something went wrong';
@@ -54,21 +55,5 @@ export class HttpExceptionFilter implements ExceptionFilter {
       },
       status,
     );
-  }
-
-  /**
-   * Redacts sensitive URI credentials, passwords, and tokens before logging unhandled exceptions.
-   */
-  private sanitizeError(text: string): string {
-    return text
-      .replace(/\/\/[^:]+:[^@]+@/g, '//***:***@')
-      .replace(
-        /([?&](?:access_key|api_key|apikey|key|token|secret|passphrase|password)=)[^& "'\s]+/gi,
-        '$1***',
-      )
-      .replace(
-        /("?(?:access_key|api_key|apikey|key|token|secret|passphrase|password)"?\s*:\s*")([^"]+)(")/gi,
-        '$1***$3',
-      );
   }
 }

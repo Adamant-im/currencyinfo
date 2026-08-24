@@ -296,4 +296,23 @@ describe('RatesService', () => {
 
     expect(true).toBe(true);
   });
+
+  it('should synchronize pairSources and weights from SourcesManager during updateTickers', async () => {
+    jest.spyOn(service, 'saveTickers').mockResolvedValue();
+
+    sourceManager.sources = [
+      new MockedApi('ASource', { 'BTC/USD': 100 }, true, 300),
+      new MockedApi('BSource', { 'BTC/USD': 100, 'ETH/USD': 10 }, true, 700),
+    ];
+    await sourceManager.getEnabledCoins();
+
+    await service.updateTickers();
+
+    expect(service['pairSources']).toEqual(sourceManager.sourcePairRecord);
+    expect(service['weights']).toEqual(sourceManager.getSourceWeights());
+    expect(service['weights']).toEqual({
+      ASource: 300,
+      BSource: 700,
+    });
+  });
 });

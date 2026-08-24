@@ -43,16 +43,13 @@ export class SourcesManager {
     public logger: Logger,
   ) {
     this.minSources = (config.get('minSources') as number) ?? 1;
-    this.initializeSources();
   }
 
   /**
    * Boots up all source connectors, waits for coin discovery, and verifies base coin availability.
    */
   async initialize() {
-    if (!this.sources.length) {
-      this.initializeSources();
-    }
+    this.initializeSources();
     await this.getEnabledCoins();
     this.warnUnavailableBaseCoins();
   }

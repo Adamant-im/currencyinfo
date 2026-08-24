@@ -36,14 +36,9 @@ import { Logger } from './global/logger/logger.service';
           retryAttempts: 0,
           serverSelectionTimeoutMS: 2000,
           connectionFactory(connection) {
-            let isInitialConnect = true;
+            logger.log(`InfoService successfully connected to '${db}' MongoDB.`);
             connection.on('connected', () => {
-              if (isInitialConnect) {
-                isInitialConnect = false;
-                logger.log(`InfoService successfully connected to '${db}' MongoDB.`);
-              } else {
-                logger.log(`InfoService reconnected to '${db}' MongoDB.`);
-              }
+              logger.log(`InfoService reconnected to '${db}' MongoDB.`);
             });
             connection.on('error', (err: unknown) => {
               logger.error(`MongoDB connection error for database '${db}': ${err}`);

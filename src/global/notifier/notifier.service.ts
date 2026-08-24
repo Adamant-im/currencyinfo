@@ -42,8 +42,10 @@ export class Notifier {
    * @param message - Notification message content
    */
   async notify(notifyLevel: LogLevelName, message: string): Promise<void> {
-    const logMethod = notifyLevel === 'info' ? 'log' : notifyLevel;
-    this.logger[logMethod](removeMarkdown(message));
+    const logMethod = notifyLevel === 'info' ? 'debug' : notifyLevel;
+    if (logMethod in this.logger) {
+      (this.logger as any)[logMethod](removeMarkdown(message));
+    }
 
     const notify = this.config.get('notify');
 
