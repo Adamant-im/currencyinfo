@@ -8,6 +8,8 @@ import { Notifier } from './global/notifier/notifier.service';
 
 import { version } from 'src/global/version';
 
+import { sanitizeErrorMessage } from 'src/shared/utils';
+
 /**
  * Application bootstrap function initializing NestJS server and notification dispatcher.
  */
@@ -31,6 +33,6 @@ async function bootstrap() {
 }
 
 bootstrap().catch((error) => {
-  console.error(`Failed to start InfoService: ${error}`);
+  console.error(`Failed to start InfoService: ${sanitizeErrorMessage(String(error))}`);
   process.exit(-1);
 });

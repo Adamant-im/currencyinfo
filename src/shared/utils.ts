@@ -150,26 +150,26 @@ export function sanitizeErrorMessage(text: string): string {
       .replace(/\/\/[^:]+:[^@]+@/g, '//***:***@')
       // 2. Authorization headers (Bearer, Basic)
       .replace(/\b((?:Authorization:\s*)?(?:Bearer|Basic)\s+)[a-zA-Z0-9_\-.~+/]+=*/gi, '$1***')
-      // 3. Query string parameters (e.g. ?api_key=secret or &password=secret)
+      // 3. Query string parameters (e.g. ?api_key=secret, &password=secret, ?adamantPassphrase=secret, ?key=secret)
       .replace(
-        /([?&](?:access_key|api_key|apikey|key|token|secret|passphrase|password)=)[^& "'\s]+/gi,
+        /([?&](?:[\w.]*(?:access_key|api_?key|token|secret|passphrase|password)|key)=)[^& "'\s]+/gi,
         '$1***',
       )
-      // 4. JSON properties (e.g. "api_key": "secret", "password": 12345)
+      // 4. JSON properties (e.g. "adamantPassphrase": "...", "api_key": "secret", "password": 12345, "key": "val")
       .replace(
-        /("(?:\b(?:access_key|api_key|apikey|key|token|secret|passphrase|password)\b)"\s*:\s*)("[^"]*"|'[^']*'|[^\s,{}]+)/gi,
+        /("(?:\b[\w.]*(?:access_key|api_?key|token|secret|passphrase|password)\b|key)"\s*:\s*)("[^"]*"|'[^']*'|[^\s,{}]+)/gi,
         '$1"***"',
       )
       // 5. Quoted key-value pairs (supports spaces, semicolons, etc.)
       .replace(
-        /\b((?:access_key|api_key|apikey|token|secret|passphrase|password)\b\s*[:=]\s*)(["'])(?:(?!\2)[\s\S])*?\2/gi,
+        /\b((?:[\w.]*(?:access_key|api_?key|token|secret|passphrase|password)|(?<!\b(?:unknown|cache|duplicate)\s+)key)\b\s*[:=]\s*)(["'])(?:(?!\2)[\s\S])*?\2/gi,
         '$1$2***$2',
       )
-      // 6. Unquoted multi-word passphrases (e.g. passphrase: correct horse battery staple)
-      .replace(/\b(passphrase\b\s*[:=]\s*)(?!["'])[^\r\n,;}]+/gi, '$1***')
-      // 7. Unquoted single-word key-value pairs (excluding naked 'key' to prevent false positives)
+      // 6. Unquoted multi-word passphrases & passwords after ':' (stops before ;, }, comma or newline)
+      .replace(/\b([\w.]*(?:passphrase|password)\b\s*:\s*)([^"'\s\r\n*][^\r\n,;}{]*)/gi, '$1***')
+      // 7. Unquoted single-word key-value pairs (supports key=value, api_key=value, password=value, etc.)
       .replace(
-        /(?<![?&])\b((?:access_key|api_key|apikey|token|secret|password)\b\s*[:=]\s*)(?!["'])[^\s"',;&]+/gi,
+        /(?<![?&])\b((?:[\w.]*(?:access_key|api_?key|token|secret|passphrase|password)|(?<!\b(?:unknown|cache|duplicate)\s+)key)\b\s*[:=]\s*)([^"'\s\r\n*][^\s"',;&]*)/gi,
         '$1***',
       )
   );
@@ -192,7 +192,7 @@ export function sanitizeParams(params: unknown): unknown {
 
   const sanitized: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
-    if (/^(access_key|api_key|apikey|key|token|secret|passphrase|password)$/i.test(key)) {
+    if (/(access_key|api_?key|passphrase|password|token|secret|^key$)/i.test(key)) {
       sanitized[key] = '***';
     } else if (typeof value === 'object' && value !== null) {
       sanitized[key] = sanitizeParams(value);

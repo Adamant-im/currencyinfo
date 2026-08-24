@@ -136,7 +136,14 @@ describe('Shared Utils', () => {
     it('should redact quoted key-value pairs with spaces, delimiters and passphrases', () => {
       expect(sanitizeErrorMessage('password="secret with spaces"')).toBe('password="***"');
       expect(sanitizeErrorMessage("password='secret with spaces'")).toBe("password='***'");
+      expect(sanitizeErrorMessage('password: secret with spaces')).toBe('password: ***');
+      expect(sanitizeErrorMessage('password: secret with spaces; port=36661')).toBe(
+        'password: ***; port=36661',
+      );
       expect(sanitizeErrorMessage('api_key="abc;def"')).toBe('api_key="***"');
+      expect(sanitizeErrorMessage('key="SECRET KEY"')).toBe('key="***"');
+      expect(sanitizeErrorMessage("key='SECRET KEY'")).toBe("key='***'");
+      expect(sanitizeErrorMessage('key=VERY_SECRET')).toBe('key=***');
       expect(sanitizeErrorMessage('passphrase: correct horse battery staple')).toBe(
         'passphrase: ***',
       );
@@ -145,6 +152,29 @@ describe('Shared Utils', () => {
           'passphrase: apple banana cherry dragon elephant fox gorilla hawk iguana jaguar',
         ),
       ).toBe('passphrase: ***');
+      expect(sanitizeErrorMessage('passphrase: "apple banana" and port=36661 failed')).toBe(
+        'passphrase: "***" and port=36661 failed',
+      );
+      expect(
+        sanitizeErrorMessage('Config error at passphrase: "x"; server.port must be valid'),
+      ).toBe('Config error at passphrase: "***"; server.port must be valid');
+    });
+
+    it('should redact prefixed secrets including adamantPassphrase, mongoPassword, and slackToken', () => {
+      expect(
+        sanitizeErrorMessage('adamantPassphrase: apple banana cherry dragon elephant fox'),
+      ).toBe('adamantPassphrase: ***');
+      expect(sanitizeErrorMessage('"adamantPassphrase": "apple banana cherry dragon"')).toBe(
+        '"adamantPassphrase": "***"',
+      );
+      expect(
+        sanitizeErrorMessage('{"notify":{"adamantPassphrase":"apple banana cherry dragon"}}'),
+      ).toBe('{"notify":{"adamantPassphrase":"***"}}');
+      expect(sanitizeErrorMessage('mongoPassword: supersecret_pw')).toBe('mongoPassword: ***');
+      expect(sanitizeErrorMessage('slackToken=xoxb-123456-abcdef')).toBe('slackToken=***');
+      expect(
+        sanitizeErrorMessage('https://api.example.com/rates?adamantPassphrase=secret123&base=USD'),
+      ).toBe('https://api.example.com/rates?adamantPassphrase=***&base=USD');
     });
 
     it('should not redact harmless diagnostic text containing the word key', () => {
@@ -165,9 +195,13 @@ describe('Shared Utils', () => {
       const input = {
         symbol: 'BTC',
         api_key: 'SECRET_API_KEY',
+        adamantPassphrase: 'passphrase-root',
         nested: {
           access_key: 'ANOTHER_SECRET',
           safeField: 123,
+          notify: {
+            adamantPassphrase: 'passphrase-nested',
+          },
         },
         list: [{ token: 'SECRET_TOKEN' }, { name: 'safe' }],
       };
@@ -175,9 +209,13 @@ describe('Shared Utils', () => {
       expect(sanitizeParams(input)).toEqual({
         symbol: 'BTC',
         api_key: '***',
+        adamantPassphrase: '***',
         nested: {
           access_key: '***',
           safeField: 123,
+          notify: {
+            adamantPassphrase: '***',
+          },
         },
         list: [{ token: '***' }, { name: 'safe' }],
       });
