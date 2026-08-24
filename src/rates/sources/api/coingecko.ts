@@ -18,6 +18,9 @@ export interface CoingeckoCoin {
   cg_id: string;
 }
 
+/**
+ * CoinGecko API provider connector.
+ */
 export class CoingeckoApi extends CoinIdFetcher {
   static resourceName = 'Coingecko';
 
@@ -26,13 +29,8 @@ export class CoingeckoApi extends CoinIdFetcher {
   public enabledCoins: Set<string> = new Set();
   private coins: CoingeckoCoin[] = [];
 
-  public enabled =
-    this.config.get('coingecko.enabled') !== false &&
-    !!(
-      this.config.get<string[]>('coingecko.coins')?.length ||
-      this.config.get<string[]>('coingecko.ids')?.length
-    );
-  public weight = this.config.get<number>('coingecko.weight') || 10;
+  public enabled: boolean;
+  public weight: number;
 
   constructor(
     private config: ConfigService,
@@ -40,6 +38,14 @@ export class CoingeckoApi extends CoinIdFetcher {
     private notifier: Notifier,
   ) {
     super(logger);
+
+    this.enabled =
+      this.config.get('coingecko.enabled') !== false &&
+      !!(
+        this.config.get<string[]>('coingecko.coins')?.length ||
+        this.config.get<string[]>('coingecko.ids')?.length
+      );
+    this.weight = this.config.get<number>('coingecko.weight') || 10;
 
     this.ready = this.fetchCoinIds();
   }
@@ -53,38 +59,37 @@ export class CoingeckoApi extends CoinIdFetcher {
 
     const coinIds = this.coins.map(({ cg_id }) => cg_id);
 
+    if (!coinIds.length) {
+      return {};
+    }
+
     const params = {
       ids: coinIds.join(','),
       vs_currencies: baseCurrency,
     };
 
     const url = 'https://api.coingecko.com/api/v3/simple/price';
-
-    const decimals = this.config.get('decimals');
+    const decimals = this.config.get<number>('decimals') || 12;
 
     const { data } = await axios.get(url, {
       params,
+      timeout: 10000,
     });
 
     const exchangeRates: Record<string, number> = {};
-
     const coingeckoBaseCoin = baseCurrency.toLowerCase();
 
     this.coins?.forEach(({ symbol, cg_id }) => {
-      const rate = data[cg_id][coingeckoBaseCoin];
+      const rate = data[cg_id]?.[coingeckoBaseCoin];
 
       if (!rate) {
-        return this.logger.warn(
-          `Unable to get rates for ${this.resourceName} id '${cg_id}'`,
-        );
+        return this.logger.warn(`Unable to get rates for ${this.resourceName} ID '${cg_id}'`);
       }
 
       exchangeRates[`${symbol}/${baseCurrency}`] = +rate.toFixed(decimals);
     });
 
-    this.logger.log(
-      `${this.resourceName} rates updated against ${baseCurrency} successfully`,
-    );
+    this.logger.log(`${this.resourceName} rates updated against ${baseCurrency} successfully.`);
 
     return exchangeRates;
   }
@@ -97,13 +102,12 @@ export class CoingeckoApi extends CoinIdFetcher {
     this.coins = [];
 
     const coinsListUrl = 'https://api.coingecko.com/api/v3/coins/list';
-
-    const { data } = await axios.get<CoingeckoCoinDto[]>(coinsListUrl);
+    const { data } = await axios.get<CoingeckoCoinDto[]>(coinsListUrl, { timeout: 15000 });
 
     const coins = this.config.get<string[]>('coingecko.coins');
 
     coins?.forEach((symbol) => {
-      const coin = data.find((coin) => coin.symbol === symbol.toLowerCase());
+      const coin = data.find((item) => item.symbol === symbol.toLowerCase());
 
       if (!coin) {
         return this.notifier.notify(
@@ -121,7 +125,7 @@ export class CoingeckoApi extends CoinIdFetcher {
     const coinIds = this.config.get<string[]>('coingecko.ids');
 
     coinIds?.forEach((id) => {
-      const coin = data.find((coin) => coin.id === id);
+      const coin = data.find((item) => item.id === id);
 
       if (!coin?.symbol) {
         return this.notifier.notify(
@@ -137,12 +141,11 @@ export class CoingeckoApi extends CoinIdFetcher {
     });
 
     if (!this.coins.length) {
-      this.logger.error(`Could not fetch coin list for ${this.resourceName}`);
-      process.exit(-1);
+      this.logger.error(`Could not fetch coin list for ${this.resourceName}.`);
+      return;
     }
 
     this.enabledCoins = new Set(this.coins.map(({ symbol }) => symbol));
-
-    this.logger.log(`${this.resourceName} coin ids fetched successfully`);
+    this.logger.log(`${this.resourceName} coin IDs fetched successfully.`);
   }
 }

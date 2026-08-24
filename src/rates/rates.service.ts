@@ -31,18 +31,20 @@ const CronIntervals = {
 
 const BASE_CURRENCY = 'USD';
 
+/**
+ * Core rates service managing periodic data fetching, merging, persistence in MongoDB,
+ * and querying current and historical rates.
+ */
 @Injectable()
 export class RatesService extends RatesMerger {
   lastUpdated = 0;
   refreshInterval: number;
   initializationTimestamp = Date.now();
-
-  public rateLifetime = this.config.get('rateLifetime');
+  public rateLifetime: number;
   protected pairSources: Record<string, number> = {};
 
   private ready: Promise<void>;
-
-  private readonly logger;
+  private readonly logger: Logger;
 
   constructor(
     @InjectModel(Ticker.name) private tickerModel: Model<Ticker>,
@@ -53,7 +55,6 @@ export class RatesService extends RatesMerger {
     public notifier: Notifier,
   ) {
     const refreshInterval = config.get<number>('refreshInterval');
-
     const logger = new Logger();
 
     const weights = sourcesManager.getSourceWeights();
@@ -62,6 +63,7 @@ export class RatesService extends RatesMerger {
     super(strategyName, weights);
 
     this.logger = logger;
+    this.rateLifetime = this.config.get<number>('rateLifetime') || 60;
 
     this.refreshInterval = refreshInterval
       ? refreshInterval * 60 * 1000
@@ -73,24 +75,20 @@ export class RatesService extends RatesMerger {
   }
 
   /**
-   * Initializes the process of updating tickers and schedules it.
+   * Initializes periodic rate fetching interval and triggers the first fetch.
    */
   init() {
-    const interval = setInterval(
-      this.updateTickers.bind(this),
-      this.refreshInterval,
-    );
+    const interval = setInterval(this.updateTickers.bind(this), this.refreshInterval);
     this.schedulerRegistry.addInterval('tickers', interval);
 
     this.updateTickers();
   }
 
   /**
-   * Retrieves data from all enabled API sources and stores it in the
-   * database if successful responses exceed the `config.minSources`.
+   * Fetches latest rate data from all enabled API sources, normalizes and persists to database.
    */
   async updateTickers() {
-    this.logger.log('Updating rates…');
+    this.logger.log('Updating exchange rates…');
 
     await this.ready;
 
@@ -103,7 +101,7 @@ export class RatesService extends RatesMerger {
       if (!tickers) {
         this.notifier.notify(
           'warn',
-          `Unable to get data from ${source.resourceName}. InfoService will provide previous rates; historical rates wouldn't be saved for the source.`,
+          `Unable to fetch data from ${source.resourceName}. InfoService will provide previous rates; new rates won't be saved for this source.`,
         );
 
         continue;
@@ -119,9 +117,7 @@ export class RatesService extends RatesMerger {
     this.setTickers(sourceTickers);
 
     if (availableSources <= 0) {
-      return this.fail(
-        `Unable to get new rates from all sources. No data has been saved`,
-      );
+      return this.fail('Unable to get new rates from all sources. No data has been saved.');
     }
 
     const ratesWithFewerSources = this.getRatesWithFewerSources();
@@ -130,10 +126,7 @@ export class RatesService extends RatesMerger {
       this.notifier.notify(
         'warn',
         `The following rates have been fetched from fewer sources than expected and therefore won't be saved: ${ratesWithFewerSources
-          .map(
-            ([pair, expected, got]) =>
-              `${pair} (expected ${expected}, but got ${got})`,
-          )
+          .map(([pair, expected, got]) => `${pair} (expected ${expected}, but got ${got})`)
           .join('; ')}`,
       );
     }
@@ -141,9 +134,11 @@ export class RatesService extends RatesMerger {
     await this.saveTickers(availableSources);
   }
 
+  /**
+   * Persists merged rates and timestamp record in MongoDB.
+   */
   async saveTickers(availableSources: number) {
     const date = Date.now();
-
     const tickers = [];
 
     for (const [pair, rate] of Object.entries(this.tickers)) {
@@ -166,27 +161,28 @@ export class RatesService extends RatesMerger {
       this.lastUpdated = date;
 
       this.logger.log(
-        `Rates from ${availableSources}/${this.sourcesManager.sourceCount} sources saved successfully`,
+        `Rates from ${availableSources}/${this.sourcesManager.sourceCount} sources saved successfully.`,
       );
     } catch (error) {
       this.fail(
-        `Error: Unable to save new rates in history database: ${String(error).replace(/(\.)+?$/, '')}. See logs for details`,
+        `Error: Unable to save new rates in history database: ${String(error).replace(/(\.)+?$/, '')}. See logs for details.`,
       );
       this.logger.error(JSON.stringify(tickers));
     }
   }
 
   /**
-   * Returns the latest cached tickers for specified coins.
-   * To retrieve tickers for all available coins, pass an empty array.
+   * Returns cached rates filtered by requested coins and lifetime constraints.
+   *
+   * @param coins - Optional list of coin symbols to filter
+   * @param rateLifetime - Maximum allowed age of rates in minutes
+   * @returns Filtered dictionary of pair-rate values
    */
   async getTickers(coins: string[] = [], rateLifetime = this.rateLifetime) {
     const requestedCoins = new Set(coins);
 
     const tickers: Tickers =
-      rateLifetime === this.rateLifetime
-        ? this.tickers
-        : this.getTickersWithLifetime(rateLifetime);
+      rateLifetime === this.rateLifetime ? this.tickers : this.getTickersWithLifetime(rateLifetime);
 
     if (!requestedCoins.size) {
       return tickers;
@@ -197,7 +193,6 @@ export class RatesService extends RatesMerger {
     for (const [ticker, rate] of Object.entries(tickers)) {
       const tickerCoins = ticker.split('/');
 
-      // Check if the ticker includes any of the requested coins
       if (tickerCoins.some((coin) => requestedCoins.has(coin))) {
         filteredCoins[ticker] = rate;
       }
@@ -207,8 +202,10 @@ export class RatesService extends RatesMerger {
   }
 
   /**
-   * Retrieves tickers from the database for a specified
-   * time period and coin, limited to 100 entries.
+   * Retrieves historical rates from MongoDB based on time intervals, timestamps, and coin filters.
+   *
+   * @param options - Historical query parameters
+   * @returns Array of historical ticker records
    */
   async getHistoryTickers(options: GetHistoryDto) {
     const { from, to, timestamp, coin } = options;
@@ -218,7 +215,7 @@ export class RatesService extends RatesMerger {
     if (from !== undefined && to !== undefined) {
       if (from > to) {
         throw new HttpException(
-          "Wrong time interval: 'to' should be more, than 'from'",
+          "Invalid time interval: 'to' timestamp must be greater than or equal to 'from'",
           HttpStatus.BAD_REQUEST,
         );
       }
@@ -279,9 +276,7 @@ export class RatesService extends RatesMerger {
 
     const results: HistoricalResult[] = [];
 
-    const cursor = this.tickerModel
-      .aggregate(queries)
-      .cursor({ batchSize: 200 });
+    const cursor = this.tickerModel.aggregate(queries).cursor({ batchSize: 200 });
 
     let doc: Ticker | null = await cursor.next();
 
@@ -314,8 +309,10 @@ export class RatesService extends RatesMerger {
   }
 
   /**
-   * Attempts to fetch ticker data from a specific API source.
-   * Returns `undefined` upon failure.
+   * Fetches rates from an individual external data source connector.
+   *
+   * @param source - Source API instance
+   * @returns Tickers map or undefined on failure
    */
   async fetchTickers(source: BaseApi): Promise<Tickers | undefined> {
     try {
@@ -329,9 +326,7 @@ export class RatesService extends RatesMerger {
         const { config } = error;
 
         if (config) {
-          message.push(
-            `Request to ${config.url} ${JSON.stringify(config.params)} failed`,
-          );
+          message.push(`Request to ${config.url} ${JSON.stringify(config.params)} failed`);
 
           if (error.response) {
             message.push(`with ${error.response.status} status code.`);
@@ -345,11 +340,10 @@ export class RatesService extends RatesMerger {
     }
   }
 
-  async addTickerWithTimestamp(
-    results: HistoricalResult[],
-    tickers: Tickers,
-    date: number,
-  ) {
+  /**
+   * Associates tickers with their parent historical timestamp record ID.
+   */
+  async addTickerWithTimestamp(results: HistoricalResult[], tickers: Tickers, date: number) {
     const timestamp = await this.timestampModel.findOne({ date });
 
     if (timestamp) {
@@ -361,6 +355,9 @@ export class RatesService extends RatesMerger {
     }
   }
 
+  /**
+   * Applies symbol renaming mappings from configuration to standard uniform symbols.
+   */
   applyMappings(tickers: Tickers) {
     const mappings = this.config.get<Record<string, string>>('mappings');
 
@@ -382,6 +379,9 @@ export class RatesService extends RatesMerger {
     return tickers;
   }
 
+  /**
+   * Dispatches an error alert via Notifier.
+   */
   fail(reason: string) {
     this.notifier.notify('error', reason);
   }

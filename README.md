@@ -1,9 +1,9 @@
-# <sub><img src="./.github/logo.png" alt="ADAMANT Currencyinfo logo" height="30"></sub> ADAMANT Currencyinfo <sup>v4</sup>
+# ![ADAMANT Currencyinfo logo](./.github/logo.png) ADAMANT Currencyinfo v4
 
-<i>Reliable self-hosted crypto and fiat currency rates service provider.</i>
+*Reliable self-hosted crypto and fiat currency exchange rates service provider.*
 
-```md
-GET http://localhost:36661/get?coin=ADM
+```http
+GET http://localhost:36661/get?coin=ADM,BTC,ETH
 ```
 
 ```json
@@ -12,57 +12,190 @@ GET http://localhost:36661/get?coin=ADM
   "date": 1720472096540,
   "result": {
     "ADM/USD": 0.02978666,
-    "ADM/RUB": 2.652919086307
+    "ADM/RUB": 2.652919086307,
+    "BTC/USD": 95120.45,
+    "ETH/USD": 3420.12
   },
   "last_updated": 1720472046060,
-  "version": "4.0.0"
+  "version": "4.2.0"
 }
 ```
 
 ## Features
 
-- 🏠 Self-hosted — Operate your own instance with control over rates sources
-- 🔒 Reliable — Checks multiple sources for discrepancies and alerts on significant changes
-- 📉 Efficient API Calls — Compatible with free API keys to minimize costs
-- 📬 Notification Integration — Sends alerts via Slack, Discord, and [ADAMANT Messenger](https://adamant.im)
-- 📊 Local Rate History — Stores rate history on the server, avoiding additional requests
-- 🛠 Flexible Configuration — Easily tailor CurrencyInfo to your needs using a configuration file
-- 🚀 Fast Performance — Provides RESTful API access with minimal hardware requirements
-- 💻 Open-source — Free for any use
+- 🏠 **Self-hosted & Decentralized**: Run your own exchange rate provider without dependence on a single centralized service
+- 🌐 **Multi-source Aggregation**: Collects, validates, and merges crypto and fiat rates across multiple public and authenticated providers
+- 🔒 **Divergence & Outage Resilience**: Groups source rates by percentage threshold, drops inconsistent outliers, and raises configurable alerts
+- ⚙️ **Configurable Strategies**: Choose resolution methods (`avg`, `min`, `max`, `priority`, `weight`) tailored to your deployment
+- 📬 **Multi-channel Notifications**: Sends real-time operational alerts via Slack, Discord, and [ADAMANT Messenger](https://adamant.im)
+- 📊 **Historical Rate Storage**: Persists historical rates in MongoDB for instant historical interval and point-in-time queries
+- 🚀 **Lightweight & High Performance**: Built with NestJS, TypeScript, and SWC for minimal CPU and memory footprint
+- 🛡️ **Zero Telemetry**: Fully private with zero third-party tracking or analytics
 
-## Exchange Rates API
+## Data Sources
 
-<img src="./.github/banner-light.png#gh-light-mode-only" alt="Data sources for light theme" height="320" align="right">
-<img src="./.github/banner-dark.png#gh-dark-mode-only" alt="Data sources for dark theme" height="320" align="right">
+![Data sources (light theme)](./.github/banner-light.png#gh-light-mode-only)
+![Data sources (dark theme)](./.github/banner-dark.png#gh-dark-mode-only)
 
-<p align="left">
-CurrencyInfo collects data from several sources to provide the most accurate currency rates. The sources are listed below:
+Currencyinfo integrates with multiple reliable market rate providers:
 
-<ul>
-  <li><a href="https://moex.com">MOEX</a> — Moscow Exchange for fiat currencies mostly.
-  </li>
-  <li><a href="https://github.com/fawazahmed0/exchange-api">Currency API</a> — Free fiat currency exchange rates API.
-  </li>
-  <li><a href="https://exchangerate.host">ExchangeRate</a> — Simple and lightweight service for world currencies, precious metals and Bitcoin.
-  </li>
-  <li><a href="https://coinmarketcap.com">CoinMarketCap</a> — Crypto coin rates updating every single minute.
-  </li>
-  <li><a href="https://cryptocompare.com">CryptoCompare</a> — Exchange rate API that provides comprehensive crypto coin and fiat list with frequent updates.
-  </li>
-  <li><a href="https://coingecko.com">CoinGecko</a> — Broad crypto coin list with data stably refreshed every 1 to 5 minutes.
-  </li>
-</ul>
+- 🦎 [CoinGecko](https://coingecko.com) — Broad cryptocurrency rates stably refreshed every 1 to 5 minutes
+- 📈 [CoinMarketCap](https://coinmarketcap.com) — Fast-updating cryptocurrency quotes with flexible API tiers
+- 💱 [CryptoCompare](https://cryptocompare.com) — Comprehensive crypto and fiat rate endpoints
+- 💵 [Currency API](https://github.com/fawazahmed0/exchange-api) — Free, open-source fiat currency exchange rates
+- 🏦 [ExchangeRate.host](https://exchangerate.host) — Global currency, forex, and precious metals exchange rates
+- 🏛️ [MOEX](https://moex.com) — Moscow Exchange market data for reliable fiat currency pricing
 
-</p>
+## Prerequisites
 
-## Installation
+- ⚡ **Node.js**: `v22` or higher
+- 📦 **Package Manager**: `pnpm` (or `npm`)
+- 🗄️ **Database**: `MongoDB 6.0+` or higher
 
-Please follow the documentation at [Github Wiki](https://github.com/Adamant-im/currencyinfo/wiki/Installation).
+## Quick Start
 
-## Usage
+### 1. Clone repository and install dependencies
 
-For usage, see [CurrencyInfo API documentation](https://github.com/Adamant-im/currencyinfo/wiki/API-specification).
+```bash
+git clone https://github.com/Adamant-im/currencyinfo.git
+cd currencyinfo
+pnpm install --ignore-scripts
+pnpm run deps:setup
+```
 
-<h1></h1>
+### 2. Configure environment
 
-<p align="center">Licensed under <a href="https://github.com/adamant-im/currencyinfo?tab=GPL-3.0-1-ov-file#readme">GPL-3.0</a>, created by ADAMANT.</p>
+Copy the default configuration template to `config.jsonc`:
+
+```bash
+cp config.default.jsonc config.jsonc
+```
+
+Edit `config.jsonc` to configure your MongoDB connection, base coins, active data sources, and optional notification webhooks.
+
+### 3. Build and run
+
+```bash
+# Development mode with watch
+pnpm run start:dev
+
+# Production build and run
+pnpm run build
+pnpm run start:prod
+```
+
+### Running with Docker
+
+```bash
+# Build Docker image
+docker build -t adamant/currencyinfo .
+
+# Run container
+docker run -d \
+  -p 36661:36661 \
+  -v $(pwd)/config.jsonc:/usr/src/currencyinfo/config.jsonc \
+  --name currencyinfo \
+  adamant/currencyinfo
+```
+
+## API Reference
+
+### 1. Get Current Rates
+
+Retrieves the latest merged exchange rates:
+
+```http
+GET /get
+GET /get?coin=ADM
+GET /get?coin=ADM,BTC,ETH
+GET /get?rateLifetime=30
+```
+
+#### Query Parameters
+
+- `coin` (string, optional) — Comma-separated list of coin symbols (for example, `ADM,BTC,USD`)
+- `rateLifetime` (number, optional) — Maximum allowed age of cached rates in minutes (defaults to configured `rateLifetime`)
+
+#### Response
+
+```json
+{
+  "success": true,
+  "date": 1720472096540,
+  "result": {
+    "ADM/USD": 0.02978666,
+    "ADM/RUB": 2.652919086307,
+    "BTC/USD": 95120.45
+  },
+  "last_updated": 1720472046060,
+  "version": "4.2.0"
+}
+```
+
+### 2. Get Historical Rates
+
+Retrieves historical rate points stored in MongoDB:
+
+```http
+GET /getHistory?coin=ADM&limit=10
+GET /getHistory?coin=ADM/USD&from=1720400000&to=1720470000
+GET /getHistory?timestamp=1720450000
+```
+
+#### Query Parameters
+
+- `coin` (string, optional) — Coin symbol (`ADM`) or pair string (`ADM/USD`)
+- `from` (number, optional) — Start UNIX timestamp (in seconds)
+- `to` (number, optional) — End UNIX timestamp (in seconds)
+- `timestamp` (number, optional) — Exact or closest historical UNIX timestamp (in seconds)
+- `limit` (number, optional) — Maximum number of records to return (up to 100)
+
+### 3. Service Status
+
+Checks system readiness and next scheduled update time:
+
+```http
+GET /status
+```
+
+#### Response
+
+```json
+{
+  "success": true,
+  "date": 1720472096540,
+  "result": {
+    "ready": true,
+    "updating": false,
+    "next_update": 1720472646060
+  },
+  "version": "4.2.0"
+}
+```
+
+## Development and Testing
+
+```bash
+# Run unit test suite
+pnpm test
+
+# Run tests with coverage report
+pnpm run test:cov
+
+# Run linter
+pnpm run lint
+
+# Check code formatting
+pnpm run format:check
+
+# Auto-format codebase
+pnpm run format
+```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, coding standards, and verification workflows.
+
+## License
+
+This project is licensed under the [GPL-3.0 License](LICENSE).

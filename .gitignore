@@ -9,6 +9,7 @@ config.test.jsonc
 # compiled output
 /dist
 /node_modules
+*.tsbuildinfo
 
 # Logs
 logs

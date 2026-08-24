@@ -62,14 +62,8 @@ export class CoinmarketcapApi extends CoinIdFetcher {
   public enabledCoins: Set<string> = new Set();
   private coins: CoinmarketcapCoin[] = [];
 
-  public enabled =
-    this.config.get('coinmarketcap.enabled') !== false &&
-    !!this.config.get<string>('coinmarketcap.api_key') &&
-    !!(
-      this.config.get<string[]>('coinmarketcap.coins')?.length ||
-      Object.keys(this.config.get<string[]>('coinmarketcap.ids') || {})?.length
-    );
-  public weight = this.config.get<number>('coinmarketcap.weight') || 10;
+  public enabled: boolean;
+  public weight: number;
 
   constructor(
     private config: ConfigService,
@@ -77,6 +71,15 @@ export class CoinmarketcapApi extends CoinIdFetcher {
     private notifier: Notifier,
   ) {
     super(logger);
+
+    this.enabled =
+      this.config.get('coinmarketcap.enabled') !== false &&
+      !!this.config.get<string>('coinmarketcap.api_key') &&
+      !!(
+        this.config.get<string[]>('coinmarketcap.coins')?.length ||
+        Object.keys(this.config.get<Record<string, number>>('coinmarketcap.ids') || {})?.length
+      );
+    this.weight = this.config.get<number>('coinmarketcap.weight') || 10;
 
     this.ready = this.fetchCoinIds();
   }
@@ -92,6 +95,10 @@ export class CoinmarketcapApi extends CoinIdFetcher {
 
     const coinIds = this.coins.map(({ cmc_id }) => cmc_id);
 
+    if (!coinIds.length) {
+      return {};
+    }
+
     const url = `${baseUrl}?id=${coinIds.join(',')}&convert=${baseCurrency}`;
 
     const { data } = await axios<CoinmarketcapResponseDto>({
@@ -104,7 +111,7 @@ export class CoinmarketcapApi extends CoinIdFetcher {
     });
 
     try {
-      const decimals = this.config.get<number>('decimals');
+      const decimals = this.config.get<number>('decimals') || 12;
 
       const rates: Record<string, number> = {};
       const unavailable: string[] = [];
@@ -112,9 +119,7 @@ export class CoinmarketcapApi extends CoinIdFetcher {
       const coinmarketcapCoins = Object.values(data.data);
 
       this.coins.forEach(({ symbol }) => {
-        const coin = coinmarketcapCoins.find(
-          (coin) => coin.symbol === symbol.toUpperCase(),
-        );
+        const coin = coinmarketcapCoins.find((item) => item.symbol === symbol.toUpperCase());
 
         const price = coin?.quote?.[baseCurrency]?.price;
 
@@ -128,13 +133,11 @@ export class CoinmarketcapApi extends CoinIdFetcher {
       const totalCoinsNumber = this.coins.length;
 
       if (!unavailable.length) {
-        this.logger.log(
-          `${this.resourceName} rates updated against ${baseCurrency} successfully`,
-        );
+        this.logger.log(`${this.resourceName} rates updated against ${baseCurrency} successfully.`);
       } else if (unavailable.length === totalCoinsNumber) {
         this.notifier.notify(
           'error',
-          `Unable to get all of ${totalCoinsNumber} coin rates from request to ${url}. Check ${this.resourceName} service and config file.`,
+          `Unable to get all of ${totalCoinsNumber} coin rates from request to ${url}. Check ${this.resourceName} service and configuration file.`,
         );
       } else {
         this.logger.warn(
@@ -147,7 +150,7 @@ export class CoinmarketcapApi extends CoinIdFetcher {
       return rates;
     } catch (error) {
       throw new Error(
-        `Unable to process data ${JSON.stringify(data)} from request to ${url}. Wrong ${this.resourceName} API key? Error: ${error}`,
+        `Unable to process data from ${url}. Check ${this.resourceName} API key. Error: ${error}`,
       );
     }
   }
@@ -160,11 +163,10 @@ export class CoinmarketcapApi extends CoinIdFetcher {
     this.coins = [];
 
     const apiKey = this.config.get('coinmarketcap.api_key') as string;
+    const coins = this.config.get<string[]>('coinmarketcap.coins') as string[];
 
-    const coins = this.config.get('coinmarketcap.coins') as string[];
-
-    if (coins.length) {
-      const url = `${baseUrl}?symbol=${coins?.join(',')}`;
+    if (coins && coins.length) {
+      const url = `${baseUrl}?symbol=${coins.join(',')}`;
 
       const { data } = await axios<CoinmarketcapResponseDto>({
         url,
@@ -179,9 +181,7 @@ export class CoinmarketcapApi extends CoinIdFetcher {
         const coinmarketcapCoins = Object.values(data.data);
 
         coins.forEach((symbol) => {
-          const coin = coinmarketcapCoins.find(
-            (coin) => coin.symbol === symbol.toUpperCase(),
-          );
+          const coin = coinmarketcapCoins.find((item) => item.symbol === symbol.toUpperCase());
 
           if (!coin) {
             return this.notifier.notify(
@@ -196,32 +196,27 @@ export class CoinmarketcapApi extends CoinIdFetcher {
           });
         });
       } catch (error) {
-        throw new Error(
-          `Unable to process data ${JSON.stringify(
-            data,
-          )} from request to ${url}. Unable to get ${this.resourceName} coin ids. Try to restart InfoService or there will be no rates from Coinmarketcap. Error: ${error}`,
-        );
+        throw new Error(`Unable to get ${this.resourceName} coin IDs from ${url}. Error: ${error}`);
       }
     }
 
-    const coinIds = this.config.get<string[]>('coinmarketcap.ids');
+    const coinIds = this.config.get<Record<string, number>>('coinmarketcap.ids');
 
     if (coinIds) {
       for (const [symbol, id] of Object.entries(coinIds)) {
         this.coins.push({
           symbol: symbol.toUpperCase(),
-          cmc_id: id,
+          cmc_id: String(id),
         });
       }
     }
 
     if (!this.coins.length) {
-      this.logger.error(`Could not fetch coin list for ${this.resourceName}`);
-      process.exit(-1);
+      this.logger.error(`Could not fetch coin list for ${this.resourceName}.`);
+      return;
     }
 
     this.enabledCoins = new Set(this.coins.map(({ symbol }) => symbol));
-
-    this.logger.log(`${this.resourceName} coin ids fetched successfully`);
+    this.logger.log(`${this.resourceName} coin IDs fetched successfully.`);
   }
 }

@@ -28,6 +28,7 @@ type MoexData = [
   string,
   string,
   number,
+  number,
 ];
 
 export interface MoexResponseDto {
@@ -36,22 +37,17 @@ export interface MoexResponseDto {
   };
 }
 
+/**
+ * Moscow Exchange (MOEX) fiat rates provider connector.
+ */
 export class MoexApi extends BaseApi {
   static resourceName = 'MOEX';
 
-  private codes = this.config.get<Record<string, string>>('moex.codes') || {};
-  private pairs: string[] = Object.keys(this.codes);
-
-  public enabledCoins = new Set(
-    this.pairs.map((pair) =>
-      pair === 'USD/RUB' ? 'RUB' : pair.replace('/RUB', ''),
-    ),
-  );
-
-  public enabled =
-    this.config.get<boolean>('moex.enabled') !== false && !!this.pairs.length;
-
-  public weight = this.config.get<number>('moex.weight') || 10;
+  private codes: Record<string, string>;
+  private pairs: string[];
+  public enabledCoins: Set<string>;
+  public enabled: boolean;
+  public weight: number;
 
   constructor(
     private config: ConfigService,
@@ -59,6 +55,17 @@ export class MoexApi extends BaseApi {
     private notifier: Notifier,
   ) {
     super();
+
+    this.codes = this.config.get<Record<string, string>>('moex.codes') || {};
+    this.pairs = Object.keys(this.codes);
+
+    this.enabledCoins = new Set(
+      this.pairs.map((pair) => (pair === 'USD/RUB' ? 'RUB' : pair.replace('/RUB', ''))),
+    );
+
+    this.enabled = this.config.get<boolean>('moex.enabled') !== false && !!this.pairs.length;
+
+    this.weight = this.config.get<number>('moex.weight') || 10;
   }
 
   async fetch(): Promise<Tickers> {
@@ -67,18 +74,14 @@ export class MoexApi extends BaseApi {
     }
 
     const url = this.config.get('moex.url') as string;
-
     const rates: Record<string, number> = {};
 
-    const response = await axios.get<MoexResponseDto>(url);
+    const response = await axios.get<MoexResponseDto>(url, { timeout: 10000 });
 
-    const data = response.data.securities.data.filter(
-      (ticker) => ticker[1] === 'CETS',
-    );
+    const data = response.data?.securities?.data?.filter((ticker) => ticker[1] === 'CETS') || [];
 
-    const decimals = this.config.get<number>('decimals');
-
-    const basePrice = this.getPrice('USD/RUB', data)!;
+    const decimals = this.config.get<number>('decimals') || 12;
+    const basePrice = this.getPrice('USD/RUB', data);
 
     for (const pair of Object.keys(this.codes)) {
       let price = this.getPrice(pair, data);
@@ -92,7 +95,7 @@ export class MoexApi extends BaseApi {
       }
 
       if (pair === 'USD/RUB') {
-        rates['RUB/USD'] = Number((1 / basePrice).toFixed(decimals));
+        rates['RUB/USD'] = Number((1 / price).toFixed(decimals));
       } else {
         rates[pair] = Number(price.toFixed(decimals));
 
@@ -105,14 +108,14 @@ export class MoexApi extends BaseApi {
       }
     }
 
-    this.logger.log(`${this.resourceName} rates updated successfully`);
+    this.logger.log(`${this.resourceName} rates updated successfully.`);
 
     return rates;
   }
 
-  getPrice(pair: string, data: MoexData[]) {
+  getPrice(pair: string, data: MoexData[]): number | undefined {
     const code = this.codes[pair];
-    const ticker = data.find((ticker) => ticker[2] === code);
+    const ticker = data.find((item) => item[2] === code);
 
     if (!ticker) {
       return;
@@ -125,8 +128,6 @@ export class MoexApi extends BaseApi {
       return;
     }
 
-    const price = (price1 + price2) / 2;
-
-    return price;
+    return (price1 + price2) / 2;
   }
 }

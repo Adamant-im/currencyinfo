@@ -7,17 +7,15 @@ import chalk from 'chalk';
 import ms from 'ms';
 
 import { DateFormats, formatDate, fullTime } from 'src/shared/utils';
-import {
-  LogLevel,
-  LogLevelChalkColors,
-  LogLevelName,
-} from './logger.constants';
+import { LogLevel, LogLevelChalkColors, LogLevelName } from './logger.constants';
 
+/**
+ * Custom Winston-style logger service supporting console colored output and persistent file logging.
+ */
 @Injectable()
 export class Logger implements LoggerService {
   private logStream: WriteStream;
   private logLevel: LogLevel;
-
   private previousTime = 0;
 
   constructor(private config: ConfigService) {
@@ -25,13 +23,13 @@ export class Logger implements LoggerService {
       fs.mkdirSync('./logs');
     }
 
-    this.logStream = fs.createWriteStream(`./logs/${fullTime()}.log`, {
+    const safeLogFileName = fullTime().replace(/:/g, '-');
+    this.logStream = fs.createWriteStream(`./logs/${safeLogFileName}.log`, {
       flags: 'a',
     });
 
-    const logLevel = this.config.get('log_level') as LogLevelName;
-
-    this.logLevel = LogLevel[logLevel];
+    const configuredLevel = (this.config.get('log_level') as LogLevelName) || 'log';
+    this.logLevel = configuredLevel in LogLevel ? LogLevel[configuredLevel] : LogLevel.log;
   }
 
   log(message: string) {
@@ -50,15 +48,21 @@ export class Logger implements LoggerService {
     this.logWithLevel('error', message);
   }
 
+  debug(message: string) {
+    this.logWithLevel('log', message);
+  }
+
+  verbose(message: string) {
+    this.logWithLevel('log', message);
+  }
+
   private logWithLevel(level: LogLevelName, message: string) {
     if (this.logLevel > LogLevel[level]) {
       return;
     }
 
     const { time, diff } = this.timestamp();
-
     const space = ' '.repeat('error'.length - level.length);
-
     const color = LogLevelChalkColors[level];
     const prefix = `${chalk.gray(time)} ${color(level)}${space}|`;
 
@@ -71,9 +75,7 @@ export class Logger implements LoggerService {
 
   private timestamp() {
     const time = formatDate(DateFormats.HH_MM_SS, new Date());
-
     const currentTime = Date.now();
-
     let diff = '';
 
     if (this.previousTime) {

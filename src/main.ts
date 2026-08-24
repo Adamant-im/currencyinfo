@@ -8,22 +8,24 @@ import { Notifier } from './global/notifier/notifier.service';
 
 import { version } from 'src/global/version';
 
+/**
+ * Application bootstrap function initializing NestJS server and notification dispatcher.
+ */
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,
   });
 
   const config = app.get(ConfigService);
-
   const logger = new Logger(config);
 
   app.useLogger(logger);
 
-  const port = config.get('server.port') as number;
+  const port = (config.get('server.port') as number) || 36661;
   await app.listen(port);
 
   const notifier = new Notifier(config);
-  notifier.notify('log', `Infoservice v${version} started on port ${port}`);
+  await notifier.notify('log', `Infoservice v${version} started on port ${port}`);
 }
 
 bootstrap();

@@ -3,6 +3,9 @@ import { HydratedDocument } from 'mongoose';
 
 export type TickerDocument = HydratedDocument<Ticker>;
 
+/**
+ * Mongoose schema representing a single historical rate point for a currency pair.
+ */
 @Schema()
 export class Ticker {
   @Prop({ required: true })

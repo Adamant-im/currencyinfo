@@ -27,11 +27,7 @@ describe('SourcesManager', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest
-              .fn()
-              .mockImplementation(
-                (key: string) => mockConfig[key as keyof Schema],
-              ),
+            get: jest.fn().mockImplementation((key: string) => mockConfig[key as keyof Schema]),
           },
         },
         {
@@ -127,9 +123,7 @@ describe('SourcesManager', () => {
       sourcesManager.warnUnavailableBaseCoins();
 
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining(
-          'No resources provide rates for the following base coins: ETH.',
-        ),
+        expect.stringContaining('No resources provide rates for the following base coins: ETH.'),
       );
     });
 

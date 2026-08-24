@@ -15,13 +15,7 @@ describe('SourcesManager', () => {
         rateDifferencePercentThreshold: 25,
         groupPercentage: 20,
         minSources: 2,
-        priorities: [
-          'sourceName1',
-          'sourceName2',
-          'sourceName3',
-          'sourceName4',
-          'sourceName5',
-        ],
+        priorities: ['sourceName1', 'sourceName2', 'sourceName3', 'sourceName4', 'sourceName5'],
       } as Partial<Schema>;
       return mockConfig[key as keyof Schema];
     }),
@@ -99,10 +93,7 @@ describe('SourcesManager', () => {
         ],
       };
 
-      const [tickers, errors] = ratesMerger.squishTickers(
-        sourceTickers,
-        ratesMerger.rateLifetime,
-      );
+      const [tickers, errors] = ratesMerger.squishTickers(sourceTickers, ratesMerger.rateLifetime);
 
       expect(errors).toStrictEqual([]);
       expect(tickers).toStrictEqual({ 'BTC/USD': 107500, 'ETH/USD': 4600 });
@@ -138,10 +129,7 @@ describe('SourcesManager', () => {
         ],
       };
 
-      const [tickers, errors] = ratesMerger.squishTickers(
-        sourceTickers,
-        ratesMerger.rateLifetime,
-      );
+      const [tickers, errors] = ratesMerger.squishTickers(sourceTickers, ratesMerger.rateLifetime);
 
       expect(errors).toStrictEqual([
         [
@@ -192,9 +180,7 @@ describe('SourcesManager', () => {
 
       expect(error).toBeNull();
       expect(group).toStrictEqual({
-        prices: [
-          { price: 500, priority: 0, source: 'sourceName5', weight: 2000 },
-        ],
+        prices: [{ price: 500, priority: 0, source: 'sourceName5', weight: 2000 }],
         weight: 2000,
       });
     });
@@ -228,9 +214,7 @@ describe('SourcesManager', () => {
           weight: 200,
         },
         {
-          prices: [
-            { price: 500, priority: 0, source: 'sourceName5', weight: 2000 },
-          ],
+          prices: [{ price: 500, priority: 0, source: 'sourceName5', weight: 2000 }],
           weight: 2000,
         },
       ]);

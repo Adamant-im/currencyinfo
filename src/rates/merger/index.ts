@@ -1,9 +1,5 @@
 import { calculatePercentageDifference } from 'src/shared/utils';
-import {
-  SourceTickers,
-  TickerPrice,
-  Tickers,
-} from '../sources/api/dto/tickers.dto';
+import { SourceTickers, TickerPrice, Tickers } from '../sources/api/dto/tickers.dto';
 import * as strategies from './strategy';
 import { ConfigService } from '@nestjs/config';
 import { Notifier } from 'src/global/notifier/notifier.service';
@@ -27,9 +23,12 @@ interface PriceGroup {
   prices: SourcePrice[];
 }
 
+/**
+ * Base abstract class responsible for grouping rates, checking divergence thresholds,
+ * applying resolution strategies, and triangulating base currency pairs.
+ */
 export abstract class RatesMerger {
   tickers: Tickers;
-
   sourceTickers: SourceTickers;
 
   private weights: ResourceWeights;
@@ -52,14 +51,9 @@ export abstract class RatesMerger {
   }
 
   /**
-   * Updates the latest tickers from the given data,
-   * avoiding significant changes.
+   * Merges incoming source tickers into the aggregated sourceTickers map.
    */
-  mergeTickers(
-    sourceTickers: SourceTickers,
-    data: Tickers,
-    options: { name: string },
-  ) {
+  mergeTickers(sourceTickers: SourceTickers, data: Tickers, options: { name: string }) {
     const timestamp = this.getTimestamp();
     for (const [rate, price] of Object.entries(data)) {
       const newPrice = {
@@ -73,7 +67,6 @@ export abstract class RatesMerger {
       if (previousPrices) {
         const prices = [...previousPrices];
 
-        // Replace previous price for the specific source
         const previousPriceIndex = prices.findIndex(
           (previousPrice) => previousPrice.source === newPrice.source,
         );
@@ -92,7 +85,7 @@ export abstract class RatesMerger {
   }
 
   /**
-   * Adjusts the rates for each base coin using the USD rate.
+   * Deterministically triangulates cross-rates for all configured base coins using USD rates.
    */
   normalizeTickers(tickers: Tickers) {
     const decimals = this.config.get('decimals') as number;
@@ -101,8 +94,7 @@ export abstract class RatesMerger {
     const enabledCoins = this.sourcesManager.allCoins;
 
     baseCoins.forEach((baseCoin) => {
-      const price =
-        tickers[`USD/${baseCoin}`] || 1 / tickers[`${baseCoin}/USD`];
+      const price = tickers[`USD/${baseCoin}`] || 1 / tickers[`${baseCoin}/USD`];
 
       if (!price) {
         return;
@@ -126,6 +118,9 @@ export abstract class RatesMerger {
     return tickers;
   }
 
+  /**
+   * Merges, validates, and updates current tickers with lifetime validation and divergence notifications.
+   */
   setTickers(tickers: SourceTickers) {
     const [, errors] = this.squishTickers(tickers, this.rateLifetime);
 
@@ -143,6 +138,9 @@ export abstract class RatesMerger {
     this.notifyErrors(errors);
   }
 
+  /**
+   * Sends structured alerts when rates diverge beyond configured thresholds or fail validation.
+   */
   notifyErrors(errors: [pair: string, errorMessage: string][]) {
     const needsAttention: string[] = [];
     const recurringErrors: string[] = [];
@@ -152,14 +150,11 @@ export abstract class RatesMerger {
       const errorMessage = `${pair}: ${error}`;
 
       if (this.tickers[pair]) {
-        // The tickers are still within the rateLifetime
         needsAttention.push(errorMessage);
       } else {
         if (this.sourceTickers[pair]) {
-          // The tickers are outdated
           recurringErrors.push(errorMessage);
         } else {
-          // No previous tickers found
           newErrors.push(errorMessage);
         }
       }
@@ -182,22 +177,25 @@ export abstract class RatesMerger {
     if (needsAttention.length) {
       this.notifier.notify(
         'warn',
-        `The previously stored rates will be saved for the following pairs, but they require attention: ${needsAttention.join(', ')}, but it persists not longer than ${this.rateLifetime} min`,
+        `The previously stored rates will be served for the following pairs, but they require attention: ${needsAttention.join(', ')}, and the issue has persisted for less than ${this.rateLifetime} min`,
       );
     }
   }
 
+  /**
+   * Aggregates and triangulates tickers considering specified lifetime window.
+   */
   getTickersWithLifetime(rateLifetime: number) {
-    const [squishedTickers] = this.squishTickers(
-      this.sourceTickers,
-      rateLifetime,
-    );
+    const [squishedTickers] = this.squishTickers(this.sourceTickers, rateLifetime);
 
     const minimizedTickers = this.cutRatesBySourceCount(squishedTickers);
 
     return this.normalizeTickers(minimizedTickers);
   }
 
+  /**
+   * Filters out pairs that do not meet the configured minSources requirement.
+   */
   cutRatesBySourceCount(squishedTickers: Tickers) {
     const minimizedTickers: Tickers = {};
 
@@ -205,7 +203,7 @@ export abstract class RatesMerger {
       const minSourcesForPair = this.pairSources[rate] || 1;
       const prices = this.sourceTickers[rate];
 
-      if (prices.length >= minSourcesForPair) {
+      if (prices && prices.length >= minSourcesForPair) {
         minimizedTickers[rate] = price;
       }
     }
@@ -213,6 +211,9 @@ export abstract class RatesMerger {
     return minimizedTickers;
   }
 
+  /**
+   * Returns pairs available from fewer sources than configured.
+   */
   getRatesWithFewerSources() {
     const rates: Array<[string, expected: number, got: number]> = [];
 
@@ -228,8 +229,7 @@ export abstract class RatesMerger {
   }
 
   /**
-   * Uses the chosen strategy to squish the tickers from
-   * different sources into one piece.
+   * Uses the chosen strategy to resolve multi-source rates into a single deterministic rate.
    */
   squishTickers(sourceTickers: SourceTickers, lifetime: number) {
     const tickers: Tickers = {};
@@ -253,26 +253,17 @@ export abstract class RatesMerger {
   }
 
   /**
-   * Returns the biggest group of the group prices if the biggest
-   * group is heavier than the second biggest group by `this.groupPercentage`%
-   *
-   * @see {@link splitIntoGroups} for more details on how the groups are made.
+   * Groups prices by proximity and selects the dominant group if it exceeds the groupPercentage threshold.
    */
-  getBiggestGroupPrice(
-    prices: TickerPrice[],
-  ): [null, PriceGroup] | [string, null] {
-    // no prices, no groups
+  getBiggestGroupPrice(prices: TickerPrice[]): [null, PriceGroup] | [string, null] {
     if (!prices.length) {
       return ['No prices for the pair available', null];
     }
 
     const groups = this.splitIntoGroups(prices);
 
-    const [biggestGroup, secondBiggestGroup] = groups.sort(
-      (a, b) => b.weight - a.weight,
-    );
+    const [biggestGroup, secondBiggestGroup] = groups.sort((a, b) => b.weight - a.weight);
 
-    // only one group
     if (!secondBiggestGroup) {
       return [null, biggestGroup];
     }
@@ -328,26 +319,22 @@ export abstract class RatesMerger {
    * ```
    */
   splitIntoGroups(prices: TickerPrice[]) {
-    const threshold = this.config.get(
-      'rateDifferencePercentThreshold',
-    ) as number;
+    const threshold = this.config.get('rateDifferencePercentThreshold') as number;
 
-    const sorted = prices.sort(
-      (ticker1, ticker2) => ticker1.price - ticker2.price,
-    );
-    const groups = [];
+    const sorted = [...prices].sort((ticker1, ticker2) => ticker1.price - ticker2.price);
+    const groups: PriceGroup[] = [];
 
     let prevSeparator = -1;
     for (const [startIndex, startPrice] of sorted.entries()) {
       const { source: startSource, price: startNum } = startPrice;
 
       const group: PriceGroup = {
-        weight: this.weights[startSource],
+        weight: this.weights[startSource] || 0,
         prices: [
           {
             source: startSource,
             price: startNum,
-            weight: this.weights[startSource],
+            weight: this.weights[startSource] || 0,
             priority: this.getPriority(startSource),
           },
         ],
@@ -364,7 +351,7 @@ export abstract class RatesMerger {
           break;
         }
 
-        const weight = this.weights[source];
+        const weight = this.weights[source] || 0;
 
         group.weight += weight;
         group.prices.push({
@@ -386,22 +373,22 @@ export abstract class RatesMerger {
     return groups;
   }
 
+  /**
+   * Resolves numeric priority rank for a given source name based on configuration order.
+   */
   getPriority(source: string) {
-    const priorities = this.config.get('priorities') as string[];
-
+    const priorities = (this.config.get('priorities') as string[]) || [];
     const index = priorities.indexOf(source);
 
-    return priorities.length - index - 1;
+    return index === -1 ? 0 : priorities.length - index - 1;
   }
 
   formatGroupPrices(group: PriceGroup) {
-    return group.prices
-      .map(({ price, source }) => `${price} (${source})`)
-      .join(';');
+    return group.prices.map(({ price, source }) => `${price} (${source})`).join(';');
   }
 
   /**
-   * Returns unix timestamp in minutes
+   * Returns current UNIX timestamp in minutes.
    */
   getTimestamp() {
     return Math.floor(Date.now() / 1000 / 60);

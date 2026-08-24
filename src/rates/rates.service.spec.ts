@@ -16,9 +16,7 @@ class MockedApi implements BaseApi {
     public response: Tickers,
     public enabled = true,
     public weight = 100,
-    public enabledCoins = new Set(
-      Object.keys(response).map((pair) => pair.split('/')[0]),
-    ),
+    public enabledCoins = new Set(Object.keys(response).map((pair) => pair.split('/')[0])),
   ) {}
 
   fetch() {
@@ -66,6 +64,11 @@ describe('RatesService', () => {
       ),
     } as any;
 
+    schedulerRegistry = {
+      addInterval: jest.fn(),
+      deleteInterval: jest.fn(),
+      getInterval: jest.fn(),
+    } as any;
     sourceManager = new SourcesManager(configService, notifier);
     sourceManager.initialize = jest.fn(async function () {
       this.sources = [
@@ -142,7 +145,7 @@ describe('RatesService', () => {
 
     expect(notifier.notify).toHaveBeenCalledWith(
       'warn',
-      expect.stringContaining('previously stored rates will be saved'),
+      expect.stringContaining('previously stored rates will be served'),
     );
 
     expect(service.tickers).toStrictEqual({
@@ -167,9 +170,7 @@ describe('RatesService', () => {
 
     expect(notifier.notify).toHaveBeenCalledWith(
       'error',
-      expect.stringContaining(
-        'these errors have persisted for more than 60 min',
-      ),
+      expect.stringContaining('these errors have persisted for more than 60 min'),
     );
 
     expect(service.tickers).toStrictEqual({});
@@ -188,9 +189,7 @@ describe('RatesService', () => {
 
     await service.saveTickers(2);
 
-    expect(failSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Failed to save'),
-    );
+    expect(failSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to save'));
   });
 
   it('should handle fetch tickers errors', async () => {
