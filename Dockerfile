@@ -20,8 +20,7 @@ COPY --from=builder /usr/src/currencyinfo/package.json \
   /usr/src/currencyinfo/pnpm-lock.yaml ./
 
 RUN npm install -g pnpm && \
-    pnpm install --prod --ignore-scripts && \
-    pnpm run deps:setup
+    pnpm install --prod --ignore-scripts
 
 COPY --from=builder /usr/src/currencyinfo/dist ./dist
 COPY --from=builder /usr/src/currencyinfo/config.default.jsonc ./

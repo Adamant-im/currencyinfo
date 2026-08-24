@@ -45,7 +45,6 @@ export class RatesService extends RatesMerger {
   protected pairSources: Record<string, number> = {};
 
   private ready: Promise<void>;
-  private readonly logger: Logger;
 
   constructor(
     @InjectModel(Ticker.name) private tickerModel: Model<Ticker>,
@@ -54,17 +53,15 @@ export class RatesService extends RatesMerger {
     protected config: ConfigService,
     protected sourcesManager: SourcesManager,
     public notifier: Notifier,
+    private readonly logger: Logger,
   ) {
     const refreshInterval = config.get<number>('refreshInterval');
-    const logger = new Logger(config);
-
     const weights = sourcesManager.getSourceWeights();
     const strategyName = config.get('strategy') as StrategyName;
 
     super(strategyName, weights);
 
-    this.logger = logger;
-    this.rateLifetime = this.config.get<number>('rateLifetime') || 60;
+    this.rateLifetime = this.config.get<number>('rateLifetime') ?? 60;
 
     this.refreshInterval = refreshInterval
       ? refreshInterval * 60 * 1000
@@ -161,7 +158,7 @@ export class RatesService extends RatesMerger {
 
       this.lastUpdated = date;
 
-      this.logger.info(
+      this.logger.log(
         `Rates from ${availableSources}/${this.sourcesManager.sourceCount} sources saved successfully.`,
       );
     } catch (error) {
@@ -310,6 +307,13 @@ export class RatesService extends RatesMerger {
   }
 
   /**
+   * Sanitizes sensitive query parameters such as API keys from error messages.
+   */
+  private sanitizeErrorMessage(text: string): string {
+    return text.replace(/([?&](?:access_key|api_key|apikey|key)=)[^& "']+/gi, '$1***');
+  }
+
+  /**
    * Fetches rates from an individual external data source connector.
    *
    * @param source - Source API instance
@@ -327,7 +331,11 @@ export class RatesService extends RatesMerger {
         const { config } = error;
 
         if (config) {
-          message.push(`Request to ${config.url} ${JSON.stringify(config.params)} failed`);
+          const sanitizedUrl = this.sanitizeErrorMessage(config.url || '');
+          const sanitizedParams = config.params
+            ? this.sanitizeErrorMessage(JSON.stringify(config.params))
+            : '';
+          message.push(`Request to ${sanitizedUrl} ${sanitizedParams}`.trim() + ' failed');
 
           if (error.response) {
             message.push(`with ${error.response.status} status code.`);
@@ -335,7 +343,7 @@ export class RatesService extends RatesMerger {
         }
       }
 
-      message.push(`Error: ${error}.`);
+      message.push(`Error: ${this.sanitizeErrorMessage(String(error))}.`);
 
       this.fail(message.join(' '));
     }

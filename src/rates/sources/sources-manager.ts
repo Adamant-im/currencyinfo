@@ -18,7 +18,6 @@ import { ExchangeRateHost } from './api/exchangeratehost';
  */
 @Injectable()
 export class SourcesManager {
-  public logger: Logger;
   public sources: BaseApi[] = [];
 
   /**
@@ -41,9 +40,9 @@ export class SourcesManager {
   constructor(
     private config: ConfigService,
     private notifier: Notifier,
+    public logger: Logger,
   ) {
-    this.logger = new Logger(config);
-    this.minSources = (config.get('minSources') as number) || 1;
+    this.minSources = (config.get('minSources') as number) ?? 1;
   }
 
   /**

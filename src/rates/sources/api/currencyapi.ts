@@ -37,7 +37,7 @@ export class CurrencyApi extends BaseApi {
       !!this.config.get('currency_api.url') &&
       !!this.enabledCoins.size;
 
-    this.weight = this.config.get<number>('currency_api.weight') || 10;
+    this.weight = this.config.get<number>('currency_api.weight') ?? 10;
   }
 
   async fetch(): Promise<Tickers> {
@@ -51,7 +51,7 @@ export class CurrencyApi extends BaseApi {
 
     try {
       const rates: Tickers = {};
-      const decimals = this.config.get<number>('decimals') || 12;
+      const decimals = this.config.get<number>('decimals') ?? 12;
 
       this.enabledCoins.forEach((symbol) => {
         const rate = data['usd']?.[symbol.toLowerCase()];

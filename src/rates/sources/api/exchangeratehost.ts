@@ -39,7 +39,7 @@ export class ExchangeRateHost extends BaseApi {
       !!this.config.get<string>('exchange_rate_host.api_key') &&
       !!this.enabledCoins.size;
 
-    this.weight = this.config.get<number>('exchange_rate_host.weight') || 10;
+    this.weight = this.config.get<number>('exchange_rate_host.weight') ?? 10;
   }
 
   async fetch(): Promise<Tickers> {
@@ -48,13 +48,15 @@ export class ExchangeRateHost extends BaseApi {
     }
 
     const apiKey = this.config.get('exchange_rate_host.api_key') as string;
-    const url = `${baseUrl}?access_key=${apiKey}`;
 
-    const { data } = await axios.get<ExchangeRateHostDto>(url, { timeout: 10000 });
+    const { data } = await axios.get<ExchangeRateHostDto>(baseUrl, {
+      params: { access_key: apiKey },
+      timeout: 10000,
+    });
 
     try {
       const rates: Record<string, number> = {};
-      const decimals = this.config.get<number>('decimals') || 12;
+      const decimals = this.config.get<number>('decimals') ?? 12;
 
       this.enabledCoins.forEach((symbol) => {
         const coin = symbol.toUpperCase();
@@ -71,7 +73,7 @@ export class ExchangeRateHost extends BaseApi {
 
       return rates;
     } catch (error) {
-      throw new Error(`Unable to process data from ${url}. Error: ${error}`, {
+      throw new Error(`Unable to process data from ${baseUrl}. Error: ${error}`, {
         cause: error,
       });
     }

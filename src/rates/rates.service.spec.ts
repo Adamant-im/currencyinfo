@@ -3,6 +3,7 @@ import { getModelToken } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { Notifier } from 'src/global/notifier/notifier.service';
+import { Logger } from 'src/global/logger/logger.service';
 import { RatesService } from './rates.service';
 import { Ticker } from './schemas/ticker.schema';
 import { Timestamp } from './schemas/timestamp.schema';
@@ -69,7 +70,13 @@ describe('RatesService', () => {
       deleteInterval: jest.fn(),
       getInterval: jest.fn(),
     } as any;
-    sourceManager = new SourcesManager(configService, notifier);
+    const mockLogger = {
+      log: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      info: jest.fn(),
+    };
+    sourceManager = new SourcesManager(configService, notifier, mockLogger as any);
     sourceManager.initialize = jest.fn(async function () {
       this.sources = [
         new MockedApi('ASource', { 'BTC/USD': 100 }),
@@ -84,6 +91,13 @@ describe('RatesService', () => {
 
     RatesService.prototype.init = jest.fn();
 
+    const mockLogger = {
+      log: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      info: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RatesService,
@@ -93,6 +107,7 @@ describe('RatesService', () => {
         { provide: getModelToken(Timestamp.name), useValue: timestampModel },
         { provide: Notifier, useValue: notifier },
         { provide: SourcesManager, useValue: sourceManager },
+        { provide: Logger, useValue: mockLogger },
       ],
     }).compile();
 

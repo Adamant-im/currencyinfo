@@ -23,7 +23,13 @@ describe('RatesMerger', () => {
       return mockConfig[key as keyof Schema];
     }),
   } as any;
-  const sourcesManager = new SourcesManager(config, notifier);
+  const mockLogger = {
+    log: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    info: jest.fn(),
+  };
+  const sourcesManager = new SourcesManager(config, notifier, mockLogger as any);
   sourcesManager.allCoins = ['BTC', 'ETH', 'USD', 'ADM'];
 
   class RatesMergerMock extends RatesMerger {
@@ -59,8 +65,8 @@ describe('RatesMerger', () => {
     expect(ratesMerger).toBeDefined();
   });
 
-  describe('normalizeTickers and mutual inverse triangulation', () => {
-    it('should triangulate cross-rates and guarantee mutually inverse pairs', () => {
+  describe('normalizeTickers', () => {
+    it('should triangulate cross-rates between base coins', () => {
       const initialTickers = {
         'BTC/USD': 50000,
         'ETH/USD': 2500,

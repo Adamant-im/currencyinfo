@@ -31,7 +31,7 @@ export class CryptoCompareApi extends BaseApi {
       !!this.config.get<string>('cryptocompare.api_key') &&
       !!this.enabledCoins.size;
 
-    this.weight = this.config.get<number>('cryptocompare.weight') || 10;
+    this.weight = this.config.get<number>('cryptocompare.weight') ?? 10;
   }
 
   async fetch(baseCurrency: string): Promise<Tickers> {
@@ -47,7 +47,7 @@ export class CryptoCompareApi extends BaseApi {
       api_key: apiKey,
     };
 
-    const decimals = this.config.get<number>('decimals') || 12;
+    const decimals = this.config.get<number>('decimals') ?? 12;
 
     const { data } = await axios.get(url, {
       params,

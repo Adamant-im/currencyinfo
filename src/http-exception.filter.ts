@@ -1,13 +1,22 @@
-import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  ExceptionFilter,
+  Catch,
+  ArgumentsHost,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 import { ZodError } from 'zod';
 
 /**
  * Global HTTP exception filter catching ZodError, HttpException, and unexpected exceptions,
- * returning a unified JSON error structure.
+ * returning a unified JSON error structure without leaking internal error details.
  */
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(HttpExceptionFilter.name);
+
   constructor(private readonly httpAdapterHost: HttpAdapterHost) {}
 
   catch(exception: unknown, host: ArgumentsHost) {
@@ -16,8 +25,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse();
 
-    let errorMessage: string | object = 'Something went wrong';
-    let status = HttpStatus.INTERNAL_SERVER_ERROR;
+    let errorMessage: string | object;
+    let status: HttpStatus;
 
     if (exception instanceof ZodError) {
       const [firstError] = exception.issues;
@@ -26,8 +35,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
     } else if (exception instanceof HttpException) {
       errorMessage = exception.getResponse();
       status = exception.getStatus();
-    } else if (exception instanceof Error) {
-      errorMessage = exception.message;
+    } else {
+      this.logger.error(
+        `Unhandled exception: ${exception instanceof Error ? exception.stack || exception.message : exception}`,
+      );
+      errorMessage = 'Something went wrong';
+      status = HttpStatus.INTERNAL_SERVER_ERROR;
     }
 
     httpAdapter.reply(

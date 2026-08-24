@@ -6,7 +6,7 @@ const isDev = process.env.NODE_ENV === 'development';
 
 /**
  * Loads and validates configuration from JSONC configuration files.
- * Checks config.test.jsonc, config.jsonc, and falls back to config.default.jsonc.
+ * Checks config.test.jsonc, config.jsonc, and falls back to config.default.jsonc in development.
  *
  * @returns Validated configuration object
  */
@@ -45,14 +45,13 @@ function findConfig(): string | undefined {
     if (existsSync('./config.test.jsonc')) {
       return './config.test.jsonc';
     }
+    if (existsSync('./config.default.jsonc')) {
+      return './config.default.jsonc';
+    }
   }
 
   if (existsSync('./config.jsonc')) {
     return './config.jsonc';
-  }
-
-  if (existsSync('./config.default.jsonc')) {
-    return './config.default.jsonc';
   }
 }
 

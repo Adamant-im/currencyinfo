@@ -78,7 +78,7 @@ export class CoinmarketcapApi extends CoinIdFetcher {
         this.config.get<string[]>('coinmarketcap.coins')?.length ||
         Object.keys(this.config.get<Record<string, number>>('coinmarketcap.ids') || {})?.length
       );
-    this.weight = this.config.get<number>('coinmarketcap.weight') || 10;
+    this.weight = this.config.get<number>('coinmarketcap.weight') ?? 10;
 
     this.ready = this.fetchCoinIds();
   }
@@ -110,7 +110,7 @@ export class CoinmarketcapApi extends CoinIdFetcher {
     });
 
     try {
-      const decimals = this.config.get<number>('decimals') || 12;
+      const decimals = this.config.get<number>('decimals') ?? 12;
 
       const rates: Record<string, number> = {};
       const unavailable: string[] = [];
@@ -216,6 +216,10 @@ export class CoinmarketcapApi extends CoinIdFetcher {
 
     if (!this.coins.length) {
       this.logger.error(`Could not fetch coin list for ${this.resourceName}.`);
+      this.notifier.notify(
+        'error',
+        `Could not fetch coin list for ${this.resourceName}. Rates from this source will be unavailable.`,
+      );
       return;
     }
 

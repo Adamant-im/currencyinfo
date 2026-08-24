@@ -167,11 +167,10 @@ GET /status
 {
   "success": true,
   "date": 1720472096540,
-  "result": {
-    "ready": true,
-    "updating": false,
-    "next_update": 1720472646060
-  },
+  "ready": true,
+  "updating": false,
+  "next_update": 1720472646060,
+  "last_updated": 1720472000000,
   "version": "4.2.0"
 }
 ```

@@ -31,12 +31,12 @@ async function migrate() {
 
       console.log(`Processing ${processedDocs}/${totalDocs} document: ${doc._id}`);
 
-      const tickers = [];
+      const tickerDocs = [];
 
-      for (const [pair, rate] of Object.entries(doc.tickers)) {
+      for (const [pair, rate] of Object.entries(doc.tickers || {})) {
         const [base, quote] = pair.split('/');
 
-        tickers.push({
+        tickerDocs.push({
           base,
           quote,
           rate,
@@ -44,7 +44,9 @@ async function migrate() {
         });
       }
 
-      await tickers.insertMany(tickers);
+      if (tickerDocs.length > 0) {
+        await tickers.insertMany(tickerDocs);
+      }
 
       await timestamps.updateOne(
         { _id: doc._id },
@@ -59,6 +61,7 @@ async function migrate() {
     console.log('Migration successfully completed.');
   } catch (error) {
     console.error('Error during migration:', error);
+    process.exitCode = 1;
   } finally {
     await mongoose.disconnect();
   }

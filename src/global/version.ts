@@ -5,7 +5,7 @@ import path from 'path';
  * Reads and exports the current service version from package.json.
  * Uses a safe fallback if package.json cannot be read directly.
  */
-let cachedVersion = '4.2.0';
+let cachedVersion = 'unknown';
 
 try {
   const packageJsonPath = path.resolve(process.cwd(), 'package.json');
@@ -17,7 +17,7 @@ try {
     }
   }
 } catch {
-  // Fallback to default version if file cannot be read
+  // Fallback to unknown version if package.json cannot be read
 }
 
 export const version: string = cachedVersion;

@@ -24,6 +24,20 @@ pnpm install --ignore-scripts
 pnpm run deps:setup
 ```
 
+Copy the default configuration file:
+
+```bash
+cp config.default.jsonc config.jsonc
+```
+
+### Running MongoDB with Docker
+
+To start a local MongoDB instance for development:
+
+```bash
+docker compose up -d
+```
+
 Create a dedicated branch and keep commits compatible with Conventional Commits:
 
 ```bash
@@ -49,6 +63,11 @@ pnpm audit
 
 Report the exact commands run and any skipped or blocked validation in the pull request.
 
+## Advanced pull request tips
+
+- Focus pull requests on the intended change only and avoid unrelated refactoring or formatting changes to unrelated files
+- Ensure changes maintain backward data compatibility with existing MongoDB databases and API endpoints
+
 ## Project structure
 
 - `src/rates/`: REST controllers, rate fetch scheduler, MongoDB persistence, and cache
@@ -65,3 +84,7 @@ Report the exact commands run and any skipped or blocked validation in the pull 
 - Link related issues explicitly in the PR description (for example, `Closes #123`)
 - Follow the pull request template structure (`Description`, `Related issue`, `Breaking changes`, `How to test`, `Notes for reviewers`, `Checklist`)
 - Ensure all tests, linter checks, and builds pass cleanly before requesting review
+
+## Financial contribution
+
+We also welcome financial contributions via cryptocurrency. See [ADAMANT Donate](https://adamant.im/donate).

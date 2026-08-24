@@ -1,15 +1,22 @@
+import fs from 'fs';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from './logger.service';
 
 describe('Logger Service', () => {
   let consoleLogSpy: jest.SpyInstance;
+  let createWriteStreamSpy: jest.SpyInstance;
 
   beforeEach(() => {
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    createWriteStreamSpy = jest.spyOn(fs, 'createWriteStream').mockReturnValue({
+      write: jest.fn(),
+      end: jest.fn(),
+    } as any);
   });
 
   afterEach(() => {
     consoleLogSpy.mockRestore();
+    createWriteStreamSpy.mockRestore();
   });
 
   const createLogger = (logLevel: string) => {

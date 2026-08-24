@@ -65,7 +65,7 @@ export class MoexApi extends BaseApi {
 
     this.enabled = this.config.get<boolean>('moex.enabled') !== false && !!this.pairs.length;
 
-    this.weight = this.config.get<number>('moex.weight') || 10;
+    this.weight = this.config.get<number>('moex.weight') ?? 10;
   }
 
   async fetch(): Promise<Tickers> {
@@ -80,7 +80,7 @@ export class MoexApi extends BaseApi {
 
     const data = response.data?.securities?.data?.filter((ticker) => ticker[1] === 'CETS') || [];
 
-    const decimals = this.config.get<number>('decimals') || 12;
+    const decimals = this.config.get<number>('decimals') ?? 12;
     const basePrice = this.getPrice('USD/RUB', data);
 
     for (const pair of Object.keys(this.codes)) {

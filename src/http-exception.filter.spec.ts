@@ -58,8 +58,8 @@ describe('HttpExceptionFilter', () => {
     );
   });
 
-  it('should format standard Error with 500 Internal Server Error', () => {
-    const error = new Error('Unexpected runtime crash');
+  it('should format standard Error with 500 and generic message without leaking internals', () => {
+    const error = new Error('Database password leak or internal path');
 
     filter.catch(error, mockArgumentsHost);
 
@@ -67,7 +67,7 @@ describe('HttpExceptionFilter', () => {
       mockResponse,
       expect.objectContaining({
         success: false,
-        msg: 'Unexpected runtime crash',
+        msg: 'Something went wrong',
       }),
       HttpStatus.INTERNAL_SERVER_ERROR,
     );

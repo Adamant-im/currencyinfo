@@ -45,7 +45,7 @@ export class CoingeckoApi extends CoinIdFetcher {
         this.config.get<string[]>('coingecko.coins')?.length ||
         this.config.get<string[]>('coingecko.ids')?.length
       );
-    this.weight = this.config.get<number>('coingecko.weight') || 10;
+    this.weight = this.config.get<number>('coingecko.weight') ?? 10;
 
     this.ready = this.fetchCoinIds();
   }
@@ -69,7 +69,7 @@ export class CoingeckoApi extends CoinIdFetcher {
     };
 
     const url = 'https://api.coingecko.com/api/v3/simple/price';
-    const decimals = this.config.get<number>('decimals') || 12;
+    const decimals = this.config.get<number>('decimals') ?? 12;
 
     const { data } = await axios.get(url, {
       params,
@@ -142,6 +142,10 @@ export class CoingeckoApi extends CoinIdFetcher {
 
     if (!this.coins.length) {
       this.logger.error(`Could not fetch coin list for ${this.resourceName}.`);
+      this.notifier.notify(
+        'error',
+        `Could not fetch coin list for ${this.resourceName}. Rates from this source will be unavailable.`,
+      );
       return;
     }
 
