@@ -42,7 +42,10 @@ export abstract class CoinIdFetcher extends BaseApi {
             `Could not get coin IDs for ${this.resourceName}. Retrying attempt ${attempt}/${MAX_ATTEMPT_COUNT}…`,
           );
 
-          setTimeout(() => resolve(this.fetchCoinIds(attempt + 1)), attempt * 10000);
+          const timer = setTimeout(() => resolve(this.fetchCoinIds(attempt + 1)), attempt * 10000);
+          if (typeof timer.unref === 'function') {
+            timer.unref();
+          }
         }
       })();
     });

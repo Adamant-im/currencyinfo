@@ -42,7 +42,7 @@ export class Notifier {
    * @param message - Notification message content
    */
   async notify(notifyLevel: LogLevelName, message: string): Promise<void> {
-    const logMethod = notifyLevel === 'info' ? 'debug' : notifyLevel;
+    const logMethod = notifyLevel === 'info' ? 'log' : notifyLevel;
     if (logMethod in this.logger) {
       (this.logger as any)[logMethod](removeMarkdown(message));
     }

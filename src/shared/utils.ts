@@ -148,8 +148,8 @@ export function sanitizeErrorMessage(text: string): string {
     text
       // 1. URI credentials (e.g. mongodb://user:pass@host)
       .replace(/\/\/[^:]+:[^@]+@/g, '//***:***@')
-      // 2. Authorization / Bearer tokens (e.g. Bearer eyJhbGci...)
-      .replace(/\b(Bearer\s+)[a-zA-Z0-9_\-.~+/]+=*/gi, '$1***')
+      // 2. Authorization headers (Bearer, Basic)
+      .replace(/\b((?:Authorization:\s*)?(?:Bearer|Basic)\s+)[a-zA-Z0-9_\-.~+/]+=*/gi, '$1***')
       // 3. Query string parameters (e.g. ?api_key=secret or &password=secret)
       .replace(
         /([?&](?:access_key|api_key|apikey|key|token|secret|passphrase|password)=)[^& "'\s]+/gi,
@@ -160,10 +160,17 @@ export function sanitizeErrorMessage(text: string): string {
         /("(?:\b(?:access_key|api_key|apikey|key|token|secret|passphrase|password)\b)"\s*:\s*)("[^"]*"|'[^']*'|[^\s,{}]+)/gi,
         '$1"***"',
       )
-      // 5. Plain key=value or key: value (unquoted or quoted)
+      // 5. Quoted key-value pairs (supports spaces, semicolons, etc.)
       .replace(
-        /(?<![?&])\b((?:access_key|api_key|apikey|key|token|secret|passphrase|password)\b\s*[:=]\s*)(["']?)[^\s"',;&]+(\2)/gi,
-        '$1$2***$3',
+        /\b((?:access_key|api_key|apikey|token|secret|passphrase|password)\b\s*[:=]\s*)(["'])(?:(?!\2)[\s\S])*?\2/gi,
+        '$1$2***$2',
+      )
+      // 6. Unquoted multi-word passphrases (e.g. passphrase: correct horse battery staple)
+      .replace(/\b(passphrase\b\s*[:=]\s*)(?!["'])[^\r\n,;}]+/gi, '$1***')
+      // 7. Unquoted single-word key-value pairs (excluding naked 'key' to prevent false positives)
+      .replace(
+        /(?<![?&])\b((?:access_key|api_key|apikey|token|secret|password)\b\s*[:=]\s*)(?!["'])[^\s"',;&]+/gi,
+        '$1***',
       )
   );
 }

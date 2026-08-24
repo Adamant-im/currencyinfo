@@ -30,4 +30,7 @@ async function bootstrap() {
     .catch((error) => logger.error(`Failed to send startup notification: ${error}`));
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  console.error(`Failed to start InfoService: ${error}`);
+  process.exit(-1);
+});

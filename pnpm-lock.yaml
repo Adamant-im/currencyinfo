@@ -19,7 +19,6 @@ overrides:
   micromatch: ^4.0.8
   nanoid: ^3.3.8
   path-to-regexp: ^8.4.2
-  picomatch: ^2.3.2
   sha.js: ^2.4.12
   socket.io-parser: ^4.2.7
 
@@ -2192,7 +2191,7 @@ packages:
     resolution: {integrity: sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==}
     engines: {node: '>=12.0.0'}
     peerDependencies:
-      picomatch: ^2.3.2
+      picomatch: ^3 || ^4
     peerDependenciesMeta:
       picomatch:
         optional: true
@@ -3138,6 +3137,14 @@ packages:
     resolution: {integrity: sha512-V7+vQEJ06Z+c5tSye8S+nHUfI51xoXIXjHQ99cQtKUkQqqO1kO/KCJUfZXuB47h/YBlDhah2H3hdUGXn8ie0oA==}
     engines: {node: '>=8.6'}
 
+  picomatch@4.0.4:
+    resolution: {integrity: sha512-QP88BAKvMam/3NxH6vj2o21R6MjxZUAd6nlwAS/pnGvN9IVLocLHxGYIzFhg6fUQ+5th6P4dv4eW9jX3DSIj7A==}
+    engines: {node: '>=12'}
+
+  picomatch@4.0.7:
+    resolution: {integrity: sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==}
+    engines: {node: '>=12'}
+
   pirates@4.0.7:
     resolution: {integrity: sha512-TfySrs/5nm8fQJDcBDuUng3VOUKsd7S+zqvbOTiGXHfxX4wK31ard+hoNuvkicM/2YFzlpDgABOevKSsB4G/FA==}
     engines: {node: '>= 6'}
@@ -3936,7 +3943,7 @@ snapshots:
       ajv: 8.18.0
       ajv-formats: 3.0.1(ajv@8.18.0)
       jsonc-parser: 3.3.1
-      picomatch: 2.3.2
+      picomatch: 4.0.4
       rxjs: 7.8.1
       source-map: 0.7.4
     optionalDependencies:
@@ -3947,7 +3954,7 @@ snapshots:
       ajv: 8.18.0
       ajv-formats: 3.0.1(ajv@8.18.0)
       jsonc-parser: 3.3.1
-      picomatch: 2.3.2
+      picomatch: 4.0.4
       rxjs: 7.8.1
       source-map: 0.7.4
     optionalDependencies:
@@ -6264,9 +6271,9 @@ snapshots:
     dependencies:
       bser: 2.1.1
 
-  fdir@6.5.0(picomatch@2.3.2):
+  fdir@6.5.0(picomatch@4.0.7):
     optionalDependencies:
-      picomatch: 2.3.2
+      picomatch: 4.0.7
 
   figures@6.1.0:
     dependencies:
@@ -6801,7 +6808,7 @@ snapshots:
       jest-regex-util: 30.4.0
       jest-util: 30.4.1
       jest-worker: 30.4.1
-      picomatch: 2.3.2
+      picomatch: 4.0.7
       walker: 1.0.8
     optionalDependencies:
       fsevents: 2.3.3
@@ -6826,7 +6833,7 @@ snapshots:
       chalk: 4.1.2
       graceful-fs: 4.2.11
       jest-util: 30.4.1
-      picomatch: 2.3.2
+      picomatch: 4.0.7
       pretty-format: 30.4.1
       slash: 3.0.0
       stack-utils: 2.0.6
@@ -6948,7 +6955,7 @@ snapshots:
       chalk: 4.1.2
       ci-info: 4.4.0
       graceful-fs: 4.2.11
-      picomatch: 2.3.2
+      picomatch: 4.0.7
 
   jest-validate@30.4.1:
     dependencies:
@@ -7360,6 +7367,10 @@ snapshots:
   picocolors@1.1.1: {}
 
   picomatch@2.3.2: {}
+
+  picomatch@4.0.4: {}
+
+  picomatch@4.0.7: {}
 
   pirates@4.0.7: {}
 
@@ -7809,8 +7820,8 @@ snapshots:
 
   tinyglobby@0.2.17:
     dependencies:
-      fdir: 6.5.0(picomatch@2.3.2)
-      picomatch: 2.3.2
+      fdir: 6.5.0(picomatch@4.0.7)
+      picomatch: 4.0.7
 
   tmpl@1.0.5: {}
 

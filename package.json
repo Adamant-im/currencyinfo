@@ -84,7 +84,6 @@
       "micromatch": "^4.0.8",
       "nanoid": "^3.3.8",
       "path-to-regexp": "^8.4.2",
-      "picomatch": "^2.3.2",
       "sha.js": "^2.4.12",
       "socket.io-parser": "^4.2.7"
     }

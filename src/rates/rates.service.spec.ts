@@ -293,8 +293,6 @@ describe('RatesService', () => {
       'USD/Ethereum': 10,
       'ADM/Ethereum': 100000,
     });
-
-    expect(true).toBe(true);
   });
 
   it('should synchronize pairSources and weights from SourcesManager during updateTickers', async () => {

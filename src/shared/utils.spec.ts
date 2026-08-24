@@ -102,10 +102,14 @@ describe('Shared Utils', () => {
       );
     });
 
-    it('should redact Bearer authorization tokens', () => {
+    it('should redact Bearer and Basic authorization tokens', () => {
       expect(sanitizeErrorMessage('Authorization: Bearer secret_token_12345')).toBe(
         'Authorization: Bearer ***',
       );
+      expect(sanitizeErrorMessage('Authorization: Basic dXNlcjpwYXNz')).toBe(
+        'Authorization: Basic ***',
+      );
+      expect(sanitizeErrorMessage('Basic dXNlcjpwYXNz')).toBe('Basic ***');
     });
 
     it('should redact query string credentials', () => {
@@ -115,19 +119,43 @@ describe('Shared Utils', () => {
       expect(
         sanitizeErrorMessage('https://api.cryptocompare.com/data/price?api_key=SECRET_CC&fsym=BTC'),
       ).toBe('https://api.cryptocompare.com/data/price?api_key=***&fsym=BTC');
+      expect(sanitizeErrorMessage('https://api.example.com/rates?key=SECRET_KEY&base=USD')).toBe(
+        'https://api.example.com/rates?key=***&base=USD',
+      );
     });
 
-    it('should redact JSON property values', () => {
+    it('should redact JSON property values including key', () => {
       expect(
         sanitizeErrorMessage(
           'Request failed with params: {"access_key":"SECRET_VAL","pair":"BTC/USD"}',
         ),
       ).toBe('Request failed with params: {"access_key":"***","pair":"BTC/USD"}');
+      expect(sanitizeErrorMessage('{"key": "my-secret-key"}')).toBe('{"key": "***"}');
     });
 
-    it('should redact unstructured key-value pairs', () => {
-      expect(sanitizeErrorMessage('Error with password=VERY_SECRET and key: MY_KEY')).toBe(
-        'Error with password=*** and key: ***',
+    it('should redact quoted key-value pairs with spaces, delimiters and passphrases', () => {
+      expect(sanitizeErrorMessage('password="secret with spaces"')).toBe('password="***"');
+      expect(sanitizeErrorMessage("password='secret with spaces'")).toBe("password='***'");
+      expect(sanitizeErrorMessage('api_key="abc;def"')).toBe('api_key="***"');
+      expect(sanitizeErrorMessage('passphrase: correct horse battery staple')).toBe(
+        'passphrase: ***',
+      );
+      expect(
+        sanitizeErrorMessage(
+          'passphrase: apple banana cherry dragon elephant fox gorilla hawk iguana jaguar',
+        ),
+      ).toBe('passphrase: ***');
+    });
+
+    it('should not redact harmless diagnostic text containing the word key', () => {
+      expect(sanitizeErrorMessage('Unknown key: BTC/USD is not supported')).toBe(
+        'Unknown key: BTC/USD is not supported',
+      );
+      expect(sanitizeErrorMessage('Cache key = rates:USD:BTC could not be resolved')).toBe(
+        'Cache key = rates:USD:BTC could not be resolved',
+      );
+      expect(sanitizeErrorMessage('E11000 duplicate key error collection: tickers')).toBe(
+        'E11000 duplicate key error collection: tickers',
       );
     });
   });
