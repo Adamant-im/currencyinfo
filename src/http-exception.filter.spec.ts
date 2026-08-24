@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus } from '@nestjs/common';
+import { HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 import { ZodError, z } from 'zod';
 import { HttpExceptionFilter } from './http-exception.filter';
@@ -59,7 +59,8 @@ describe('HttpExceptionFilter', () => {
   });
 
   it('should format standard Error with 500 and generic message without leaking internals', () => {
-    const error = new Error('Database password leak or internal path');
+    const loggerSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    const error = new Error('mongodb://admin:supersecret@127.0.0.1:27017/db connection failed');
 
     filter.catch(error, mockArgumentsHost);
 
@@ -71,5 +72,12 @@ describe('HttpExceptionFilter', () => {
       }),
       HttpStatus.INTERNAL_SERVER_ERROR,
     );
+
+    expect(loggerSpy).toHaveBeenCalledWith(expect.not.stringContaining('supersecret'));
+    expect(loggerSpy).toHaveBeenCalledWith(
+      expect.stringContaining('mongodb://***:***@127.0.0.1:27017/db'),
+    );
+
+    loggerSpy.mockRestore();
   });
 });

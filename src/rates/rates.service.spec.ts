@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
+import { AxiosError } from 'axios';
 import { Notifier } from 'src/global/notifier/notifier.service';
 import { Logger } from 'src/global/logger/logger.service';
 import { RatesService } from './rates.service';
@@ -33,6 +34,7 @@ describe('RatesService', () => {
   let configService: ConfigService;
   let sourceManager: SourcesManager;
   let schedulerRegistry: SchedulerRegistry;
+  let mockLogger: any;
 
   const setupMocks = () => {
     tickerModel = {
@@ -70,7 +72,7 @@ describe('RatesService', () => {
       deleteInterval: jest.fn(),
       getInterval: jest.fn(),
     } as any;
-    const mockLogger = {
+    mockLogger = {
       log: jest.fn(),
       warn: jest.fn(),
       error: jest.fn(),
@@ -91,13 +93,6 @@ describe('RatesService', () => {
 
     RatesService.prototype.init = jest.fn();
 
-    const mockLogger = {
-      log: jest.fn(),
-      warn: jest.fn(),
-      error: jest.fn(),
-      info: jest.fn(),
-    };
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RatesService,
@@ -116,6 +111,57 @@ describe('RatesService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('should sanitize API keys from error strings and query parameters', () => {
+    const rawUrl = 'https://api.exchangerate.host/live?access_key=SECRET_EXR_KEY&format=1';
+    const sanitized = service.sanitizeErrorMessage(rawUrl);
+    expect(sanitized).toBe('https://api.exchangerate.host/live?access_key=***&format=1');
+    expect(sanitized).not.toContain('SECRET_EXR_KEY');
+  });
+
+  it('should deeply sanitize API keys and sensitive tokens from request params objects', () => {
+    const rawParams = {
+      fsyms: 'BTC,ETH',
+      tsyms: 'USD',
+      api_key: 'SECRET_CRYPTOCOMPARE_KEY',
+      nested: {
+        access_key: 'ANOTHER_SECRET',
+      },
+    };
+
+    const sanitized = service.sanitizeParams(rawParams);
+    expect(sanitized).toEqual({
+      fsyms: 'BTC,ETH',
+      tsyms: 'USD',
+      api_key: '***',
+      nested: {
+        access_key: '***',
+      },
+    });
+  });
+
+  it('should sanitize secrets when fetchTickers fails with an AxiosError', async () => {
+    const failSpy = jest.spyOn(service, 'fail').mockImplementation();
+    const mockSource = new MockedApi('CryptoCompare', {}, true);
+
+    const axiosError = new AxiosError('Request failed with status code 401');
+    axiosError.config = {
+      url: 'https://min-api.cryptocompare.com/data/pricemulti',
+      params: {
+        fsyms: 'BTC,ETH',
+        tsyms: 'USD',
+        api_key: 'SECRET_CC_KEY',
+      },
+    } as any;
+    axiosError.response = { status: 401 } as any;
+
+    jest.spyOn(mockSource, 'fetch').mockRejectedValue(axiosError);
+
+    await service.fetchTickers(mockSource);
+
+    expect(failSpy).toHaveBeenCalledWith(expect.not.stringContaining('SECRET_CC_KEY'));
+    expect(failSpy).toHaveBeenCalledWith(expect.stringContaining('api_key":"***"'));
   });
 
   it('should initialize properly', async () => {

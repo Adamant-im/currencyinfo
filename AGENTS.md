@@ -234,7 +234,7 @@ pnpm install --ignore-scripts
 - If a package requires native build steps (such as `@swc/core`), execute targeted rebuilds only for verified packages:
 
 ```bash
-pnpm rebuild @swc/core --ignore-scripts=false
+pnpm rebuild @swc/core
 ```
 
 - Keep `pnpm-lock.yaml` committed and synchronized

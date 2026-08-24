@@ -69,7 +69,7 @@ export class CoinmarketcapApi extends CoinIdFetcher {
     private logger: LoggerService,
     private notifier: Notifier,
   ) {
-    super(logger);
+    super(logger, notifier);
 
     this.enabled =
       this.config.get('coinmarketcap.enabled') !== false &&

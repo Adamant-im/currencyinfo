@@ -80,6 +80,16 @@ describe('SourcesManager', () => {
     expect(sourcesManager['minSources']).toBe(mockConfig.minSources);
   });
 
+  describe('getSourceWeights', () => {
+    it('should return weights for all enabled sources', () => {
+      const weights = sourcesManager.getSourceWeights();
+      expect(weights).toEqual({
+        ASource: 500,
+        AnotherSource: 500,
+      });
+    });
+  });
+
   describe('getEnabledCoins', () => {
     it('should count enabled coins for each pair without duplicates and warn about insufficiency', async () => {
       await sourcesManager.getEnabledCoins();

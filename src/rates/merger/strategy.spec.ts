@@ -49,6 +49,24 @@ describe('Merger Strategies', () => {
     it('should return the price from the source with highest priority', () => {
       expect(priority(prices)).toBe(200); // SourceB has priority 3
     });
+
+    it('should prefer last listed source over unlisted source', () => {
+      const competingPrices: SourcePrice[] = [
+        {
+          price: 50,
+          source: 'UnlistedSource',
+          priority: 0,
+          weight: 10,
+        },
+        {
+          price: 99,
+          source: 'LastListedSource',
+          priority: 1,
+          weight: 10,
+        },
+      ];
+      expect(priority(competingPrices)).toBe(99);
+    });
   });
 
   describe('weight', () => {

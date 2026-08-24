@@ -69,6 +69,18 @@ describe('Config Schema Validation', () => {
       expect(result.success).toBe(true);
     });
 
+    it('should accept port 0 for dynamic OS port allocation', () => {
+      const configWithPortZero = {
+        ...validConfig,
+        server: {
+          ...validConfig.server,
+          port: 0,
+        },
+      };
+      const result = schema.safeParse(configWithPortZero);
+      expect(result.success).toBe(true);
+    });
+
     it('should allow empty adamant recipients list without passphrase', () => {
       const configWithEmptyAdamant = {
         ...validConfig,

@@ -1,6 +1,6 @@
 import { Schema } from 'src/global/config/schema';
 import { RatesMerger } from '.';
-import { TickerPrice } from '../sources/api/dto/tickers.dto';
+import { Tickers, SourceTickers, TickerPrice } from '../sources/api/dto/tickers.dto';
 import { SourcesManager } from '../sources/sources-manager';
 
 describe('RatesMerger', () => {
@@ -199,6 +199,39 @@ describe('RatesMerger', () => {
     });
   });
 
+  describe('mergeTickers', () => {
+    it('should add current timestamp for all tickers prices', () => {
+      const tickers: Tickers = {
+        'BTC/USD': 1000,
+        'ETH/USD': 500,
+      };
+
+      const sourceTickers: SourceTickers = {};
+
+      ratesMerger.mergeTickers(sourceTickers, tickers, {
+        name: 'test',
+      });
+
+      expect(sourceTickers).toStrictEqual({
+        'BTC/USD': [{ price: 1000, source: 'test', timestamp: currentTime }],
+        'ETH/USD': [{ price: 500, source: 'test', timestamp: currentTime }],
+      });
+    });
+
+    it('should overwrite existing prices from the same source', () => {
+      const tickers1: Tickers = { 'BTC/USD': 1000 };
+      const tickers2: Tickers = { 'BTC/USD': 1050 };
+
+      const sourceTickers: SourceTickers = {};
+
+      ratesMerger.mergeTickers(sourceTickers, tickers1, { name: 'test' });
+      ratesMerger.mergeTickers(sourceTickers, tickers2, { name: 'test' });
+
+      expect(sourceTickers['BTC/USD']).toHaveLength(1);
+      expect(sourceTickers['BTC/USD'][0].price).toBe(1050);
+    });
+  });
+
   describe('getBiggestGroupPrice', () => {
     it('should return an error when no prices were provided', () => {
       const [error, group] = ratesMerger.getBiggestGroupPrice([]);
@@ -218,8 +251,8 @@ describe('RatesMerger', () => {
       expect(error).toBeNull();
       expect(group).toStrictEqual({
         prices: [
-          { price: 0.8, priority: 2, source: 'sourceName3', weight: 50 },
-          { price: 0.83, priority: 1, source: 'sourceName4', weight: 50 },
+          { price: 0.8, priority: 3, source: 'sourceName3', weight: 50 },
+          { price: 0.83, priority: 2, source: 'sourceName4', weight: 50 },
         ],
         weight: 100,
       });
@@ -238,14 +271,14 @@ describe('RatesMerger', () => {
 
       expect(error).toBeNull();
       expect(group).toStrictEqual({
-        prices: [{ price: 500, priority: 0, source: 'sourceName5', weight: 2000 }],
+        prices: [{ price: 500, priority: 1, source: 'sourceName5', weight: 2000 }],
         weight: 2000,
       });
     });
   });
 
   describe('splitIntoGroups', () => {
-    it('should correctly split prices into groups', () => {
+    it('should split prices into groups according to rateDifferencePercentThreshold', () => {
       const prices: TickerPrice[] = [
         { source: 'sourceName1', price: 1.2, timestamp: 1720000000000 },
         { source: 'sourceName2', price: 1.25, timestamp: 1720000000000 },
@@ -259,20 +292,20 @@ describe('RatesMerger', () => {
       expect(groups).toStrictEqual([
         {
           prices: [
-            { price: 0.8, priority: 2, source: 'sourceName3', weight: 50 },
-            { price: 0.83, priority: 1, source: 'sourceName4', weight: 50 },
+            { price: 0.8, priority: 3, source: 'sourceName3', weight: 50 },
+            { price: 0.83, priority: 2, source: 'sourceName4', weight: 50 },
           ],
           weight: 100,
         },
         {
           prices: [
-            { price: 1.2, priority: 4, source: 'sourceName1', weight: 100 },
-            { price: 1.25, priority: 3, source: 'sourceName2', weight: 100 },
+            { price: 1.2, priority: 5, source: 'sourceName1', weight: 100 },
+            { price: 1.25, priority: 4, source: 'sourceName2', weight: 100 },
           ],
           weight: 200,
         },
         {
-          prices: [{ price: 500, priority: 0, source: 'sourceName5', weight: 2000 }],
+          prices: [{ price: 500, priority: 1, source: 'sourceName5', weight: 2000 }],
           weight: 2000,
         },
       ]);
@@ -282,6 +315,17 @@ describe('RatesMerger', () => {
       const groups = ratesMerger.splitIntoGroups([]);
 
       expect(groups).toStrictEqual([]);
+    });
+  });
+
+  describe('getPriority', () => {
+    it('should return strict decreasing positive priorities for listed sources and 0 for unlisted', () => {
+      expect(ratesMerger.getPriority('sourceName1')).toBe(5);
+      expect(ratesMerger.getPriority('sourceName2')).toBe(4);
+      expect(ratesMerger.getPriority('sourceName3')).toBe(3);
+      expect(ratesMerger.getPriority('sourceName4')).toBe(2);
+      expect(ratesMerger.getPriority('sourceName5')).toBe(1);
+      expect(ratesMerger.getPriority('UnknownSource')).toBe(0);
     });
   });
 });

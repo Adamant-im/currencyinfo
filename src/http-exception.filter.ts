@@ -36,9 +36,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
       errorMessage = exception.getResponse();
       status = exception.getStatus();
     } else {
-      this.logger.error(
-        `Unhandled exception: ${exception instanceof Error ? exception.stack || exception.message : exception}`,
-      );
+      const rawText =
+        exception instanceof Error ? exception.stack || exception.message : String(exception);
+      const sanitizedLog = this.sanitizeError(rawText);
+
+      this.logger.error(`Unhandled exception: ${sanitizedLog}`);
       errorMessage = 'Something went wrong';
       status = HttpStatus.INTERNAL_SERVER_ERROR;
     }
@@ -52,5 +54,21 @@ export class HttpExceptionFilter implements ExceptionFilter {
       },
       status,
     );
+  }
+
+  /**
+   * Redacts sensitive URI credentials, passwords, and tokens before logging unhandled exceptions.
+   */
+  private sanitizeError(text: string): string {
+    return text
+      .replace(/\/\/[^:]+:[^@]+@/g, '//***:***@')
+      .replace(
+        /([?&](?:access_key|api_key|apikey|key|token|secret|passphrase|password)=)[^& "'\s]+/gi,
+        '$1***',
+      )
+      .replace(
+        /("?(?:access_key|api_key|apikey|key|token|secret|passphrase|password)"?\s*:\s*")([^"]+)(")/gi,
+        '$1***$3',
+      );
   }
 }

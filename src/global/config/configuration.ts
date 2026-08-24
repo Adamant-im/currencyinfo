@@ -2,7 +2,9 @@ import { existsSync, readFileSync } from 'fs';
 import JSON5 from 'json5';
 import { schema, Schema } from './schema';
 
-const isDev = process.env.NODE_ENV === 'development';
+function isDev(): boolean {
+  return process.env.NODE_ENV === 'development';
+}
 
 /**
  * Loads and validates configuration from JSONC configuration files.
@@ -16,6 +18,7 @@ export default (): Schema => {
   if (!configPath) {
     console.error('No configuration file found. Cannot start the app.');
     process.exit(-1);
+    throw new Error('No configuration file found.');
   }
 
   const json = readFileSync(configPath, 'utf-8');
@@ -28,10 +31,11 @@ export default (): Schema => {
 
     console.error(`App configuration is invalid:\n${message}Cannot start the app.`);
     process.exit(-1);
+    throw new Error(`App configuration is invalid: ${message}`);
   }
 
   console.info(
-    `InfoService successfully read the configuration file '${configPath}'${isDev ? ' (dev)' : ''}.`,
+    `InfoService successfully read the configuration file '${configPath}'${isDev() ? ' (dev)' : ''}.`,
   );
 
   return result.data;
@@ -41,17 +45,20 @@ export default (): Schema => {
  * Resolves the configuration file path based on environment and availability.
  */
 function findConfig(): string | undefined {
-  if (isDev || process.env.JEST_WORKER_ID) {
+  if (isDev() || process.env.JEST_WORKER_ID) {
     if (existsSync('./config.test.jsonc')) {
       return './config.test.jsonc';
-    }
-    if (existsSync('./config.default.jsonc')) {
-      return './config.default.jsonc';
     }
   }
 
   if (existsSync('./config.jsonc')) {
     return './config.jsonc';
+  }
+
+  if (isDev() || process.env.JEST_WORKER_ID) {
+    if (existsSync('./config.default.jsonc')) {
+      return './config.default.jsonc';
+    }
   }
 }
 

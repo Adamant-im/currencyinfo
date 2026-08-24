@@ -61,6 +61,8 @@ Also check dependencies and security when relevant:
 pnpm audit
 ```
 
+Review `pnpm.overrides` in `package.json` with every dependency update to minimize forced overrides as upstream packages adopt patched releases.
+
 Report the exact commands run and any skipped or blocked validation in the pull request.
 
 ## Advanced pull request tips

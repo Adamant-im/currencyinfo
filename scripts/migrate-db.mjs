@@ -8,7 +8,8 @@ async function migrate() {
 
     await mongoose.connect(url);
 
-    console.log(`Database '${url}' connected successfully. Starting in 3 seconds...`);
+    const sanitizedUrl = url.replace(/\/\/([^:]+):([^@]+)@/, '//$1:***@');
+    console.log(`Database '${sanitizedUrl}' connected successfully. Starting in 3 seconds...`);
 
     await new Promise((resolve) => setTimeout(() => resolve(), 3000));
 

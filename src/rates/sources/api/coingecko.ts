@@ -37,7 +37,7 @@ export class CoingeckoApi extends CoinIdFetcher {
     private logger: LoggerService,
     private notifier: Notifier,
   ) {
-    super(logger);
+    super(logger, notifier);
 
     this.enabled =
       this.config.get('coingecko.enabled') !== false &&

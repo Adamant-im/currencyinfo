@@ -31,7 +31,7 @@ export abstract class RatesMerger {
   tickers: Tickers;
   sourceTickers: SourceTickers;
 
-  private weights: ResourceWeights;
+  protected weights: ResourceWeights;
   private strategy: (prices: SourcePrice[]) => number;
 
   public abstract rateLifetime: number;
@@ -375,12 +375,13 @@ export abstract class RatesMerger {
 
   /**
    * Resolves numeric priority rank for a given source name based on configuration order.
+   * Listed sources receive ranks >= 1 (highest for first in array), while unlisted sources receive 0.
    */
   getPriority(source: string) {
     const priorities = (this.config.get('priorities') as string[]) || [];
     const index = priorities.indexOf(source);
 
-    return index === -1 ? 0 : priorities.length - index - 1;
+    return index === -1 ? 0 : priorities.length - index;
   }
 
   formatGroupPrices(group: PriceGroup) {
