@@ -3,33 +3,36 @@ import { RatesMerger } from '.';
 import { TickerPrice } from '../sources/api/dto/tickers.dto';
 import { SourcesManager } from '../sources/sources-manager';
 
-describe('SourcesManager', () => {
+describe('RatesMerger', () => {
   const rateLifetime = 30;
   const notifier = {
     warn: jest.fn(),
     error: jest.fn(),
+    notify: jest.fn(),
   } as any;
   const config = {
     get: jest.fn().mockImplementation((key: string) => {
-      const mockConfig = {
+      const mockConfig: Partial<Schema> = {
+        decimals: 8,
         rateDifferencePercentThreshold: 25,
         groupPercentage: 20,
         minSources: 2,
         priorities: ['sourceName1', 'sourceName2', 'sourceName3', 'sourceName4', 'sourceName5'],
-      } as Partial<Schema>;
+        base_coins: ['USD', 'BTC', 'ETH'],
+      };
       return mockConfig[key as keyof Schema];
     }),
   } as any;
   const sourcesManager = new SourcesManager(config, notifier);
-  sourcesManager.allCoins = ['BTC', 'ETH', 'USD'];
+  sourcesManager.allCoins = ['BTC', 'ETH', 'USD', 'ADM'];
 
   class RatesMergerMock extends RatesMerger {
     sourcesManager = sourcesManager;
-    allCoins = ['BTC', 'ETH', 'USD'];
     rateLifetime = rateLifetime;
     pairSources = {
       'BTC/USD': 3,
       'ETH/USD': 2,
+      'ADM/USD': 1,
     };
     notifier = notifier;
     config = config;
@@ -49,12 +52,61 @@ describe('SourcesManager', () => {
     };
 
     ratesMerger = new RatesMergerMock('avg', weights);
-
     ratesMerger.getTimestamp = jest.fn(() => currentTime);
   });
 
   it('should be defined', () => {
     expect(ratesMerger).toBeDefined();
+  });
+
+  describe('normalizeTickers and mutual inverse triangulation', () => {
+    it('should triangulate cross-rates and guarantee mutually inverse pairs', () => {
+      const initialTickers = {
+        'BTC/USD': 50000,
+        'ETH/USD': 2500,
+        'ADM/USD': 0.05,
+        'USD/USD': 1,
+      };
+
+      const normalized = ratesMerger.normalizeTickers(initialTickers);
+
+      // BTC/ETH rate: 1 BTC = 50000 / 2500 = 20 ETH
+      expect(normalized['BTC/ETH']).toBe(20);
+      // ETH/BTC rate: 1 ETH = 2500 / 50000 = 0.05 BTC
+      expect(normalized['ETH/BTC']).toBe(0.05);
+
+      // Verify mutual inverse relationship: (BTC/ETH) * (ETH/BTC) === 1
+      expect(normalized['BTC/ETH'] * normalized['ETH/BTC']).toBeCloseTo(1, 6);
+
+      // ADM/BTC rate: 0.05 / 50000 = 0.000001
+      expect(normalized['ADM/BTC']).toBe(0.000001);
+      // USD/BTC rate: 1 / 50000 = 0.00002
+      expect(normalized['USD/BTC']).toBe(0.00002);
+    });
+  });
+
+  describe('cutRatesBySourceCount', () => {
+    it('should drop rates that do not meet minSources requirement', () => {
+      ratesMerger.sourceTickers = {
+        'BTC/USD': [{ price: 50000, source: 's1', timestamp: currentTime }], // requires 3, got 1
+        'ETH/USD': [
+          { price: 2500, source: 's1', timestamp: currentTime },
+          { price: 2510, source: 's2', timestamp: currentTime },
+        ], // requires 2, got 2
+        'ADM/USD': [{ price: 0.05, source: 's1', timestamp: currentTime }], // requires 1, got 1
+      };
+
+      const squished = {
+        'BTC/USD': 50000,
+        'ETH/USD': 2505,
+        'ADM/USD': 0.05,
+      };
+
+      const result = ratesMerger.cutRatesBySourceCount(squished);
+      expect(result['BTC/USD']).toBeUndefined();
+      expect(result['ETH/USD']).toBe(2505);
+      expect(result['ADM/USD']).toBe(0.05);
+    });
   });
 
   describe('squishTickers', () => {

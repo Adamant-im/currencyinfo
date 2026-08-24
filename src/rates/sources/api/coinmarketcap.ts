@@ -51,8 +51,7 @@ export interface CoinmarketcapResponseDto {
  * Note: find id on a coin's webpage with "coinId":1027", "200x200/1027.png"
  * Note: find slug in a coin's URL like https://coinmarketcap.com/currencies/bitcoin/
  */
-const baseUrl =
-  'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest';
+const baseUrl = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest';
 
 export class CoinmarketcapApi extends CoinIdFetcher {
   static resourceName = 'Coinmarketcap';

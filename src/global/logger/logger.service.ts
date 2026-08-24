@@ -11,6 +11,7 @@ import { LogLevel, LogLevelChalkColors, LogLevelName } from './logger.constants'
 
 /**
  * Custom Winston-style logger service supporting console colored output and persistent file logging.
+ * Filters output based on configured severity: error < warn < log < info.
  */
 @Injectable()
 export class Logger implements LoggerService {
@@ -28,36 +29,61 @@ export class Logger implements LoggerService {
       flags: 'a',
     });
 
-    const configuredLevel = (this.config.get('log_level') as LogLevelName) || 'log';
+    const configuredLevel = (this.config.get('log_level') as keyof typeof LogLevel) || 'log';
     this.logLevel = configuredLevel in LogLevel ? LogLevel[configuredLevel] : LogLevel.log;
   }
 
+  /**
+   * Logs an informational milestone event (highest verbosity).
+   */
+  info(message: string) {
+    this.logWithLevel('info', message);
+  }
+
+  /**
+   * Logs a standard operational event.
+   */
   log(message: string) {
     this.logWithLevel('log', message);
   }
 
+  /**
+   * Logs a warning event.
+   */
   warn(message: string) {
     this.logWithLevel('warn', message);
   }
 
+  /**
+   * Logs an error event.
+   */
   error(message: string) {
     this.logWithLevel('error', message);
   }
 
+  /**
+   * Logs a fatal application error.
+   */
   fatal(message: string) {
     this.logWithLevel('error', message);
   }
 
+  /**
+   * Logs a debug message mapped to info level.
+   */
   debug(message: string) {
-    this.logWithLevel('log', message);
+    this.logWithLevel('info', message);
   }
 
+  /**
+   * Logs a verbose message mapped to info level.
+   */
   verbose(message: string) {
-    this.logWithLevel('log', message);
+    this.logWithLevel('info', message);
   }
 
   private logWithLevel(level: LogLevelName, message: string) {
-    if (this.logLevel > LogLevel[level]) {
+    if (LogLevel[level] > this.logLevel) {
       return;
     }
 

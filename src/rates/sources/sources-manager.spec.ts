@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { Logger } from '@nestjs/common';
+import { Logger } from 'src/global/logger/logger.service';
 import { Notifier } from 'src/global/notifier/notifier.service';
 import { SourcesManager } from './sources-manager';
 import { BaseApi } from './api/base';
@@ -8,7 +8,7 @@ import { Schema } from 'src/global/config/schema';
 
 describe('SourcesManager', () => {
   let sourcesManager: SourcesManager;
-  let logger: Logger;
+  let logger: Partial<Logger>;
 
   const mockConfig = {
     minSources: 2,
@@ -19,6 +19,9 @@ describe('SourcesManager', () => {
   beforeEach(async () => {
     const mockLogger = {
       warn: jest.fn(),
+      log: jest.fn(),
+      info: jest.fn(),
+      error: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -42,7 +45,7 @@ describe('SourcesManager', () => {
     }).compile();
 
     sourcesManager = module.get<SourcesManager>(SourcesManager);
-    logger = module.get<Logger>(Logger);
+    logger = mockLogger;
 
     sourcesManager.initializeSources = jest.fn(function () {
       this.sources = [
@@ -64,7 +67,7 @@ describe('SourcesManager', () => {
         },
       ] as BaseApi[];
     });
-    sourcesManager.logger = logger;
+    sourcesManager.logger = logger as Logger;
 
     sourcesManager.initializeSources();
   });

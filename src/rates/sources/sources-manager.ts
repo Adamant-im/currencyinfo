@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { Logger } from 'src/global/logger/logger.service';
 import { Notifier } from 'src/global/notifier/notifier.service';
 
 import { BaseApi } from './api/base';
@@ -17,7 +18,7 @@ import { ExchangeRateHost } from './api/exchangeratehost';
  */
 @Injectable()
 export class SourcesManager {
-  public logger = new Logger();
+  public logger: Logger;
   public sources: BaseApi[] = [];
 
   /**
@@ -41,6 +42,7 @@ export class SourcesManager {
     private config: ConfigService,
     private notifier: Notifier,
   ) {
+    this.logger = new Logger(config);
     this.minSources = (config.get('minSources') as number) || 1;
   }
 

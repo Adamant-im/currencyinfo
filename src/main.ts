@@ -25,7 +25,7 @@ async function bootstrap() {
   await app.listen(port);
 
   const notifier = new Notifier(config);
-  await notifier.notify('log', `Infoservice v${version} started on port ${port}`);
+  await notifier.notify('info', `Infoservice v${version} started on port ${port}`);
 }
 
 bootstrap();

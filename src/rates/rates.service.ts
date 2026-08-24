@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { InjectModel } from '@nestjs/mongoose';
@@ -6,6 +6,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, PipelineStage, Types } from 'mongoose';
 import { AxiosError } from 'axios';
 
+import { Logger } from 'src/global/logger/logger.service';
 import { Notifier } from 'src/global/notifier/notifier.service';
 
 import { SourceTickers, Tickers } from './sources/api/dto/tickers.dto';
@@ -55,7 +56,7 @@ export class RatesService extends RatesMerger {
     public notifier: Notifier,
   ) {
     const refreshInterval = config.get<number>('refreshInterval');
-    const logger = new Logger();
+    const logger = new Logger(config);
 
     const weights = sourcesManager.getSourceWeights();
     const strategyName = config.get('strategy') as StrategyName;
@@ -160,7 +161,7 @@ export class RatesService extends RatesMerger {
 
       this.lastUpdated = date;
 
-      this.logger.log(
+      this.logger.info(
         `Rates from ${availableSources}/${this.sourcesManager.sourceCount} sources saved successfully.`,
       );
     } catch (error) {

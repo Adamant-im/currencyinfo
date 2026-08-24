@@ -12,28 +12,38 @@ import {
 } from 'src/shared/utils';
 import { api } from './adamant/api';
 
-const slackColors = {
+const slackColors: Record<LogLevelName, string> = {
   error: '#FF0000',
   warn: '#FFFF00',
-  info: '#00FF00',
   log: '#FFFFFF',
+  info: '#36A64F',
 };
 
-const discordColors = {
+const discordColors: Record<LogLevelName, string> = {
   error: '16711680',
   warn: '16776960',
-  info: '65280',
   log: '16777215',
+  info: '3581775',
 };
 
+/**
+ * Multi-channel notification dispatcher supporting Slack, Discord, and ADAMANT blockchain messenger.
+ */
 @Injectable()
 export class Notifier {
   private logger = new Logger();
 
   constructor(private config: ConfigService) {}
 
-  async notify(notifyLevel: LogLevelName, message: string) {
-    this.logger[notifyLevel](removeMarkdown(message));
+  /**
+   * Dispatches a notification across all configured channels (Slack, Discord, ADAMANT) and logs it.
+   *
+   * @param notifyLevel - Severity level of the notification ('error' | 'warn' | 'log' | 'info')
+   * @param message - Notification message content
+   */
+  async notify(notifyLevel: LogLevelName, message: string): Promise<void> {
+    const logMethod = notifyLevel === 'info' ? 'log' : notifyLevel;
+    this.logger[logMethod](removeMarkdown(message));
 
     const notify = this.config.get('notify');
 
@@ -42,18 +52,22 @@ export class Notifier {
     }
 
     const name = this.config.get('name') as string;
-
     const notifyMessage = `**${name}**# ${message}`;
 
-    this.notifySlack(notifyLevel, notifyMessage);
-    this.notifyDiscord(notifyLevel, notifyMessage);
-    this.notifyAdamant(notifyLevel, notifyMessage);
+    await Promise.allSettled([
+      this.notifySlack(notifyLevel, notifyMessage),
+      this.notifyDiscord(notifyLevel, notifyMessage),
+      this.notifyAdamant(notifyLevel, notifyMessage),
+    ]);
   }
 
-  async notifySlack(notifyLevel: LogLevelName, message: string) {
+  /**
+   * Sends notifications to configured Slack webhooks.
+   */
+  async notifySlack(notifyLevel: LogLevelName, message: string): Promise<void> {
     const slack = this.config.get<string[]>('notify.slack');
 
-    if (!slack) {
+    if (!slack || !slack.length) {
       return;
     }
 
@@ -70,19 +84,20 @@ export class Notifier {
 
     for (const slackApp of slack) {
       try {
-        await axios.post(slackApp, params);
+        await axios.post(slackApp, params, { timeout: 10000 });
       } catch (error) {
-        this.logger.warn(
-          `Request to Slack with message ${message} failed. ${error}.`,
-        );
+        this.logger.warn(`Request to Slack with message '${message}' failed: ${error}.`);
       }
     }
   }
 
-  async notifyDiscord(notifyLevel: LogLevelName, message: string) {
+  /**
+   * Sends notifications to configured Discord webhooks.
+   */
+  async notifyDiscord(notifyLevel: LogLevelName, message: string): Promise<void> {
     const threads = this.config.get<string[]>('notify.discord');
 
-    if (!threads) {
+    if (!threads || !threads.length) {
       return;
     }
 
@@ -97,22 +112,23 @@ export class Notifier {
 
     const promises = threads.map(async (thread) => {
       try {
-        await axios.post(thread, params);
+        await axios.post(thread, params, { timeout: 10000 });
       } catch (error) {
-        this.logger.warn(
-          `Request to Discord with message '${message}' failed: ${error}.`,
-        );
+        this.logger.warn(`Request to Discord with message '${message}' failed: ${error}.`);
       }
     });
 
-    return Promise.all(promises);
+    await Promise.all(promises);
   }
 
-  async notifyAdamant(notifyLevel: LogLevelName, message: string) {
+  /**
+   * Sends notifications as encrypted direct messages via ADAMANT blockchain.
+   */
+  async notifyAdamant(notifyLevel: LogLevelName, message: string): Promise<void> {
     const addresses = this.config.get<string[]>('notify.adamant');
     const passphrase = this.config.get<string>('notify.adamantPassphrase');
 
-    if (!addresses || !passphrase) {
+    if (!addresses || !addresses.length || !passphrase) {
       return;
     }
 
@@ -131,11 +147,11 @@ export class Notifier {
         }
       } catch (error) {
         this.logger.warn(
-          `Failed to send notification message '${formattedMessage}' to ${address}. ${error}.`,
+          `Failed to send notification message '${formattedMessage}' to ${address}: ${error}.`,
         );
       }
     });
 
-    return Promise.all(promises);
+    await Promise.all(promises);
   }
 }

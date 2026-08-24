@@ -54,7 +54,7 @@
       // "U12345678901234567890"
     ]
   },
-  "log_level": "log", // Specifies the verbosity of logs (none, log, warn, error)
+  "log_level": "log", // Specifies the verbosity of logs (none, error, warn, log, info)
 
   // List of base coins for calculating all available pairs
   "base_coins": ["USD", "RUB", "EUR", "CNY", "JPY", "BTC", "ETH"],
