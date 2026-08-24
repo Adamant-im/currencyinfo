@@ -8,9 +8,9 @@ export default tseslint.config(
     ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'eslint.config.mjs'],
   },
   eslint.configs.recommended,
-  ...tseslint.configs.recommended,
-  eslintPluginPrettierRecommended,
   {
+    files: ['**/*.ts'],
+    extends: [...tseslint.configs.recommended],
     languageOptions: {
       globals: {
         ...globals.node,
@@ -32,4 +32,13 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+  eslintPluginPrettierRecommended,
 );

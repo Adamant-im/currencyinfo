@@ -127,7 +127,7 @@ async function fileExists(pathToFile) {
   try {
     await access(pathToFile, fs.constants.F_OK);
     return true;
-  } catch (error) {
+  } catch {
     return false;
   }
 }
