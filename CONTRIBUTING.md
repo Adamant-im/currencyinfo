@@ -65,6 +65,14 @@ Review `pnpm.overrides` in `package.json` with every dependency update to minimi
 
 Report the exact commands run and any skipped or blocked validation in the pull request.
 
+## Database migration
+
+The `scripts/migrate-db.mjs` script migrates legacy pre-4.x ticker documents to the current schema. Pass the MongoDB connection string through the `MIGRATE_DB_URL` environment variable instead of a CLI argument, so credentials do not appear in shell history or the process list:
+
+```bash
+MIGRATE_DB_URL="mongodb://user:password@127.0.0.1:27017/tickersdb" pnpm exec node scripts/migrate-db.mjs
+```
+
 ## Advanced pull request tips
 
 - Focus pull requests on the intended change only and avoid unrelated refactoring or formatting changes to unrelated files

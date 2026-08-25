@@ -113,6 +113,37 @@ describe('RatesMerger', () => {
       expect(result['ETH/USD']).toBe(2505);
       expect(result['ADM/USD']).toBe(0.05);
     });
+
+    it('should count only fresh sources against minSources requirement', () => {
+      const staleTimestamp = currentTime - rateLifetime - 1;
+
+      ratesMerger.sourceTickers = {
+        // One fresh provider and one provider whose price is older than the lifetime:
+        // the stale entry must not satisfy the 2-source requirement.
+        'BTC/USD': [
+          { price: 50_000, source: 's1', timestamp: currentTime },
+          { price: 51_000, source: 's2', timestamp: staleTimestamp },
+        ],
+        // Both providers are fresh: pair passes.
+        'ETH/USD': [
+          { price: 2500, source: 's1', timestamp: currentTime },
+          { price: 2510, source: 's2', timestamp: currentTime },
+        ],
+      };
+
+      const squished = {
+        'BTC/USD': 50_000,
+        'ETH/USD': 2505,
+      };
+
+      const result = ratesMerger.cutRatesBySourceCount(squished, rateLifetime);
+
+      expect(result['BTC/USD']).toBeUndefined();
+      expect(result['ETH/USD']).toBe(2505);
+
+      const fewer = ratesMerger.getRatesWithFewerSources();
+      expect(fewer).toContainEqual(['BTC/USD', 3, 1]);
+    });
   });
 
   describe('squishTickers', () => {

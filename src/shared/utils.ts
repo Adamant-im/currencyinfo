@@ -157,19 +157,19 @@ export function sanitizeErrorMessage(text: string): string {
       )
       // 4. JSON properties (e.g. "adamantPassphrase": "...", "api_key": "secret", "password": 12345, "key": "val")
       .replace(
-        /("(?:\b[\w.]*(?:access_key|api_?key|token|secret|passphrase|password)\b|key)"\s*:\s*)("[^"]*"|'[^']*'|[^\s,{}]+)/gi,
+        /("(?:\b[\w.]*(?:access_key|api_?key|token|secret|passphrase|password)\b|key)"\s*:\s*)("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^\s,{}]+)/gi,
         '$1"***"',
       )
-      // 5. Quoted key-value pairs (supports spaces, semicolons, etc.)
+      // 5. Quoted key-value pairs with escaped-quote support (supports spaces, semicolons, etc.)
       .replace(
-        /\b((?:[\w.]*(?:access_key|api_?key|token|secret|passphrase|password)|(?<!\b(?:unknown|cache|duplicate)\s+)key)\b\s*[:=]\s*)(["'])(?:(?!\2)[\s\S])*?\2/gi,
+        /\b([\w.]*(?:access_key|api_?key|token|secret|passphrase|password)\b\s*[:=]\s*)(["'])((?:(?!\2)[^\\]|\\.)*)\2/gi,
         '$1$2***$2',
       )
-      // 6. Unquoted multi-word passphrases & passwords after ':' (stops before ;, }, comma or newline)
-      .replace(/\b([\w.]*(?:passphrase|password)\b\s*:\s*)([^"'\s\r\n*][^\r\n,;}{]*)/gi, '$1***')
-      // 7. Unquoted single-word key-value pairs (supports key=value, api_key=value, password=value, etc.)
+      // 6. Unquoted multi-word passphrases & passwords (both ':' and '=' separators; stops before ;, }, comma or newline)
+      .replace(/\b([\w.]*(?:passphrase|password)\b\s*[:=]\s*)([^"'\s\r\n*][^\r\n,;}{]*)/gi, '$1***')
+      // 7. Unquoted single-word key-value pairs for non-multiword secret names (key=value, api_key=value, slackToken: value, etc.)
       .replace(
-        /(?<![?&])\b((?:[\w.]*(?:access_key|api_?key|token|secret|passphrase|password)|(?<!\b(?:unknown|cache|duplicate)\s+)key)\b\s*[:=]\s*)([^"'\s\r\n*][^\s"',;&]*)/gi,
+        /(?<![?&])\b([\w.]*(?:access_key|api_?key|token|secret)\b\s*[:=]\s*)([^"'\s\r\n*][^\s"',;&]*)/gi,
         '$1***',
       )
   );
@@ -191,8 +191,16 @@ export function sanitizeParams(params: unknown): unknown {
   }
 
   const sanitized: Record<string, unknown> = {};
+  const sensitiveComponent =
+    /(?:^|[^a-z0-9])(?:access[_-]?key|api[_-]?key|apikey|token|secret|passphrase|password)(?:$|[^a-z0-9])/i;
+  const camelCaseSensitive = /(?:access|api)[_-]?key|apikey|(?:passphrase|password|token|secret)$/i;
+
   for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
-    if (/(access_key|api_?key|passphrase|password|token|secret|^key$)/i.test(key)) {
+    if (
+      key.toLowerCase() === 'key' ||
+      sensitiveComponent.test(key) ||
+      camelCaseSensitive.test(key)
+    ) {
       sanitized[key] = '***';
     } else if (typeof value === 'object' && value !== null) {
       sanitized[key] = sanitizeParams(value);

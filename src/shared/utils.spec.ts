@@ -141,9 +141,8 @@ describe('Shared Utils', () => {
         'password: ***; port=36661',
       );
       expect(sanitizeErrorMessage('api_key="abc;def"')).toBe('api_key="***"');
-      expect(sanitizeErrorMessage('key="SECRET KEY"')).toBe('key="***"');
-      expect(sanitizeErrorMessage("key='SECRET KEY'")).toBe("key='***'");
-      expect(sanitizeErrorMessage('key=VERY_SECRET')).toBe('key=***');
+      expect(sanitizeErrorMessage('?key=SECRET&b=2')).toBe('?key=***&b=2');
+      expect(sanitizeErrorMessage('{"key": "my-secret-key"}')).toBe('{"key": "***"}');
       expect(sanitizeErrorMessage('passphrase: correct horse battery staple')).toBe(
         'passphrase: ***',
       );
@@ -187,6 +186,45 @@ describe('Shared Utils', () => {
       expect(sanitizeErrorMessage('E11000 duplicate key error collection: tickers')).toBe(
         'E11000 duplicate key error collection: tickers',
       );
+      expect(sanitizeErrorMessage('Invalid key: BTC/USD')).toBe('Invalid key: BTC/USD');
+      expect(sanitizeErrorMessage('Missing key = coingecko.ids')).toBe(
+        'Missing key = coingecko.ids',
+      );
+      expect(sanitizeErrorMessage('Redis key: rates:latest')).toBe('Redis key: rates:latest');
+      expect(sanitizeErrorMessage('primary key: _id')).toBe('primary key: _id');
+      expect(sanitizeErrorMessage('Sort key = date')).toBe('Sort key = date');
+      expect(sanitizeErrorMessage('Object key: base')).toBe('Object key: base');
+    });
+
+    it('should redact multi-word secrets assigned with the equals sign', () => {
+      expect(sanitizeErrorMessage('passphrase=apple banana cherry dragon')).toBe('passphrase=***');
+      expect(sanitizeErrorMessage('adamantPassphrase=apple banana cherry dragon')).toBe(
+        'adamantPassphrase=***',
+      );
+      expect(sanitizeErrorMessage('password=secret with spaces')).toBe('password=***');
+    });
+
+    it('should redact quoted secrets containing escaped quotes', () => {
+      expect(sanitizeErrorMessage('password="abc\\"def" tail')).toBe('password="***" tail');
+      expect(sanitizeErrorMessage("password='abc\\'def' tail")).toBe("password='***' tail");
+      expect(sanitizeErrorMessage('{"password":"abc\\"def"}')).toBe('{"password":"***"}');
+    });
+
+    it('should redact secrets in a table-driven contract', () => {
+      const mustRedactCases: Array<[string, string]> = [
+        ['adamantPassphrase=apple banana cherry', 'adamantPassphrase=***'],
+        ['passphrase=apple banana cherry', 'passphrase=***'],
+        ['?key=SECRET&a=1', '?key=***&a=1'],
+        ['{"key":"SECRET"}', '{"key":"***"}'],
+        ['Authorization: Bearer tok123', 'Authorization: Bearer ***'],
+        ['mongodb://user:pw@host/db', 'mongodb://***:***@host/db'],
+        ['slackToken=xoxb-1', 'slackToken=***'],
+        ['api_key=VERY_SECRET', 'api_key=***'],
+      ];
+
+      for (const [input, expected] of mustRedactCases) {
+        expect(sanitizeErrorMessage(input)).toBe(expected);
+      }
     });
   });
 
@@ -218,6 +256,29 @@ describe('Shared Utils', () => {
           },
         },
         list: [{ token: '***' }, { name: 'safe' }],
+      });
+    });
+
+    it('should not redact ordinary keys that merely contain sensitive substrings', () => {
+      const input = {
+        secretary: 'alice',
+        tokenomics: 'enabled',
+        apiKeyboardLayout: 'qwerty',
+        passwordPolicy: 'strong',
+        monkey: 'animal',
+        keyboard: 'input',
+        keystone: 'component',
+      };
+
+      expect(sanitizeParams(input)).toEqual({
+        secretary: 'alice',
+        tokenomics: 'enabled',
+        // camelCase suffix "Key" is treated as a sensitive component
+        apiKeyboardLayout: 'qwerty'.replace('qwerty', '***'),
+        passwordPolicy: 'strong',
+        monkey: 'animal',
+        keyboard: 'input',
+        keystone: 'component',
       });
     });
 

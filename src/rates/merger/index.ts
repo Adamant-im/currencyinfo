@@ -188,22 +188,41 @@ export abstract class RatesMerger {
   getTickersWithLifetime(rateLifetime: number) {
     const [squishedTickers] = this.squishTickers(this.sourceTickers, rateLifetime);
 
-    const minimizedTickers = this.cutRatesBySourceCount(squishedTickers);
+    const minimizedTickers = this.cutRatesBySourceCount(squishedTickers, rateLifetime);
 
     return this.normalizeTickers(minimizedTickers);
   }
 
   /**
-   * Filters out pairs that do not meet the configured minSources requirement.
+   * Counts distinct sources providing prices that are fresh for the given lifetime window.
+   *
+   * @param rate - Pair in BASE/QUOTE format
+   * @param lifetime - Maximum age of a price in minutes
+   * @returns Number of unique fresh sources; 0 when the pair is unknown or has no fresh prices
    */
-  cutRatesBySourceCount(squishedTickers: Tickers) {
+  getFreshSourceCount(rate: string, lifetime: number): number {
+    const timestamp = this.getTimestamp();
+    const prices = this.sourceTickers[rate] || [];
+
+    return new Set(
+      prices.filter((price) => timestamp - price.timestamp < lifetime).map((price) => price.source),
+    ).size;
+  }
+
+  /**
+   * Filters out pairs that do not meet the configured minSources requirement.
+   *
+   * Only prices fresh for the requested lifetime are counted, so stale providers
+   * cannot satisfy the source-count gate.
+   */
+  cutRatesBySourceCount(squishedTickers: Tickers, lifetime = this.rateLifetime) {
     const minimizedTickers: Tickers = {};
 
     for (const [rate, price] of Object.entries(squishedTickers)) {
       const minSourcesForPair = this.pairSources[rate] || 1;
-      const prices = this.sourceTickers[rate];
+      const freshSourcesCount = this.getFreshSourceCount(rate, lifetime);
 
-      if (prices && prices.length >= minSourcesForPair) {
+      if (freshSourcesCount >= minSourcesForPair) {
         minimizedTickers[rate] = price;
       }
     }
@@ -212,16 +231,17 @@ export abstract class RatesMerger {
   }
 
   /**
-   * Returns pairs available from fewer sources than configured.
+   * Returns pairs available from fewer fresh sources than configured.
    */
   getRatesWithFewerSources() {
     const rates: Array<[string, expected: number, got: number]> = [];
 
-    for (const [rate, prices] of Object.entries(this.sourceTickers)) {
+    for (const [rate] of Object.entries(this.sourceTickers)) {
       const minSourcesForPair = this.pairSources[rate] || 1;
+      const freshSourcesCount = this.getFreshSourceCount(rate, this.rateLifetime);
 
-      if (prices.length < minSourcesForPair) {
-        rates.push([rate, minSourcesForPair, prices.length]);
+      if (freshSourcesCount < minSourcesForPair) {
+        rates.push([rate, minSourcesForPair, freshSourcesCount]);
       }
     }
 
