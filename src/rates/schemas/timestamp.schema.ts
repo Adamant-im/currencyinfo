@@ -3,6 +3,9 @@ import { HydratedDocument } from 'mongoose';
 
 export type TimestampDocument = HydratedDocument<Timestamp>;
 
+/**
+ * Mongoose schema storing timestamps when rate snapshots were recorded.
+ */
 @Schema()
 export class Timestamp {
   @Prop({ required: true })

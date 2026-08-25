@@ -8,22 +8,31 @@ import { Notifier } from './global/notifier/notifier.service';
 
 import { version } from 'src/global/version';
 
+import { sanitizeErrorMessage } from 'src/shared/utils';
+
+/**
+ * Application bootstrap function initializing NestJS server and notification dispatcher.
+ */
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,
   });
 
   const config = app.get(ConfigService);
-
-  const logger = new Logger(config);
+  const logger = app.get(Logger);
 
   app.useLogger(logger);
 
-  const port = config.get('server.port') as number;
+  const port = config.get<number>('server.port') ?? 36661;
   await app.listen(port);
 
-  const notifier = new Notifier(config);
-  notifier.notify('log', `Infoservice v${version} started on port ${port}`);
+  const notifier = app.get(Notifier);
+  notifier
+    .notify('info', `Infoservice v${version} started on port ${port}`)
+    .catch((error) => logger.error(`Failed to send startup notification: ${error}`));
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  console.error(`Failed to start InfoService: ${sanitizeErrorMessage(String(error))}`);
+  process.exit(-1);
+});

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { Logger } from '@nestjs/common';
+import { Logger } from 'src/global/logger/logger.service';
 import { Notifier } from 'src/global/notifier/notifier.service';
 import { SourcesManager } from './sources-manager';
 import { BaseApi } from './api/base';
@@ -8,7 +8,7 @@ import { Schema } from 'src/global/config/schema';
 
 describe('SourcesManager', () => {
   let sourcesManager: SourcesManager;
-  let logger: Logger;
+  let logger: Partial<Logger>;
 
   const mockConfig = {
     minSources: 2,
@@ -19,6 +19,9 @@ describe('SourcesManager', () => {
   beforeEach(async () => {
     const mockLogger = {
       warn: jest.fn(),
+      log: jest.fn(),
+      info: jest.fn(),
+      error: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -27,11 +30,7 @@ describe('SourcesManager', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest
-              .fn()
-              .mockImplementation(
-                (key: string) => mockConfig[key as keyof Schema],
-              ),
+            get: jest.fn().mockImplementation((key: string) => mockConfig[key as keyof Schema]),
           },
         },
         {
@@ -46,7 +45,7 @@ describe('SourcesManager', () => {
     }).compile();
 
     sourcesManager = module.get<SourcesManager>(SourcesManager);
-    logger = module.get<Logger>(Logger);
+    logger = mockLogger;
 
     sourcesManager.initializeSources = jest.fn(function () {
       this.sources = [
@@ -68,7 +67,7 @@ describe('SourcesManager', () => {
         },
       ] as BaseApi[];
     });
-    sourcesManager.logger = logger;
+    sourcesManager.logger = logger as Logger;
 
     sourcesManager.initializeSources();
   });
@@ -79,6 +78,16 @@ describe('SourcesManager', () => {
 
   it('should initialize with the correct minSources from config', () => {
     expect(sourcesManager['minSources']).toBe(mockConfig.minSources);
+  });
+
+  describe('getSourceWeights', () => {
+    it('should return weights for all enabled sources', () => {
+      const weights = sourcesManager.getSourceWeights();
+      expect(weights).toEqual({
+        ASource: 500,
+        AnotherSource: 500,
+      });
+    });
   });
 
   describe('getEnabledCoins', () => {
@@ -127,9 +136,7 @@ describe('SourcesManager', () => {
       sourcesManager.warnUnavailableBaseCoins();
 
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining(
-          'No resources provide rates for the following base coins: ETH.',
-        ),
+        expect.stringContaining('No resources provide rates for the following base coins: ETH.'),
       );
     });
 

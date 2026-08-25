@@ -1,36 +1,41 @@
-import { LoggerService } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import axios from 'axios';
 
+import { Logger } from 'src/global/logger/logger.service';
 import { Tickers } from './dto/tickers.dto';
 import { BaseApi } from './base';
 
 const url = 'https://min-api.cryptocompare.com/data/pricemulti';
 
+/**
+ * CryptoCompare API rate provider connector.
+ */
 export class CryptoCompareApi extends BaseApi {
   static resourceName = 'CryptoCompare';
 
-  public enabledCoins = new Set(
-    this.config.get<string[]>('cryptocompare.coins'),
-  );
-
-  public enabled =
-    this.config.get('cryptocompare.enabled') !== false &&
-    !!this.config.get<string>('cryptocompare.api_key') &&
-    !!this.enabledCoins.size;
-
-  public weight = this.config.get<number>('cryptocompare.weight') || 10;
+  public enabledCoins: Set<string>;
+  public enabled: boolean;
+  public weight: number;
 
   constructor(
     private config: ConfigService,
-    private logger: LoggerService,
+    private logger: Logger,
   ) {
     super();
+
+    this.enabledCoins = new Set(this.config.get<string[]>('cryptocompare.coins') || []);
+
+    this.enabled =
+      this.config.get('cryptocompare.enabled') !== false &&
+      !!this.config.get<string>('cryptocompare.api_key') &&
+      !!this.enabledCoins.size;
+
+    this.weight = this.config.get<number>('cryptocompare.weight') ?? 10;
   }
 
   async fetch(baseCurrency: string): Promise<Tickers> {
-    if (!this.enabled) {
+    if (!this.enabled || !this.enabledCoins.size) {
       return {};
     }
 
@@ -42,22 +47,22 @@ export class CryptoCompareApi extends BaseApi {
       api_key: apiKey,
     };
 
-    const decimals = this.config.get('decimals');
+    const decimals = this.config.get<number>('decimals') ?? 12;
 
     const { data } = await axios.get(url, {
       params,
+      timeout: 10000,
     });
 
     const exchangeRates: Record<string, number> = {};
 
     this.enabledCoins.forEach((coin) => {
-      exchangeRates[`${coin}/${baseCurrency}`] =
-        +data[coin][baseCurrency].toFixed(decimals);
+      if (data[coin]?.[baseCurrency]) {
+        exchangeRates[`${coin}/${baseCurrency}`] = +data[coin][baseCurrency].toFixed(decimals);
+      }
     });
 
-    this.logger.log(
-      `${this.resourceName} rates updated against ${baseCurrency} successfully`,
-    );
+    this.logger.info(`${this.resourceName} rates updated against ${baseCurrency} successfully.`);
 
     return exchangeRates;
   }

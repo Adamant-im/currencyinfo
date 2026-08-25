@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { Logger } from 'src/global/logger/logger.service';
 import { Notifier } from 'src/global/notifier/notifier.service';
 
 import { BaseApi } from './api/base';
@@ -11,41 +12,51 @@ import { MoexApi } from './api/moex';
 import { CoinmarketcapApi } from './api/coinmarketcap';
 import { ExchangeRateHost } from './api/exchangeratehost';
 
+/**
+ * Manages external rate provider connectors, lifecycle initialization,
+ * enabled coin discovery, and minSources threshold verification.
+ */
 @Injectable()
 export class SourcesManager {
-  public logger = new Logger();
   public sources: BaseApi[] = [];
 
   /**
-   * List of all enabled coins
+   * List of all discovered coins available across enabled sources.
    */
   public allCoins: string[] = [];
+
   /**
-   * Represents the amount of enabled sources for a pair name
-   * bound to `config.minSources`
+   * Map of pair names to their effective source count bound to minSources.
    */
   public sourcePairRecord: Record<string, number> = {};
+
   /**
-   * Number of enabled sources
+   * Count of active enabled sources.
    */
   public sourceCount = 0;
 
-  // parameters from the config
   private minSources: number;
 
   constructor(
     private config: ConfigService,
     private notifier: Notifier,
+    public logger: Logger,
   ) {
-    this.minSources = config.get('minSources') as number;
+    this.minSources = (config.get('minSources') as number) ?? 1;
   }
 
+  /**
+   * Boots up all source connectors, waits for coin discovery, and verifies base coin availability.
+   */
   async initialize() {
     this.initializeSources();
     await this.getEnabledCoins();
     this.warnUnavailableBaseCoins();
   }
 
+  /**
+   * Instantiates all supported API provider connectors.
+   */
   initializeSources() {
     this.sources = [
       new CurrencyApi(this.config, this.logger),
@@ -78,24 +89,20 @@ export class SourcesManager {
   }
 
   /**
-   * Waits for all enabled sources to be ready for getting rates
+   * Awaits completion of initialization for all enabled sources.
    */
   async prepareSources() {
     return Promise.all(this.getEnabledSources().map((source) => source.ready));
   }
 
   /**
-   * Counts amount of enabled coins for each pair bound to
-   * `config.minSources` and saves list of all coins
-   *
-   * Warns about coins with fewer enabled sources than the `config.minSources`
+   * Discovers enabled coins across all sources and tracks provider coverage per pair.
    */
   async getEnabledCoins() {
     await this.prepareSources();
 
     const enabledSources = this.getEnabledSources();
-
-    const mappings = this.config.get('mappings') as Record<string, string>;
+    const mappings = (this.config.get('mappings') as Record<string, string>) || {};
 
     const coins = new Set<string>();
 
@@ -121,14 +128,12 @@ export class SourcesManager {
   }
 
   /**
-   * Finds coins with fewer enabled coins than configured minimum and warns about it
+   * Logs a warning if any pairs have fewer enabled sources than the minSources threshold.
    */
   warnInsufficiency() {
     const pairsWithLowSourceCount: Array<[string, number]> = [];
 
-    for (const [pairName, sourceCount] of Object.entries(
-      this.sourcePairRecord,
-    )) {
+    for (const [pairName, sourceCount] of Object.entries(this.sourcePairRecord)) {
       if (sourceCount < this.minSources) {
         pairsWithLowSourceCount.push([pairName, sourceCount]);
       }
@@ -145,11 +150,11 @@ export class SourcesManager {
   }
 
   /**
-   * Finds base coins that are not provided in any of the enabled sources
+   * Emits a warning when configured base coins are not provided by any active rate source.
    */
   warnUnavailableBaseCoins() {
-    const mappings = this.config.get('mappings') as Record<string, string>;
-    const baseCoins = (this.config.get('base_coins') as string[]).map(
+    const mappings = (this.config.get('mappings') as Record<string, string>) || {};
+    const baseCoins = ((this.config.get('base_coins') as string[]) || []).map(
       (coin) => mappings[coin] ?? coin,
     );
 

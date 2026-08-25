@@ -21,16 +21,12 @@ async function run() {
     const configWithComments = `${configFilePath}c`;
 
     if (await fileExists(configWithComments)) {
-      console.warn(
-        `Unable to transform ${configFilePath}, ${configWithComments} already exists.`,
-      );
+      console.warn(`Unable to transform ${configFilePath}, ${configWithComments} already exists.`);
       continue;
     }
 
     const config = JSON5.parse(await readFile(configFilePath, 'utf-8'));
-    const defaultConfig = JSON5.parse(
-      await readFile('./config.default.jsonc', 'utf-8'),
-    );
+    const defaultConfig = JSON5.parse(await readFile('./config.default.jsonc', 'utf-8'));
 
     const transformed = transformConfig(config, defaultConfig);
 
@@ -56,9 +52,7 @@ function transformConfig(config, defaultConfig) {
     coins: config.crypto_cmc,
     // The CurrencyInfo v1 config had the wrong type of
     // the default value for `crypto_cmc_coinids`
-    ids: Array.isArray(config.crypto_cmc_coinids)
-      ? undefined
-      : config.crypto_cmc_coinids,
+    ids: Array.isArray(config.crypto_cmc_coinids) ? undefined : config.crypto_cmc_coinids,
   };
 
   const cryptocompare = {
@@ -82,8 +76,7 @@ function transformConfig(config, defaultConfig) {
   const notify = config.slack
     ? {
         slack: config.slack.filter(
-          (slackWebhook) =>
-            slackWebhook !== 'https://hooks.slack.com/services/..',
+          (slackWebhook) => slackWebhook !== 'https://hooks.slack.com/services/..',
         ),
       }
     : undefined;
@@ -134,7 +127,7 @@ async function fileExists(pathToFile) {
   try {
     await access(pathToFile, fs.constants.F_OK);
     return true;
-  } catch (error) {
+  } catch {
     return false;
   }
 }

@@ -2,7 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
+import { AxiosError } from 'axios';
 import { Notifier } from 'src/global/notifier/notifier.service';
+import { Logger } from 'src/global/logger/logger.service';
 import { RatesService } from './rates.service';
 import { Ticker } from './schemas/ticker.schema';
 import { Timestamp } from './schemas/timestamp.schema';
@@ -16,9 +18,7 @@ class MockedApi implements BaseApi {
     public response: Tickers,
     public enabled = true,
     public weight = 100,
-    public enabledCoins = new Set(
-      Object.keys(response).map((pair) => pair.split('/')[0]),
-    ),
+    public enabledCoins = new Set(Object.keys(response).map((pair) => pair.split('/')[0])),
   ) {}
 
   fetch() {
@@ -34,6 +34,7 @@ describe('RatesService', () => {
   let configService: ConfigService;
   let sourceManager: SourcesManager;
   let schedulerRegistry: SchedulerRegistry;
+  let mockLogger: any;
 
   const setupMocks = () => {
     tickerModel = {
@@ -66,7 +67,18 @@ describe('RatesService', () => {
       ),
     } as any;
 
-    sourceManager = new SourcesManager(configService, notifier);
+    schedulerRegistry = {
+      addInterval: jest.fn(),
+      deleteInterval: jest.fn(),
+      getInterval: jest.fn(),
+    } as any;
+    mockLogger = {
+      log: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      info: jest.fn(),
+    };
+    sourceManager = new SourcesManager(configService, notifier, mockLogger as any);
     sourceManager.initialize = jest.fn(async function () {
       this.sources = [
         new MockedApi('ASource', { 'BTC/USD': 100 }),
@@ -90,6 +102,7 @@ describe('RatesService', () => {
         { provide: getModelToken(Timestamp.name), useValue: timestampModel },
         { provide: Notifier, useValue: notifier },
         { provide: SourcesManager, useValue: sourceManager },
+        { provide: Logger, useValue: mockLogger },
       ],
     }).compile();
 
@@ -98,6 +111,57 @@ describe('RatesService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('should sanitize API keys from error strings and query parameters', () => {
+    const rawUrl = 'https://api.exchangerate.host/live?access_key=SECRET_EXR_KEY&format=1';
+    const sanitized = service.sanitizeErrorMessage(rawUrl);
+    expect(sanitized).toBe('https://api.exchangerate.host/live?access_key=***&format=1');
+    expect(sanitized).not.toContain('SECRET_EXR_KEY');
+  });
+
+  it('should deeply sanitize API keys and sensitive tokens from request params objects', () => {
+    const rawParams = {
+      fsyms: 'BTC,ETH',
+      tsyms: 'USD',
+      api_key: 'SECRET_CRYPTOCOMPARE_KEY',
+      nested: {
+        access_key: 'ANOTHER_SECRET',
+      },
+    };
+
+    const sanitized = service.sanitizeParams(rawParams);
+    expect(sanitized).toEqual({
+      fsyms: 'BTC,ETH',
+      tsyms: 'USD',
+      api_key: '***',
+      nested: {
+        access_key: '***',
+      },
+    });
+  });
+
+  it('should sanitize secrets when fetchTickers fails with an AxiosError', async () => {
+    const failSpy = jest.spyOn(service, 'fail').mockImplementation();
+    const mockSource = new MockedApi('CryptoCompare', {}, true);
+
+    const axiosError = new AxiosError('Request failed with status code 401');
+    axiosError.config = {
+      url: 'https://min-api.cryptocompare.com/data/pricemulti',
+      params: {
+        fsyms: 'BTC,ETH',
+        tsyms: 'USD',
+        api_key: 'SECRET_CC_KEY',
+      },
+    } as any;
+    axiosError.response = { status: 401 } as any;
+
+    jest.spyOn(mockSource, 'fetch').mockRejectedValue(axiosError);
+
+    await service.fetchTickers(mockSource);
+
+    expect(failSpy).toHaveBeenCalledWith(expect.not.stringContaining('SECRET_CC_KEY'));
+    expect(failSpy).toHaveBeenCalledWith(expect.stringContaining('api_key":"***"'));
   });
 
   it('should initialize properly', async () => {
@@ -142,7 +206,7 @@ describe('RatesService', () => {
 
     expect(notifier.notify).toHaveBeenCalledWith(
       'warn',
-      expect.stringContaining('previously stored rates will be saved'),
+      expect.stringContaining('previously stored rates will be served'),
     );
 
     expect(service.tickers).toStrictEqual({
@@ -167,9 +231,7 @@ describe('RatesService', () => {
 
     expect(notifier.notify).toHaveBeenCalledWith(
       'error',
-      expect.stringContaining(
-        'these errors have persisted for more than 60 min',
-      ),
+      expect.stringContaining('these errors have persisted for more than 60 min'),
     );
 
     expect(service.tickers).toStrictEqual({});
@@ -188,9 +250,7 @@ describe('RatesService', () => {
 
     await service.saveTickers(2);
 
-    expect(failSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Failed to save'),
-    );
+    expect(failSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to save'));
   });
 
   it('should handle fetch tickers errors', async () => {
@@ -233,7 +293,24 @@ describe('RatesService', () => {
       'USD/Ethereum': 10,
       'ADM/Ethereum': 100000,
     });
+  });
 
-    expect(true).toBe(true);
+  it('should synchronize pairSources and weights from SourcesManager during updateTickers', async () => {
+    jest.spyOn(service, 'saveTickers').mockResolvedValue();
+
+    sourceManager.sources = [
+      new MockedApi('ASource', { 'BTC/USD': 100 }, true, 300),
+      new MockedApi('BSource', { 'BTC/USD': 100, 'ETH/USD': 10 }, true, 700),
+    ];
+    await sourceManager.getEnabledCoins();
+
+    await service.updateTickers();
+
+    expect(service['pairSources']).toEqual(sourceManager.sourcePairRecord);
+    expect(service['weights']).toEqual(sourceManager.getSourceWeights());
+    expect(service['weights']).toEqual({
+      ASource: 300,
+      BSource: 700,
+    });
   });
 });

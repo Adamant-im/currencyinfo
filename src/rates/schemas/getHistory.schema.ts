@@ -1,10 +1,9 @@
 import { z } from 'zod';
-import {
-  coinNameOrPair,
-  nonnegativeNumber,
-  positiveNumber,
-} from 'src/shared/schema-types';
+import { coinNameOrPair, nonnegativeNumber, positiveNumber } from 'src/shared/schema-types';
 
+/**
+ * Zod validation schema for `/getHistory` REST endpoint query parameters.
+ */
 export const getHistorySchema = z
   .object({
     timestamp: nonnegativeNumber,
