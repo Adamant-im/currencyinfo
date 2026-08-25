@@ -46,6 +46,9 @@ async function readUrlFromStdin() {
 
     process.stdout.write('Enter MongoDB connection string (input hidden): ');
 
+    // readline has no public mute API. Override the internal _writeToOutput hook
+    // (and rl.output) so typed characters are not echoed. This is undocumented
+    // Node.js internals and may break on a readline rewrite.
     let isMuted = true;
     const originalWrite = rl._writeToOutput;
     rl._writeToOutput = function (stringToWrite) {
@@ -140,6 +143,20 @@ async function migrate() {
     const timestamps = db.collection('timestamps');
     const tickers = db.collection('tickers');
 
+    // If a v4 service was started against a v3 database, `timestamps` already
+    // exists and rename is skipped, but legacy snapshot documents can still sit
+    // in `tickers`. Abort instead of reporting a false "up to date".
+    const strayLegacy = await tickers.countDocuments({ tickers: { $exists: true } });
+
+    if (strayLegacy > 0) {
+      console.error(
+        `Found ${strayLegacy} legacy documents in 'tickers' while 'timestamps' already exists. Aborting to avoid silent data loss.`,
+      );
+      process.exitCode = 1;
+
+      return;
+    }
+
     const legacyFilter = { tickers: { $exists: true, $ne: null } };
     const totalDocs = await timestamps.countDocuments(legacyFilter);
 
@@ -150,6 +167,10 @@ async function migrate() {
 
       return;
     }
+
+    // Unique compound index matching the upsert filter. Without it each
+    // bulkWrite is a collection scan on a growing collection (superlinear).
+    await tickers.createIndex({ date: 1, base: 1, quote: 1 }, { unique: true });
 
     let processedDocs = 0;
     console.log(`Starting migration. Legacy documents to process: ${totalDocs}`);

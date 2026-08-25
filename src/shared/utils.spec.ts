@@ -265,6 +265,7 @@ describe('Shared Utils', () => {
         tokenomics: 'enabled',
         apiKeyboardLayout: 'qwerty',
         passwordPolicy: 'strong',
+        tokenExpiry: '3600',
         monkey: 'animal',
         keyboard: 'input',
         keystone: 'component',
@@ -275,9 +276,24 @@ describe('Shared Utils', () => {
         tokenomics: 'enabled',
         apiKeyboardLayout: 'qwerty',
         passwordPolicy: 'strong',
+        tokenExpiry: '3600',
         monkey: 'animal',
         keyboard: 'input',
         keystone: 'component',
+      });
+    });
+
+    it('should redact camelCase keys whose sensitive component is a complete segment', () => {
+      const input = {
+        apiKeyForCoingecko: 'SECRET',
+        apiKeys: 'SECRET',
+        accessKeyId: 'SECRET',
+      };
+
+      expect(sanitizeParams(input)).toEqual({
+        apiKeyForCoingecko: '***',
+        apiKeys: '***',
+        accessKeyId: '***',
       });
     });
 

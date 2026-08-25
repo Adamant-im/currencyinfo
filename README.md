@@ -117,7 +117,7 @@ GET /get?rateLifetime=30
 #### Query Parameters
 
 - `coin` (string, optional) — Comma-separated list of coin symbols (for example, `ADM,BTC,USD`)
-- `rateLifetime` (number, optional) — Maximum allowed age of cached rates in minutes (defaults to configured `rateLifetime`)
+- `rateLifetime` (number, optional) — Maximum allowed age of cached rates in minutes (defaults to configured `rateLifetime`). The same window is used when enforcing the configured `minSources` requirement; pairs with too few fresh sources are omitted.
 
 #### Response
 

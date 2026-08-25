@@ -193,7 +193,10 @@ export function sanitizeParams(params: unknown): unknown {
   const sanitized: Record<string, unknown> = {};
   const sensitiveComponent =
     /(?:^|[^a-z0-9])(?:access[_-]?key|api[_-]?key|apikey|token|secret|passphrase|password)(?:$|[^a-z0-9])/i;
-  const camelCaseSensitive = /(?:(?:access|api)[_-]?key|apikey|passphrase|password|token|secret)$/i;
+  // Do not use the /i flag on the camelCase-boundary alternative: [A-Z] must
+  // remain a real uppercase letter, otherwise apiKeyboardLayout would match.
+  const camelCaseSensitive =
+    /(?:(?:[Aa]ccess|[Aa]pi)[_-]?[Kk]eys?|[Aa]pi[Kk]eys?)(?=$|[^a-zA-Z0-9]|[A-Z])|(?:[Pp]assphrase|[Pp]assword|[Tt]oken|[Ss]ecret)$/;
 
   for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
     if (
