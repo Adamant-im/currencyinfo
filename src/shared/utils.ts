@@ -193,7 +193,7 @@ export function sanitizeParams(params: unknown): unknown {
   const sanitized: Record<string, unknown> = {};
   const sensitiveComponent =
     /(?:^|[^a-z0-9])(?:access[_-]?key|api[_-]?key|apikey|token|secret|passphrase|password)(?:$|[^a-z0-9])/i;
-  const camelCaseSensitive = /(?:access|api)[_-]?key|apikey|(?:passphrase|password|token|secret)$/i;
+  const camelCaseSensitive = /(?:(?:access|api)[_-]?key|apikey|passphrase|password|token|secret)$/i;
 
   for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
     if (

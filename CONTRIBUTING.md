@@ -67,10 +67,23 @@ Report the exact commands run and any skipped or blocked validation in the pull 
 
 ## Database migration
 
-The `scripts/migrate-db.mjs` script migrates legacy pre-4.x ticker documents to the current schema. Pass the MongoDB connection string through the `MIGRATE_DB_URL` environment variable instead of a CLI argument, so credentials do not appear in shell history or the process list:
+The `scripts/migrate-db.mjs` script migrates legacy pre-4.x ticker documents to the current schema. To prevent exposing database credentials in shell history or the operating system process list, run the migration using one of these secure methods:
+
+- Run interactively in a terminal (input is masked and not echoed):
 
 ```bash
-MIGRATE_DB_URL="mongodb://user:password@127.0.0.1:27017/tickersdb" pnpm exec node scripts/migrate-db.mjs
+pnpm exec node scripts/migrate-db.mjs
+```
+
+- Load the connection string from a protected environment file or secret store:
+
+```bash
+# Sourced from a restricted environment file
+set -a && source /path/to/.env.protected && set +a
+pnpm exec node scripts/migrate-db.mjs
+
+# Loaded dynamically from a secret file or vault
+MIGRATE_DB_URL="$(< /run/secrets/mongo_uri)" pnpm exec node scripts/migrate-db.mjs
 ```
 
 ## Advanced pull request tips

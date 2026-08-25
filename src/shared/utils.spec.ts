@@ -273,8 +273,7 @@ describe('Shared Utils', () => {
       expect(sanitizeParams(input)).toEqual({
         secretary: 'alice',
         tokenomics: 'enabled',
-        // camelCase suffix "Key" is treated as a sensitive component
-        apiKeyboardLayout: 'qwerty'.replace('qwerty', '***'),
+        apiKeyboardLayout: 'qwerty',
         passwordPolicy: 'strong',
         monkey: 'animal',
         keyboard: 'input',
