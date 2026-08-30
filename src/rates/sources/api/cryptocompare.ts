@@ -26,10 +26,7 @@ export class CryptoCompareApi extends BaseApi {
 
     this.enabledCoins = new Set(this.config.get<string[]>('cryptocompare.coins') || []);
 
-    this.enabled =
-      this.config.get('cryptocompare.enabled') !== false &&
-      !!this.config.get<string>('cryptocompare.api_key') &&
-      !!this.enabledCoins.size;
+    this.enabled = this.config.get('cryptocompare.enabled') !== false && !!this.enabledCoins.size;
 
     this.weight = this.config.get<number>('cryptocompare.weight') ?? 10;
   }

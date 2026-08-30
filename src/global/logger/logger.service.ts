@@ -6,7 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import chalk from 'chalk';
 import ms from 'ms';
 
-import { DateFormats, formatDate, fullTime } from 'src/shared/utils';
+import { DateFormats, formatDate, fullTime, sanitizeErrorMessage } from 'src/shared/utils';
 import { LogLevel, LogLevelChalkColors, LogLevelName } from './logger.constants';
 
 /**
@@ -21,12 +21,13 @@ export class Logger implements LoggerService {
 
   constructor(private config: ConfigService) {
     if (!fs.existsSync('./logs')) {
-      fs.mkdirSync('./logs');
+      fs.mkdirSync('./logs', { mode: 0o750 });
     }
 
     const safeLogFileName = fullTime().replace(/:/g, '-');
     this.logStream = fs.createWriteStream(`./logs/${safeLogFileName}.log`, {
       flags: 'a',
+      mode: 0o600,
     });
 
     const configuredLevel = (this.config.get('log_level') as keyof typeof LogLevel) || 'log';
@@ -87,15 +88,16 @@ export class Logger implements LoggerService {
       return;
     }
 
+    const sanitizedMessage = sanitizeErrorMessage(String(message));
     const { time, diff } = this.timestamp();
     const space = ' '.repeat('error'.length - level.length);
     const color = LogLevelChalkColors[level];
     const prefix = `${chalk.gray(time)} ${color(level)}${space}|`;
 
-    const colorfulLogMessage = `${prefix} ${message} ${diff}`;
+    const colorfulLogMessage = `${prefix} ${sanitizedMessage} ${diff}`;
     console.log(colorfulLogMessage.slice(0, 500));
 
-    const fullLogMessage = `${level}${space}|${fullTime()}| ${message}\n`;
+    const fullLogMessage = `${level}${space}|${fullTime()}| ${sanitizedMessage}\n`;
     this.logStream.write(fullLogMessage);
   }
 

@@ -22,6 +22,8 @@ import {
   sanitizeErrorMessage as sanitizeString,
   sanitizeParams as sanitizeObjectParams,
 } from 'src/shared/utils';
+import { isNumber } from 'src/shared/utils';
+import { completeCoinPair } from 'src/shared/schema-types';
 
 export interface HistoricalResult {
   _id: Types.ObjectId;
@@ -49,6 +51,7 @@ export class RatesService extends RatesMerger {
   protected pairSources: Record<string, number> = {};
 
   private ready: Promise<void>;
+  private updateInProgress = false;
 
   constructor(
     @InjectModel(Ticker.name) private tickerModel: Model<Ticker>,
@@ -80,62 +83,86 @@ export class RatesService extends RatesMerger {
    * Initializes periodic rate fetching interval and triggers the first fetch.
    */
   init() {
-    const interval = setInterval(this.updateTickers.bind(this), this.refreshInterval);
+    const update = () => void this.updateTickers();
+    const interval = setInterval(update, this.refreshInterval);
     this.schedulerRegistry.addInterval('tickers', interval);
 
-    this.updateTickers();
+    update();
   }
 
   /**
    * Fetches latest rate data from all enabled API sources, normalizes and persists to database.
    */
   async updateTickers() {
-    this.logger.log('Updating exchange rates…');
+    if (this.updateInProgress) {
+      this.logger.warn('Skipping rate update because the previous update is still in progress.');
+      return;
+    }
 
-    await this.ready;
-    this.pairSources = this.sourcesManager.sourcePairRecord;
-    this.weights = this.sourcesManager.getSourceWeights();
+    this.updateInProgress = true;
 
-    const sourceTickers: SourceTickers = {};
-    let availableSources = 0;
+    try {
+      this.logger.log('Updating exchange rates…');
 
-    for (const source of this.sourcesManager.getEnabledSources()) {
-      const tickers = await this.fetchTickers(source);
+      await this.ready;
+      this.pairSources = this.sourcesManager.sourcePairRecord;
+      this.weights = this.sourcesManager.getSourceWeights();
 
-      if (!tickers) {
-        this.notifier.notify(
-          'warn',
-          `Unable to fetch data from ${source.resourceName}. InfoService will provide previous rates; new rates won't be saved for this source.`,
-        );
+      const sourceTickers: SourceTickers = {};
+      let availableSources = 0;
 
-        continue;
+      for (const source of this.sourcesManager.getEnabledSources()) {
+        const tickers = await this.fetchTickers(source);
+
+        if (!tickers) {
+          this.notifier.notify(
+            'warn',
+            `Unable to fetch valid data from ${source.resourceName}. InfoService will provide previous rates; new rates won't be saved for this source.`,
+          );
+
+          continue;
+        }
+
+        this.mergeTickers(sourceTickers, this.applyMappings(tickers), {
+          name: source.resourceName,
+        });
+
+        availableSources += 1;
       }
 
-      this.mergeTickers(sourceTickers, this.applyMappings(tickers), {
-        name: source.resourceName,
-      });
+      this.setTickers(sourceTickers);
 
-      availableSources += 1;
-    }
+      if (availableSources <= 0) {
+        this.fail('Unable to get new rates from all sources. No data has been saved.');
+        return;
+      }
 
-    this.setTickers(sourceTickers);
+      const ratesWithFewerSources = this.getRatesWithFewerSources();
 
-    if (availableSources <= 0) {
-      return this.fail('Unable to get new rates from all sources. No data has been saved.');
-    }
+      if (ratesWithFewerSources.length) {
+        this.notifier.notify(
+          'warn',
+          `The following rates have been fetched from fewer sources than expected and therefore won't be saved: ${ratesWithFewerSources
+            .map(([pair, expected, got]) => `${pair} (expected ${expected}, but got ${got})`)
+            .join('; ')}`,
+        );
+      }
 
-    const ratesWithFewerSources = this.getRatesWithFewerSources();
+      if (!Object.keys(this.tickers).length) {
+        this.fail('No valid rates remain after validation and merging. No data has been saved.');
+        return;
+      }
 
-    if (ratesWithFewerSources.length) {
-      this.notifier.notify(
-        'warn',
-        `The following rates have been fetched from fewer sources than expected and therefore won't be saved: ${ratesWithFewerSources
-          .map(([pair, expected, got]) => `${pair} (expected ${expected}, but got ${got})`)
-          .join('; ')}`,
+      await this.saveTickers(availableSources);
+    } catch (error) {
+      const message = this.sanitizeErrorMessage(
+        error instanceof Error ? error.message : String(error),
       );
+      this.logger.error(`Rate update failed: ${message}`);
+      this.fail(`Unable to update rates: ${message}`);
+    } finally {
+      this.updateInProgress = false;
     }
-
-    await this.saveTickers(availableSources);
   }
 
   /**
@@ -171,7 +198,6 @@ export class RatesService extends RatesMerger {
       this.fail(
         `Error: Unable to save new rates in history database: ${String(error).replace(/(\.)+?$/, '')}. See logs for details.`,
       );
-      this.logger.error(JSON.stringify(tickers));
     }
   }
 
@@ -216,27 +242,31 @@ export class RatesService extends RatesMerger {
 
     const queries: PipelineStage[] = [];
 
-    if (from !== undefined && to !== undefined) {
-      if (from > to) {
-        throw new HttpException(
-          "Invalid time interval: 'to' timestamp must be greater than or equal to 'from'",
-          HttpStatus.BAD_REQUEST,
-        );
-      }
+    if (from !== undefined && to !== undefined && from > to) {
+      throw new HttpException(
+        "Invalid time interval: 'to' timestamp must be greater than or equal to 'from'",
+        HttpStatus.BAD_REQUEST,
+      );
+    }
 
+    if (from !== undefined || to !== undefined) {
+      const dateRange: { $gte?: number; $lte?: number } = {};
+      if (from !== undefined) {
+        dateRange.$gte = from * 1000;
+      }
+      if (to !== undefined) {
+        dateRange.$lte = to * 1000;
+      }
       queries.push({
         $match: {
-          date: {
-            $gte: from * 1000,
-            $lte: to * 1000,
-          },
+          date: dateRange,
         },
       });
     }
 
-    let limit = Math.min(options.limit || 100, 100);
+    const limit = Math.min(options.limit ?? 100, 100);
 
-    if (timestamp) {
+    if (timestamp !== undefined) {
       const lastTimestamp = await this.timestampModel.findOne(
         {
           date: { $lte: timestamp * 1000 },
@@ -256,14 +286,14 @@ export class RatesService extends RatesMerger {
 
     if (coin) {
       if (coin.includes('/')) {
-        const [quoteCoin, baseCoin] = coin.split('/');
+        const [baseCoin, quoteCoin] = coin.split('/');
 
         const match: { quote?: string; base?: string } = {};
-        if (quoteCoin) {
-          match.quote = quoteCoin;
-        }
         if (baseCoin) {
           match.base = baseCoin;
+        }
+        if (quoteCoin) {
+          match.quote = quoteCoin;
         }
 
         queries.push({ $match: match });
@@ -276,37 +306,28 @@ export class RatesService extends RatesMerger {
       }
     }
 
-    queries.push({ $sort: { _id: -1 } });
+    queries.push({ $sort: { date: -1, _id: -1 } });
 
     const results: HistoricalResult[] = [];
 
     const cursor = this.tickerModel.aggregate(queries).cursor({ batchSize: 200 });
 
-    let doc: Ticker | null = await cursor.next();
+    try {
+      let doc: Ticker | null = await cursor.next();
 
-    if (!doc) {
-      return [];
-    }
+      while (doc && results.length < limit) {
+        const date = doc.date;
+        const tickers: Tickers = {};
 
-    let lastDate = doc?.date;
-    let tickers: Tickers = {};
+        do {
+          tickers[`${doc.base}/${doc.quote}`] = doc.rate;
+          doc = await cursor.next();
+        } while (doc && doc.date === date);
 
-    while (limit > 0) {
-      if (!doc) {
-        await this.addTickerWithTimestamp(results, tickers, lastDate);
-        break;
+        await this.addTickerWithTimestamp(results, tickers, date);
       }
-
-      if (doc.date !== lastDate) {
-        await this.addTickerWithTimestamp(results, tickers, lastDate);
-        lastDate = doc.date;
-        tickers = {};
-        limit -= 1;
-      }
-
-      tickers[`${doc.base}/${doc.quote}`] = doc.rate;
-
-      doc = await cursor.next();
+    } finally {
+      await cursor.close();
     }
 
     return results;
@@ -334,9 +355,9 @@ export class RatesService extends RatesMerger {
    */
   async fetchTickers(source: BaseApi): Promise<Tickers | undefined> {
     try {
-      const tickers = await source.fetch(BASE_CURRENCY);
+      const tickers: unknown = await source.fetch(BASE_CURRENCY);
 
-      return tickers;
+      return this.validateSourceTickers(tickers, source.resourceName);
     } catch (error) {
       const message: string[] = [];
 
@@ -360,6 +381,49 @@ export class RatesService extends RatesMerger {
 
       this.fail(message.join(' '));
     }
+  }
+
+  /**
+   * Removes malformed pairs and non-positive or non-finite prices from an external source response.
+   *
+   * @param value - Untrusted connector response
+   * @param sourceName - Trusted source name used for operational logging
+   * @returns Valid normalized tickers or undefined when no usable rate remains
+   */
+  validateSourceTickers(value: unknown, sourceName: string): Tickers | undefined {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      this.fail(`Unable to process data from ${sourceName}: expected a ticker object.`);
+      return;
+    }
+
+    const tickers: Tickers = {};
+    let invalidEntryCount = 0;
+
+    for (const [pair, price] of Object.entries(value)) {
+      const parsedPair = completeCoinPair.safeParse(pair);
+
+      if (!parsedPair.success || !isNumber(price) || price <= 0) {
+        invalidEntryCount += 1;
+        continue;
+      }
+
+      tickers[parsedPair.data] = price;
+    }
+
+    if (invalidEntryCount > 0) {
+      this.logger.warn(
+        `${sourceName} returned ${invalidEntryCount} malformed or non-positive rate entries; they were ignored.`,
+      );
+    }
+
+    if (!Object.keys(tickers).length) {
+      this.fail(
+        `Unable to process data from ${sourceName}: no valid positive rates were returned.`,
+      );
+      return;
+    }
+
+    return tickers;
   }
 
   /**
@@ -405,6 +469,10 @@ export class RatesService extends RatesMerger {
    * Dispatches an error alert via Notifier.
    */
   fail(reason: string) {
-    this.notifier.notify('error', reason);
+    void Promise.resolve(this.notifier.notify('error', reason)).catch((error) => {
+      this.logger.error(
+        `Failed to send error notification: ${this.sanitizeErrorMessage(String(error))}`,
+      );
+    });
   }
 }

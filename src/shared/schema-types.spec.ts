@@ -3,7 +3,10 @@ import {
   coinName,
   coinNameOrPair,
   coinPair,
+  completeCoinPair,
+  nonnegativeInteger,
   nonnegativeNumber,
+  positiveInteger,
   positiveNumber,
 } from './schema-types';
 
@@ -43,6 +46,16 @@ describe('Shared Schema Types', () => {
     it('should reject invalid coin pairs without slash or with multiple slashes', () => {
       expect(coinPair.safeParse('BTC').success).toBe(false);
       expect(coinPair.safeParse('BTC/USD/EUR').success).toBe(false);
+      expect(coinPair.safeParse('/').success).toBe(false);
+    });
+  });
+
+  describe('completeCoinPair', () => {
+    it('should accept and normalize complete pairs only', () => {
+      expect(completeCoinPair.safeParse('btc/usd').data).toBe('BTC/USD');
+      expect(completeCoinPair.safeParse('BTC/').success).toBe(false);
+      expect(completeCoinPair.safeParse('/USD').success).toBe(false);
+      expect(completeCoinPair.safeParse('/').success).toBe(false);
     });
   });
 
@@ -98,6 +111,18 @@ describe('Shared Schema Types', () => {
     it('should reject negative values', () => {
       expect(nonnegativeNumber.safeParse(-1).success).toBe(false);
       expect(nonnegativeNumber.safeParse('-10').success).toBe(false);
+    });
+  });
+
+  describe('integer schemas', () => {
+    it('should accept integer strings and reject fractional values', () => {
+      expect(nonnegativeInteger.safeParse('0').data).toBe(0);
+      expect(nonnegativeInteger.safeParse('10').data).toBe(10);
+      expect(nonnegativeInteger.safeParse('0.5').success).toBe(false);
+
+      expect(positiveInteger.safeParse('10').data).toBe(10);
+      expect(positiveInteger.safeParse(0).success).toBe(false);
+      expect(positiveInteger.safeParse('1.5').success).toBe(false);
     });
   });
 });

@@ -30,6 +30,7 @@ describe('RatesService', () => {
   let service: RatesService;
   let tickerModel: any;
   let timestampModel: any;
+  let aggregateCursor: any;
   let notifier: any;
   let configService: ConfigService;
   let sourceManager: SourcesManager;
@@ -37,11 +38,14 @@ describe('RatesService', () => {
   let mockLogger: any;
 
   const setupMocks = () => {
+    aggregateCursor = {
+      next: jest.fn(),
+      close: jest.fn().mockResolvedValue(undefined),
+    };
     tickerModel = {
       create: jest.fn(),
       aggregate: jest.fn(() => ({
-        cursor: jest.fn().mockReturnThis(),
-        next: jest.fn(),
+        cursor: jest.fn(() => aggregateCursor),
       })),
     };
     timestampModel = {
@@ -262,6 +266,128 @@ describe('RatesService', () => {
     await service.fetchTickers(mockSource);
 
     expect(failSpy).toHaveBeenCalledWith(expect.stringContaining('API error'));
+  });
+
+  it('should reject empty and malformed source responses without marking them available', async () => {
+    const failSpy = jest.spyOn(service, 'fail');
+    const invalidSource = new MockedApi('Invalid API', {}, true);
+
+    jest.spyOn(invalidSource, 'fetch').mockResolvedValue({
+      'BTC/USD': 50_000,
+      'ETH/USD': -1,
+      'ADM/USD': Number.POSITIVE_INFINITY,
+      BROKEN: 1,
+    });
+
+    await expect(service.fetchTickers(invalidSource)).resolves.toEqual({ 'BTC/USD': 50_000 });
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('returned 3 malformed or non-positive rate entries'),
+    );
+
+    jest.spyOn(invalidSource, 'fetch').mockResolvedValue({});
+    await expect(service.fetchTickers(invalidSource)).resolves.toBeUndefined();
+    expect(failSpy).toHaveBeenCalledWith(expect.stringContaining('no valid positive rates'));
+  });
+
+  it('should not save a snapshot when all enabled sources return no valid rates', async () => {
+    await service['ready'];
+    sourceManager.sources = [new MockedApi('Empty API', {}, true)];
+    sourceManager.sourceCount = 1;
+    const saveSpy = jest.spyOn(service, 'saveTickers').mockResolvedValue();
+
+    await service.updateTickers();
+
+    expect(saveSpy).not.toHaveBeenCalled();
+    expect(notifier.notify).toHaveBeenCalledWith(
+      'error',
+      expect.stringContaining('No data has been saved'),
+    );
+  });
+
+  it('should skip overlapping scheduled updates', async () => {
+    await service['ready'];
+
+    let resolveFetch!: (tickers: Tickers) => void;
+    const pendingFetch = new Promise<Tickers>((resolve) => {
+      resolveFetch = resolve;
+    });
+    const source = new MockedApi('Slow API', { 'BTC/USD': 50_000 }, true);
+    const fetchSpy = jest.spyOn(source, 'fetch').mockReturnValue(pendingFetch);
+    sourceManager.sources = [source];
+    sourceManager.sourceCount = 1;
+    sourceManager.sourcePairRecord = { 'BTC/USD': 1 };
+    jest.spyOn(service, 'saveTickers').mockResolvedValue();
+
+    const firstUpdate = service.updateTickers();
+    await Promise.resolve();
+    await service.updateTickers();
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      'Skipping rate update because the previous update is still in progress.',
+    );
+
+    resolveFetch({ 'BTC/USD': 50_000 });
+    await firstUpdate;
+  });
+
+  describe('getHistoryTickers', () => {
+    it('should query one-sided time ranges and sort by rate timestamp', async () => {
+      aggregateCursor.next.mockResolvedValue(null);
+
+      await service.getHistoryTickers({ from: 100 });
+
+      expect(tickerModel.aggregate).toHaveBeenCalledWith([
+        { $match: { date: { $gte: 100_000 } } },
+        { $sort: { date: -1, _id: -1 } },
+      ]);
+      expect(aggregateCursor.close).toHaveBeenCalled();
+    });
+
+    it('should preserve BASE/QUOTE order in exact and partial pair filters', async () => {
+      aggregateCursor.next.mockResolvedValue(null);
+
+      await service.getHistoryTickers({ coin: 'ADM/USD' });
+      expect(tickerModel.aggregate).toHaveBeenLastCalledWith([
+        { $match: { base: 'ADM', quote: 'USD' } },
+        { $sort: { date: -1, _id: -1 } },
+      ]);
+
+      await service.getHistoryTickers({ coin: 'ADM/' });
+      expect(tickerModel.aggregate).toHaveBeenLastCalledWith([
+        { $match: { base: 'ADM' } },
+        { $sort: { date: -1, _id: -1 } },
+      ]);
+    });
+
+    it('should process timestamp zero instead of silently ignoring it', async () => {
+      timestampModel.findOne.mockResolvedValue(null);
+
+      await expect(service.getHistoryTickers({ timestamp: 0 })).resolves.toEqual([]);
+      expect(timestampModel.findOne).toHaveBeenCalledWith({ date: { $lte: 0 } }, null, {
+        sort: { date: -1 },
+      });
+      expect(tickerModel.aggregate).not.toHaveBeenCalled();
+    });
+
+    it('should close the database cursor after reaching the requested snapshot limit', async () => {
+      aggregateCursor.next
+        .mockResolvedValueOnce({ date: 2000, base: 'BTC', quote: 'USD', rate: 50_000 })
+        .mockResolvedValueOnce({ date: 2000, base: 'ETH', quote: 'USD', rate: 2500 })
+        .mockResolvedValueOnce({ date: 1000, base: 'BTC', quote: 'USD', rate: 49_000 });
+      timestampModel.findOne.mockResolvedValue({ _id: 'timestamp-id' });
+
+      const result = await service.getHistoryTickers({ limit: 1 });
+
+      expect(result).toEqual([
+        {
+          _id: 'timestamp-id',
+          date: 2000,
+          tickers: { 'BTC/USD': 50_000, 'ETH/USD': 2500 },
+        },
+      ]);
+      expect(aggregateCursor.close).toHaveBeenCalled();
+    });
   });
 
   it('should use all base coins from the config', async () => {

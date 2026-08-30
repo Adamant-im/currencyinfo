@@ -102,6 +102,30 @@ describe('SourcesManager', () => {
         ),
       );
     });
+
+    it('should count each mapped pair once per source and reset counts on reinitialization', async () => {
+      const originalMappings = mockConfig.mappings;
+      mockConfig.mappings = { BTC: 'Bitcoin', XBT: 'Bitcoin' };
+      sourcesManager.sources = [
+        {
+          enabled: true,
+          enabledCoins: new Set(['BTC', 'XBT']),
+          ready: Promise.resolve(),
+          weight: 500,
+          resourceName: 'AliasedSource',
+          fetch: jest.fn(),
+        },
+      ] as BaseApi[];
+
+      try {
+        await sourcesManager.getEnabledCoins();
+        await sourcesManager.getEnabledCoins();
+
+        expect(sourcesManager.sourcePairRecord).toEqual({ 'Bitcoin/USD': 1 });
+      } finally {
+        mockConfig.mappings = originalMappings;
+      }
+    });
   });
 
   describe('warnInsufficiency', () => {

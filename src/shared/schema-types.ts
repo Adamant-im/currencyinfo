@@ -3,7 +3,10 @@ import { z } from 'zod';
 const coinNameRegexPattern = '[\\$a-zA-Z0-9]+';
 
 const coinRegex = new RegExp(`^${coinNameRegexPattern}$`);
-const coinPairRegex = new RegExp(`^(${coinNameRegexPattern})?/(${coinNameRegexPattern})?$`);
+const coinPairRegex = new RegExp(
+  `^(?:${coinNameRegexPattern}/${coinNameRegexPattern}|${coinNameRegexPattern}/|/${coinNameRegexPattern})$`,
+);
+const completeCoinPairRegex = new RegExp(`^${coinNameRegexPattern}/${coinNameRegexPattern}$`);
 const coinListRegex = new RegExp(`^${coinNameRegexPattern}(?:,${coinNameRegexPattern})*$`);
 
 /**
@@ -33,6 +36,24 @@ export const coinPair = z.string().transform<string>((value, ctx) => {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: 'Invalid coin pair',
+      fatal: true,
+    });
+
+    return '';
+  }
+
+  return value.toUpperCase();
+});
+
+/**
+ * Zod schema for complete currency pairs produced by rate sources.
+ * Both the base and quote symbols are required.
+ */
+export const completeCoinPair = z.string().transform<string>((value, ctx) => {
+  if (!value.match(completeCoinPairRegex)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Invalid complete coin pair',
       fatal: true,
     });
 
@@ -73,3 +94,13 @@ export const nonnegativeNumber = z.coerce.number().nonnegative();
  * Zod schema for coercing and validating strictly positive numeric values (> 0).
  */
 export const positiveNumber = z.coerce.number().positive();
+
+/**
+ * Zod schema for coercing and validating non-negative integers.
+ */
+export const nonnegativeInteger = z.coerce.number().int().nonnegative();
+
+/**
+ * Zod schema for coercing and validating strictly positive integers.
+ */
+export const positiveInteger = z.coerce.number().int().positive();

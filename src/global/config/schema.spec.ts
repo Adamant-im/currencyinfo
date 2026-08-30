@@ -124,6 +124,111 @@ describe('Config Schema Validation', () => {
       expect(result.success).toBe(false);
     });
 
+    it('should reject unknown properties in nested configuration objects', () => {
+      const invalidConfig = {
+        ...validConfig,
+        server: {
+          ...validConfig.server,
+          mongodb: {
+            ...validConfig.server.mongodb,
+            legacyOption: true,
+          },
+        },
+      };
+
+      expect(schema.safeParse(invalidConfig).success).toBe(false);
+      expect(
+        schema.safeParse({
+          ...validConfig,
+          currency_api: { enabled: true, url: 'not-a-url', codes: ['USD'] },
+        }).success,
+      ).toBe(false);
+    });
+
+    it.each([
+      ['decimals', -1],
+      ['decimals', 101],
+      ['minSources', 0],
+      ['minSources', 1.5],
+      ['refreshInterval', 0],
+      ['rateLifetime', 0],
+      ['rateDifferencePercentThreshold', -1],
+      ['groupPercentage', 201],
+    ])('should reject unsafe %s value %s', (property, value) => {
+      const invalidConfig = {
+        ...validConfig,
+        [property]: value,
+      };
+
+      expect(schema.safeParse(invalidConfig).success).toBe(false);
+    });
+
+    it('should reject unsupported protocols for configurable provider URLs', () => {
+      const invalidConfig = {
+        ...validConfig,
+        currency_api: {
+          enabled: true,
+          url: 'file:///etc/passwd',
+          codes: ['USD'],
+        },
+      };
+
+      expect(schema.safeParse(invalidConfig).success).toBe(false);
+    });
+
+    it('should reject non-positive source weights and CoinMarketCap IDs', () => {
+      const invalidWeight = {
+        ...validConfig,
+        coingecko: {
+          enabled: true,
+          coins: ['BTC'],
+          weight: 0,
+        },
+      };
+      const invalidId = {
+        ...validConfig,
+        coinmarketcap: {
+          enabled: false,
+          ids: { BTC: -1 },
+        },
+      };
+
+      expect(schema.safeParse(invalidWeight).success).toBe(false);
+      expect(schema.safeParse(invalidId).success).toBe(false);
+    });
+
+    it('should reject enabled authenticated sources without API keys', () => {
+      const invalidExchangeRateHost = {
+        ...validConfig,
+        exchange_rate_host: {
+          enabled: true,
+          codes: ['EUR'],
+        },
+      };
+      const invalidCoinMarketCap = {
+        ...validConfig,
+        coinmarketcap: {
+          enabled: true,
+          ids: { BTC: 1 },
+        },
+      };
+
+      expect(schema.safeParse(invalidExchangeRateHost).success).toBe(false);
+      expect(schema.safeParse(invalidCoinMarketCap).success).toBe(false);
+    });
+
+    it('should allow CryptoCompare without its optional API key', () => {
+      const configWithoutApiKey = {
+        ...validConfig,
+        cryptocompare: {
+          enabled: true,
+          coins: ['BTC'],
+        },
+      };
+
+      expect(schema.safeParse(configWithoutApiKey).success).toBe(true);
+    });
+
     it('should reject invalid strategy enum value', () => {
       const invalidConfig = {
         ...validConfig,

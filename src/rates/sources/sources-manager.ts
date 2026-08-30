@@ -105,11 +105,14 @@ export class SourcesManager {
     const mappings = (this.config.get('mappings') as Record<string, string>) || {};
 
     const coins = new Set<string>();
+    this.sourcePairRecord = {};
 
     for (const source of enabledSources) {
-      source.enabledCoins.forEach((enabledCoin) => {
-        const baseCoin = mappings[enabledCoin] ?? enabledCoin;
+      const sourceCoins = new Set(
+        [...source.enabledCoins].map((enabledCoin) => mappings[enabledCoin] ?? enabledCoin),
+      );
 
+      sourceCoins.forEach((baseCoin) => {
         if (baseCoin !== 'USD') {
           const pairName = `${baseCoin}/USD`;
           this.sourcePairRecord[pairName] = Math.min(

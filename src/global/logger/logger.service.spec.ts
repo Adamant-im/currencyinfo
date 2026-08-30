@@ -84,4 +84,20 @@ describe('Logger Service', () => {
 
     expect(consoleLogSpy).toHaveBeenCalledTimes(3);
   });
+
+  it('should redact webhook credentials from console and file logs', () => {
+    const logger = createLogger('error');
+    const write = (createWriteStreamSpy.mock.results[0].value as { write: jest.Mock }).write;
+    const secret = 'SECRET_WEBHOOK_TOKEN';
+
+    logger.error(
+      `Request to https://hooks.slack.com/services/T00000000/B00000000/${secret} failed`,
+    );
+
+    expect(JSON.stringify(consoleLogSpy.mock.calls)).not.toContain(secret);
+    expect(JSON.stringify(write.mock.calls)).not.toContain(secret);
+    expect(write).toHaveBeenCalledWith(
+      expect.stringContaining('https://hooks.slack.com/services/***'),
+    );
+  });
 });

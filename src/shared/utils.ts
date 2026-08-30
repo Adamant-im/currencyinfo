@@ -146,28 +146,37 @@ export function sanitizeErrorMessage(text: string): string {
 
   return (
     text
-      // 1. URI credentials (e.g. mongodb://user:pass@host)
+      // 1. Webhook URLs, whose path components are credentials
+      .replace(
+        /https:\/\/hooks\.slack\.com\/services\/[A-Z0-9_-]+\/[A-Z0-9_-]+\/[A-Za-z0-9_-]+/gi,
+        'https://hooks.slack.com/services/***',
+      )
+      .replace(
+        /https:\/\/discord(?:app)?\.com\/api\/webhooks\/\d+\/[A-Za-z0-9_-]+/gi,
+        'https://discord.com/api/webhooks/***',
+      )
+      // 2. URI credentials (e.g. mongodb://user:pass@host)
       .replace(/\/\/[^:]+:[^@]+@/g, '//***:***@')
-      // 2. Authorization headers (Bearer, Basic)
+      // 3. Authorization headers (Bearer, Basic)
       .replace(/\b((?:Authorization:\s*)?(?:Bearer|Basic)\s+)[a-zA-Z0-9_\-.~+/]+=*/gi, '$1***')
-      // 3. Query string parameters (e.g. ?api_key=secret, &password=secret, ?adamantPassphrase=secret, ?key=secret)
+      // 4. Query string parameters (e.g. ?api_key=secret, &password=secret, ?adamantPassphrase=secret, ?key=secret)
       .replace(
         /([?&](?:[\w.]*(?:access_key|api_?key|token|secret|passphrase|password)|key)=)[^& "'\s]+/gi,
         '$1***',
       )
-      // 4. JSON properties (e.g. "adamantPassphrase": "...", "api_key": "secret", "password": 12345, "key": "val")
+      // 5. JSON properties (e.g. "adamantPassphrase": "...", "api_key": "secret", "password": 12345, "key": "val")
       .replace(
         /("(?:\b[\w.]*(?:access_key|api_?key|token|secret|passphrase|password)\b|key)"\s*:\s*)("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^\s,{}]+)/gi,
         '$1"***"',
       )
-      // 5. Quoted key-value pairs with escaped-quote support (supports spaces, semicolons, etc.)
+      // 6. Quoted key-value pairs with escaped-quote support (supports spaces, semicolons, etc.)
       .replace(
         /\b([\w.]*(?:access_key|api_?key|token|secret|passphrase|password)\b\s*[:=]\s*)(["'])((?:(?!\2)[^\\]|\\.)*)\2/gi,
         '$1$2***$2',
       )
-      // 6. Unquoted multi-word passphrases & passwords (both ':' and '=' separators; stops before ;, }, comma or newline)
+      // 7. Unquoted multi-word passphrases & passwords (both ':' and '=' separators; stops before ;, }, comma or newline)
       .replace(/\b([\w.]*(?:passphrase|password)\b\s*[:=]\s*)([^"'\s\r\n*][^\r\n,;}{]*)/gi, '$1***')
-      // 7. Unquoted single-word key-value pairs for non-multiword secret names (key=value, api_key=value, slackToken: value, etc.)
+      // 8. Unquoted single-word key-value pairs for non-multiword secret names (key=value, api_key=value, slackToken: value, etc.)
       .replace(
         /(?<![?&])\b([\w.]*(?:access_key|api_?key|token|secret)\b\s*[:=]\s*)([^"'\s\r\n*][^\s"',;&]*)/gi,
         '$1***',

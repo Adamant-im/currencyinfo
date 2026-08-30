@@ -1,6 +1,14 @@
 import { z } from 'zod';
 import { coinName } from 'src/shared/schema-types';
 
+const percentage = z.number().min(0).max(200);
+const httpUrl = z
+  .string()
+  .url()
+  .refine((value) => URL.canParse(value) && ['http:', 'https:'].includes(new URL(value).protocol), {
+    message: 'Only HTTP and HTTPS URLs are supported',
+  });
+
 /**
  * Zod validation schema for Slack incoming webhook URLs.
  */
@@ -31,10 +39,12 @@ export const discordWebhookUrl = z.custom<string>(
 /**
  * Common configuration schema for external API rate sources.
  */
-const apiSourceSchema = z.object({
-  enabled: z.boolean(),
-  weight: z.number().optional(),
-});
+const apiSourceSchema = z
+  .object({
+    enabled: z.boolean(),
+    weight: z.number().positive().optional(),
+  })
+  .strict();
 
 /**
  * Strict Zod schema for Currencyinfo runtime configuration validation.
@@ -43,35 +53,37 @@ export const schema = z
   .object({
     name: z.string().default('Currencyinfo'),
 
-    decimals: z.number().default(12),
+    decimals: z.number().int().min(0).max(100).default(12),
 
     strategy: z.enum(['avg', 'min', 'max', 'priority', 'weight']),
 
-    rateDifferencePercentThreshold: z.number().default(25),
-    groupPercentage: z.number(),
+    rateDifferencePercentThreshold: percentage.default(25),
+    groupPercentage: percentage,
 
-    minSources: z.number().default(1),
+    minSources: z.number().int().positive().default(1),
     priorities: z.array(z.string()),
 
-    refreshInterval: z.number().optional(),
-    rateLifetime: z.number(),
+    refreshInterval: z.number().positive().optional(),
+    rateLifetime: z.number().positive(),
 
     // Server
     server: z
       .object({
-        port: z.number().default(36661),
+        port: z.number().int().min(0).max(65535).default(36661),
         mongodb: z
           .object({
-            port: z.number().default(27017),
-            host: z.string().default('127.0.0.1'),
-            db: z.string().default('tickersdb'),
+            port: z.number().int().min(1).max(65535).default(27017),
+            host: z.string().trim().min(1).default('127.0.0.1'),
+            db: z.string().trim().min(1).default('tickersdb'),
           })
+          .strict()
           .default({
             port: 27017,
             host: '127.0.0.1',
             db: 'tickersdb',
           }),
       })
+      .strict()
       .default({
         port: 36661,
         mongodb: {
@@ -87,59 +99,66 @@ export const schema = z
         slack: slackWebhookUrl.array(),
         discord: discordWebhookUrl.array(),
         adamant: adamantAddress.array(),
-        adamantPassphrase: z.string().optional(),
+        adamantPassphrase: z.string().trim().min(1).optional(),
       })
       .partial()
+      .strict()
       .optional(),
     log_level: z.enum(['none', 'error', 'warn', 'log', 'info']).default('log'),
 
-    base_coins: z.array(coinName),
-    mappings: z.record(z.string(), z.string()).default({}),
+    base_coins: z.array(coinName).min(1),
+    mappings: z.record(z.string(), coinName).default({}),
 
     // Sources API
     moex: apiSourceSchema
       .extend({
-        url: z.string().url(),
+        url: httpUrl,
         codes: z.record(z.string(), z.string()),
       })
+      .strict()
       .optional(),
 
     currency_api: apiSourceSchema
       .extend({
-        url: z.string().url(),
+        url: httpUrl,
         codes: z.array(coinName).default([]),
       })
+      .strict()
       .optional(),
 
     exchange_rate_host: apiSourceSchema
       .extend({
-        api_key: z.string(),
+        api_key: z.string().trim().min(1),
         codes: z.array(coinName).default([]),
       })
       .partial()
+      .strict()
       .optional(),
 
     coinmarketcap: apiSourceSchema
       .extend({
-        api_key: z.string(),
+        api_key: z.string().trim().min(1),
         coins: z.array(coinName),
-        ids: z.record(z.string(), z.number()),
+        ids: z.record(z.string(), z.number().int().positive()),
       })
       .partial()
+      .strict()
       .optional(),
     cryptocompare: apiSourceSchema
       .extend({
-        api_key: z.string(),
+        api_key: z.string().trim().min(1),
         coins: z.array(coinName),
       })
       .partial()
+      .strict()
       .optional(),
     coingecko: apiSourceSchema
       .extend({
         coins: z.array(coinName),
-        ids: z.array(z.string()),
+        ids: z.array(z.string().trim().min(1)),
       })
       .partial()
+      .strict()
       .optional(),
   })
   .strict()
@@ -152,6 +171,80 @@ export const schema = z
       ),
     'Provide passphrase to use ADAMANT notifier',
   )
+  .superRefine((config, ctx) => {
+    const exchangeRateHostEnabled = config.exchange_rate_host?.enabled !== false;
+    if (exchangeRateHostEnabled && config.exchange_rate_host?.codes?.length) {
+      if (!config.exchange_rate_host.api_key) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['exchange_rate_host', 'api_key'],
+          message: 'Provide an API key when ExchangeRateHost is enabled',
+        });
+      }
+    } else if (config.exchange_rate_host?.enabled === true) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['exchange_rate_host', 'codes'],
+        message: 'Provide at least one currency code when ExchangeRateHost is enabled',
+      });
+    }
+
+    const coinmarketcapEnabled = config.coinmarketcap?.enabled !== false;
+    const coinmarketcapHasCoins = Boolean(
+      config.coinmarketcap?.coins?.length || Object.keys(config.coinmarketcap?.ids || {}).length,
+    );
+    if (coinmarketcapEnabled && coinmarketcapHasCoins) {
+      if (!config.coinmarketcap?.api_key) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['coinmarketcap', 'api_key'],
+          message: 'Provide an API key when CoinMarketCap is enabled',
+        });
+      }
+    } else if (config.coinmarketcap?.enabled === true) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['coinmarketcap', 'coins'],
+        message: 'Provide at least one coin or ID when CoinMarketCap is enabled',
+      });
+    }
+
+    if (config.cryptocompare?.enabled === true && !config.cryptocompare.coins?.length) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['cryptocompare', 'coins'],
+        message: 'Provide at least one coin when CryptoCompare is enabled',
+      });
+    }
+
+    if (
+      config.coingecko?.enabled === true &&
+      !config.coingecko.coins?.length &&
+      !config.coingecko.ids?.length
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['coingecko', 'coins'],
+        message: 'Provide at least one coin or ID when CoinGecko is enabled',
+      });
+    }
+
+    if (config.currency_api?.enabled && !config.currency_api.codes.length) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['currency_api', 'codes'],
+        message: 'Provide at least one currency code when CurrencyApi is enabled',
+      });
+    }
+
+    if (config.moex?.enabled && !Object.keys(config.moex.codes).length) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['moex', 'codes'],
+        message: 'Provide at least one market code when MOEX is enabled',
+      });
+    }
+  })
   .transform(({ base_coins: baseCoins, ...data }) => ({
     ...data,
     base_coins: baseCoins.map((coin) => data.mappings[coin] ?? coin),
