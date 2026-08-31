@@ -1,12 +1,16 @@
 import { z } from 'zod';
 
 const coinNameRegexPattern = '[\\$a-zA-Z0-9]+';
+const sourceCoinNameRegexPattern = '[\\p{L}\\p{N}$._-]{1,64}';
 
 const coinRegex = new RegExp(`^${coinNameRegexPattern}$`);
 const coinPairRegex = new RegExp(
   `^(?:${coinNameRegexPattern}/${coinNameRegexPattern}|${coinNameRegexPattern}/|/${coinNameRegexPattern})$`,
 );
-const completeCoinPairRegex = new RegExp(`^${coinNameRegexPattern}/${coinNameRegexPattern}$`);
+const completeCoinPairRegex = new RegExp(
+  `^${sourceCoinNameRegexPattern}/${sourceCoinNameRegexPattern}$`,
+  'u',
+);
 const coinListRegex = new RegExp(`^${coinNameRegexPattern}(?:,${coinNameRegexPattern})*$`);
 
 /**
@@ -47,7 +51,8 @@ export const coinPair = z.string().transform<string>((value, ctx) => {
 
 /**
  * Zod schema for complete currency pairs produced by rate sources.
- * Both the base and quote symbols are required.
+ * Both symbols are required and may contain provider-defined Unicode letters,
+ * numbers, dollar signs, dots, underscores, and hyphens.
  */
 export const completeCoinPair = z.string().transform<string>((value, ctx) => {
   if (!value.match(completeCoinPairRegex)) {
