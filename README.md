@@ -79,7 +79,8 @@ Edit `config.jsonc` to configure your MongoDB connection, base coins, active dat
 Configuration is validated strictly at startup:
 
 - `base_coins` must contain at least one symbol
-- `rateDifferencePercentThreshold` and `groupPercentage` must be between `0` and `200`; use `200` to disable rate-distance splitting
+- `rateDifferencePercentThreshold` and `groupPercentage` must be between `0` and `200`
+- Set `rateDifferencePercentThreshold` to `200` to disable rate-distance splitting entirely; note that `groupPercentage` behaves the opposite way, and `200` there rejects every pair that splits into more than one group
 - `refreshInterval`, when present, and `rateLifetime` must be greater than zero
 - `minSources` must be a positive integer
 - Optional source weights must be non-negative; zero gives a source no group weight

@@ -1,4 +1,6 @@
 .ai-ignored
+.ai-tasks
+.claude
 .git
 .github
 config.jsonc

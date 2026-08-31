@@ -49,6 +49,15 @@ describe('Logger Service', () => {
     expect(chmodSyncSpy).toHaveBeenCalledWith('./logs', 0o750);
   });
 
+  it('should start even when the logs directory permissions cannot be changed', () => {
+    chmodSyncSpy.mockImplementation(() => {
+      throw Object.assign(new Error('EPERM: operation not permitted'), { code: 'EPERM' });
+    });
+
+    expect(() => createLogger('log')).not.toThrow();
+    expect(createWriteStreamSpy).toHaveBeenCalled();
+  });
+
   it('should filter out info messages when log_level is log', () => {
     const logger = createLogger('log');
     logger.info('Test info message');

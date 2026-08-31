@@ -21,7 +21,13 @@ export class Logger implements LoggerService {
 
   constructor(private config: ConfigService) {
     fs.mkdirSync('./logs', { mode: 0o750, recursive: true });
-    fs.chmodSync('./logs', 0o750);
+
+    try {
+      fs.chmodSync('./logs', 0o750);
+    } catch {
+      // Best-effort hardening: the directory may be a mounted volume owned by
+      // another user, where chmod is not permitted. Never block startup for it.
+    }
 
     const safeLogFileName = fullTime().replace(/:/g, '-');
     this.logStream = fs.createWriteStream(`./logs/${safeLogFileName}.log`, {

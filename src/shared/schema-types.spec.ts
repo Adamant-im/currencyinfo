@@ -63,6 +63,14 @@ describe('Shared Schema Types', () => {
       expect(completeCoinPair.safeParse('BTC/USD/EUR').success).toBe(false);
       expect(completeCoinPair.safeParse(`${'A'.repeat(65)}/USD`).success).toBe(false);
     });
+
+    it('should reject symbols without any letter or number', () => {
+      expect(completeCoinPair.safeParse('.../...').success).toBe(false);
+      expect(completeCoinPair.safeParse('-/-').success).toBe(false);
+      expect(completeCoinPair.safeParse('$/$').success).toBe(false);
+      expect(completeCoinPair.safeParse('__/__').success).toBe(false);
+      expect(completeCoinPair.safeParse('BTC/...').success).toBe(false);
+    });
   });
 
   describe('coinNameOrPair', () => {
@@ -72,9 +80,16 @@ describe('Shared Schema Types', () => {
       expect(coinNameOrPair.safeParse('ADM').success).toBe(true);
     });
 
+    it('should accept every symbol form a rate source can produce', () => {
+      expect(coinNameOrPair.safeParse('baby-doge').data).toBe('BABY-DOGE');
+      expect(coinNameOrPair.safeParse('st.test').data).toBe('ST.TEST');
+      expect(coinNameOrPair.safeParse('token_v2/usd').data).toBe('TOKEN_V2/USD');
+    });
+
     it('should reject invalid input', () => {
       expect(coinNameOrPair.safeParse('').success).toBe(false);
       expect(coinNameOrPair.safeParse('BTC//USD').success).toBe(false);
+      expect(coinNameOrPair.safeParse('...').success).toBe(false);
     });
   });
 
@@ -87,9 +102,18 @@ describe('Shared Schema Types', () => {
       }
     });
 
+    it('should accept source-defined symbols so stored pairs stay filterable', () => {
+      expect(coinList.safeParse('baby-doge,st.test,token_v2').data).toEqual([
+        'BABY-DOGE',
+        'ST.TEST',
+        'TOKEN_V2',
+      ]);
+    });
+
     it('should reject invalid list with special characters', () => {
       expect(coinList.safeParse('btc!eth').success).toBe(false);
       expect(coinList.safeParse('').success).toBe(false);
+      expect(coinList.safeParse('BTC,...').success).toBe(false);
     });
   });
 

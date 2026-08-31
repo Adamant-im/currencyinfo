@@ -325,6 +325,7 @@ describe('RatesService', () => {
       'error',
       expect.stringContaining('No data has been saved'),
     );
+    expect(notifier.notify).toHaveBeenCalledWith('error', expect.stringContaining('Empty API'));
     expect(notifier.notify).toHaveBeenCalledTimes(1);
   });
 

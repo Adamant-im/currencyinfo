@@ -130,7 +130,9 @@ export class RatesService extends RatesMerger {
       this.setTickers(sourceTickers);
 
       if (availableSources <= 0) {
-        this.fail('Unable to get new rates from all sources. No data has been saved.');
+        this.fail(
+          `Unable to get new rates from all sources (${unavailableSources.join(', ')}). No data has been saved.`,
+        );
         return;
       }
 
@@ -144,7 +146,7 @@ export class RatesService extends RatesMerger {
       const ratesWithFewerSources = this.getRatesWithFewerSources();
 
       if (ratesWithFewerSources.length) {
-        this.notifier.notify(
+        void this.notifier.notify(
           'warn',
           `The following rates have been fetched from fewer sources than expected and therefore won't be saved: ${ratesWithFewerSources
             .map(([pair, expected, got]) => `${pair} (expected ${expected}, but got ${got})`)
@@ -458,14 +460,14 @@ export class RatesService extends RatesMerger {
     }
 
     for (const [pair, price] of Object.entries(tickers)) {
-      let [quote, base] = pair.split('/');
+      let [base, quote] = pair.split('/');
 
-      quote = Object.hasOwn(mappings, quote) ? mappings[quote] : quote;
       base = Object.hasOwn(mappings, base) ? mappings[base] : base;
+      quote = Object.hasOwn(mappings, quote) ? mappings[quote] : quote;
 
       delete tickers[pair];
 
-      tickers[`${quote}/${base}`] = price;
+      tickers[`${base}/${quote}`] = price;
     }
 
     return tickers;
