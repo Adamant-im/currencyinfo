@@ -176,13 +176,21 @@ describe('Config Schema Validation', () => {
       expect(schema.safeParse(invalidConfig).success).toBe(false);
     });
 
-    it('should reject non-positive source weights and CoinMarketCap IDs', () => {
-      const invalidWeight = {
+    it('should accept zero source weights and reject negative weights and IDs', () => {
+      const zeroWeight = {
         ...validConfig,
         coingecko: {
           enabled: true,
           coins: ['BTC'],
           weight: 0,
+        },
+      };
+      const invalidWeight = {
+        ...validConfig,
+        coingecko: {
+          enabled: true,
+          coins: ['BTC'],
+          weight: -1,
         },
       };
       const invalidId = {
@@ -193,6 +201,7 @@ describe('Config Schema Validation', () => {
         },
       };
 
+      expect(schema.safeParse(zeroWeight).success).toBe(true);
       expect(schema.safeParse(invalidWeight).success).toBe(false);
       expect(schema.safeParse(invalidId).success).toBe(false);
     });

@@ -20,9 +20,8 @@ export class Logger implements LoggerService {
   private previousTime = 0;
 
   constructor(private config: ConfigService) {
-    if (!fs.existsSync('./logs')) {
-      fs.mkdirSync('./logs', { mode: 0o750 });
-    }
+    fs.mkdirSync('./logs', { mode: 0o750, recursive: true });
+    fs.chmodSync('./logs', 0o750);
 
     const safeLogFileName = fullTime().replace(/:/g, '-');
     this.logStream = fs.createWriteStream(`./logs/${safeLogFileName}.log`, {

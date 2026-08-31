@@ -42,7 +42,7 @@ export const discordWebhookUrl = z.custom<string>(
 const apiSourceSchema = z
   .object({
     enabled: z.boolean(),
-    weight: z.number().positive().optional(),
+    weight: z.number().nonnegative().optional(),
   })
   .strict();
 

@@ -94,6 +94,27 @@ describe('Notifier Service', () => {
     await expect(notifier.notify('error', 'Failing notification')).resolves.not.toThrow();
   });
 
+  it('should contain and sanitize notification setup failures', async () => {
+    const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    const secret = 'SECRET_WEBHOOK_TOKEN';
+    const failingConfig = {
+      get: jest.fn((key: string) => {
+        if (key === 'notify') {
+          throw new Error(`Invalid https://hooks.slack.com/services/T00000000/B00000000/${secret}`);
+        }
+        return 'CurrencyinfoTest';
+      }),
+    } as unknown as ConfigService;
+
+    const failingNotifier = new Notifier(failingConfig);
+
+    await expect(failingNotifier.notify('error', 'Test message')).resolves.not.toThrow();
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain(secret);
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('/services/***'));
+
+    errorSpy.mockRestore();
+  });
+
   it('should redact webhook credentials from notification messages and error logs', async () => {
     const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
     const secret = 'SECRET_WEBHOOK_TOKEN';

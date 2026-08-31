@@ -164,8 +164,9 @@ describe('RatesService', () => {
 
     await service.fetchTickers(mockSource);
 
-    expect(failSpy).toHaveBeenCalledWith(expect.not.stringContaining('SECRET_CC_KEY'));
-    expect(failSpy).toHaveBeenCalledWith(expect.stringContaining('api_key":"***"'));
+    expect(failSpy).not.toHaveBeenCalled();
+    expect(JSON.stringify(mockLogger.warn.mock.calls)).not.toContain('SECRET_CC_KEY');
+    expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('api_key":"***"'));
   });
 
   it('should initialize properly', async () => {
@@ -265,7 +266,8 @@ describe('RatesService', () => {
 
     await service.fetchTickers(mockSource);
 
-    expect(failSpy).toHaveBeenCalledWith(expect.stringContaining('API error'));
+    expect(failSpy).not.toHaveBeenCalled();
+    expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('API error'));
   });
 
   it('should reject empty and malformed source responses without marking them available', async () => {
@@ -286,7 +288,28 @@ describe('RatesService', () => {
 
     jest.spyOn(invalidSource, 'fetch').mockResolvedValue({});
     await expect(service.fetchTickers(invalidSource)).resolves.toBeUndefined();
-    expect(failSpy).toHaveBeenCalledWith(expect.stringContaining('no valid positive rates'));
+    expect(failSpy).not.toHaveBeenCalled();
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('no valid positive rates'),
+    );
+  });
+
+  it('should accept legitimate provider-defined symbol characters', async () => {
+    const source = new MockedApi('Provider API', {}, true);
+
+    jest.spyOn(source, 'fetch').mockResolvedValue({
+      'BABY-DOGE/USD': 0.000001,
+      'ST.TEST/USD': 2,
+      'TOKEN_V2/USD': 3,
+      'ÆRGO/USD': 4,
+    });
+
+    await expect(service.fetchTickers(source)).resolves.toEqual({
+      'BABY-DOGE/USD': 0.000001,
+      'ST.TEST/USD': 2,
+      'TOKEN_V2/USD': 3,
+      'ÆRGO/USD': 4,
+    });
   });
 
   it('should not save a snapshot when all enabled sources return no valid rates', async () => {
@@ -301,6 +324,26 @@ describe('RatesService', () => {
     expect(notifier.notify).toHaveBeenCalledWith(
       'error',
       expect.stringContaining('No data has been saved'),
+    );
+    expect(notifier.notify).toHaveBeenCalledTimes(1);
+  });
+
+  it('should emit one aggregated warning when only some sources fail', async () => {
+    await service['ready'];
+    sourceManager.sources = [
+      new MockedApi('Empty API', {}, true),
+      new MockedApi('Healthy API', { 'BTC/USD': 50_000 }, true),
+    ];
+    sourceManager.sourceCount = 2;
+    sourceManager.sourcePairRecord = { 'BTC/USD': 1 };
+    jest.spyOn(service, 'saveTickers').mockResolvedValue();
+
+    await service.updateTickers();
+
+    expect(notifier.notify).toHaveBeenCalledTimes(1);
+    expect(notifier.notify).toHaveBeenCalledWith(
+      'warn',
+      expect.stringContaining('Unable to fetch valid data from Empty API'),
     );
   });
 
@@ -339,7 +382,7 @@ describe('RatesService', () => {
 
       expect(tickerModel.aggregate).toHaveBeenCalledWith([
         { $match: { date: { $gte: 100_000 } } },
-        { $sort: { date: -1, _id: -1 } },
+        { $sort: { date: -1 } },
       ]);
       expect(aggregateCursor.close).toHaveBeenCalled();
     });
@@ -350,13 +393,13 @@ describe('RatesService', () => {
       await service.getHistoryTickers({ coin: 'ADM/USD' });
       expect(tickerModel.aggregate).toHaveBeenLastCalledWith([
         { $match: { base: 'ADM', quote: 'USD' } },
-        { $sort: { date: -1, _id: -1 } },
+        { $sort: { date: -1 } },
       ]);
 
       await service.getHistoryTickers({ coin: 'ADM/' });
       expect(tickerModel.aggregate).toHaveBeenLastCalledWith([
         { $match: { base: 'ADM' } },
-        { $sort: { date: -1, _id: -1 } },
+        { $sort: { date: -1 } },
       ]);
     });
 
@@ -386,6 +429,21 @@ describe('RatesService', () => {
           tickers: { 'BTC/USD': 50_000, 'ETH/USD': 2500 },
         },
       ]);
+      expect(aggregateCursor.close).toHaveBeenCalled();
+    });
+
+    it('should stop after the requested number of date groups even when timestamps are missing', async () => {
+      aggregateCursor.next
+        .mockResolvedValueOnce({ date: 3000, base: 'BTC', quote: 'USD', rate: 51_000 })
+        .mockResolvedValueOnce({ date: 2000, base: 'BTC', quote: 'USD', rate: 50_000 })
+        .mockResolvedValueOnce({ date: 1000, base: 'BTC', quote: 'USD', rate: 49_000 });
+      timestampModel.findOne.mockResolvedValue(null);
+
+      await expect(service.getHistoryTickers({ limit: 1 })).resolves.toEqual([]);
+
+      expect(timestampModel.findOne).toHaveBeenCalledTimes(1);
+      expect(timestampModel.findOne).toHaveBeenCalledWith({ date: 3000 });
+      expect(aggregateCursor.next).toHaveBeenCalledTimes(2);
       expect(aggregateCursor.close).toHaveBeenCalled();
     });
   });

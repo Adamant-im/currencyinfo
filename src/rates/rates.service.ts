@@ -19,10 +19,10 @@ import { GetHistoryDto } from './schemas/getHistory.schema';
 import { RatesMerger, StrategyName } from './merger';
 import { SourcesManager } from './sources/sources-manager';
 import {
+  isNumber,
   sanitizeErrorMessage as sanitizeString,
   sanitizeParams as sanitizeObjectParams,
 } from 'src/shared/utils';
-import { isNumber } from 'src/shared/utils';
 import { completeCoinPair } from 'src/shared/schema-types';
 
 export interface HistoricalResult {
@@ -110,16 +110,13 @@ export class RatesService extends RatesMerger {
 
       const sourceTickers: SourceTickers = {};
       let availableSources = 0;
+      const unavailableSources: string[] = [];
 
       for (const source of this.sourcesManager.getEnabledSources()) {
         const tickers = await this.fetchTickers(source);
 
         if (!tickers) {
-          this.notifier.notify(
-            'warn',
-            `Unable to fetch valid data from ${source.resourceName}. InfoService will provide previous rates; new rates won't be saved for this source.`,
-          );
-
+          unavailableSources.push(source.resourceName);
           continue;
         }
 
@@ -135,6 +132,13 @@ export class RatesService extends RatesMerger {
       if (availableSources <= 0) {
         this.fail('Unable to get new rates from all sources. No data has been saved.');
         return;
+      }
+
+      if (unavailableSources.length) {
+        void this.notifier.notify(
+          'warn',
+          `Unable to fetch valid data from ${unavailableSources.join(', ')}. InfoService will provide previous rates for affected pairs when they are still fresh.`,
+        );
       }
 
       const ratesWithFewerSources = this.getRatesWithFewerSources();
@@ -306,7 +310,7 @@ export class RatesService extends RatesMerger {
       }
     }
 
-    queries.push({ $sort: { date: -1, _id: -1 } });
+    queries.push({ $sort: { date: -1 } });
 
     const results: HistoricalResult[] = [];
 
@@ -314,8 +318,9 @@ export class RatesService extends RatesMerger {
 
     try {
       let doc: Ticker | null = await cursor.next();
+      let processedGroups = 0;
 
-      while (doc && results.length < limit) {
+      while (doc && processedGroups < limit) {
         const date = doc.date;
         const tickers: Tickers = {};
 
@@ -324,6 +329,7 @@ export class RatesService extends RatesMerger {
           doc = await cursor.next();
         } while (doc && doc.date === date);
 
+        processedGroups += 1;
         await this.addTickerWithTimestamp(results, tickers, date);
       }
     } finally {
@@ -379,7 +385,7 @@ export class RatesService extends RatesMerger {
 
       message.push(`Error: ${this.sanitizeErrorMessage(String(error))}.`);
 
-      this.fail(message.join(' '));
+      this.logger.warn(message.join(' '));
     }
   }
 
@@ -392,7 +398,7 @@ export class RatesService extends RatesMerger {
    */
   validateSourceTickers(value: unknown, sourceName: string): Tickers | undefined {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
-      this.fail(`Unable to process data from ${sourceName}: expected a ticker object.`);
+      this.logger.warn(`Unable to process data from ${sourceName}: expected a ticker object.`);
       return;
     }
 
@@ -417,7 +423,7 @@ export class RatesService extends RatesMerger {
     }
 
     if (!Object.keys(tickers).length) {
-      this.fail(
+      this.logger.warn(
         `Unable to process data from ${sourceName}: no valid positive rates were returned.`,
       );
       return;
@@ -454,8 +460,8 @@ export class RatesService extends RatesMerger {
     for (const [pair, price] of Object.entries(tickers)) {
       let [quote, base] = pair.split('/');
 
-      quote = mappings[quote] || quote;
-      base = mappings[base] || base;
+      quote = Object.hasOwn(mappings, quote) ? mappings[quote] : quote;
+      base = Object.hasOwn(mappings, base) ? mappings[base] : base;
 
       delete tickers[pair];
 
@@ -469,10 +475,6 @@ export class RatesService extends RatesMerger {
    * Dispatches an error alert via Notifier.
    */
   fail(reason: string) {
-    void Promise.resolve(this.notifier.notify('error', reason)).catch((error) => {
-      this.logger.error(
-        `Failed to send error notification: ${this.sanitizeErrorMessage(String(error))}`,
-      );
-    });
+    void this.notifier.notify('error', reason);
   }
 }

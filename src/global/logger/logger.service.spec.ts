@@ -5,9 +5,13 @@ import { Logger } from './logger.service';
 describe('Logger Service', () => {
   let consoleLogSpy: jest.SpyInstance;
   let createWriteStreamSpy: jest.SpyInstance;
+  let mkdirSyncSpy: jest.SpyInstance;
+  let chmodSyncSpy: jest.SpyInstance;
 
   beforeEach(() => {
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    mkdirSyncSpy = jest.spyOn(fs, 'mkdirSync').mockImplementation(() => undefined);
+    chmodSyncSpy = jest.spyOn(fs, 'chmodSync').mockImplementation(() => undefined);
     createWriteStreamSpy = jest.spyOn(fs, 'createWriteStream').mockReturnValue({
       write: jest.fn(),
       end: jest.fn(),
@@ -16,6 +20,8 @@ describe('Logger Service', () => {
 
   afterEach(() => {
     consoleLogSpy.mockRestore();
+    mkdirSyncSpy.mockRestore();
+    chmodSyncSpy.mockRestore();
     createWriteStreamSpy.mockRestore();
   });
 
@@ -34,6 +40,13 @@ describe('Logger Service', () => {
     logger.error('Test error message');
 
     expect(consoleLogSpy).toHaveBeenCalledTimes(4);
+  });
+
+  it('should enforce restricted permissions on an existing logs directory', () => {
+    createLogger('log');
+
+    expect(mkdirSyncSpy).toHaveBeenCalledWith('./logs', { mode: 0o750, recursive: true });
+    expect(chmodSyncSpy).toHaveBeenCalledWith('./logs', 0o750);
   });
 
   it('should filter out info messages when log_level is log', () => {

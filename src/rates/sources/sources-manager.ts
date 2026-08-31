@@ -109,7 +109,9 @@ export class SourcesManager {
 
     for (const source of enabledSources) {
       const sourceCoins = new Set(
-        [...source.enabledCoins].map((enabledCoin) => mappings[enabledCoin] ?? enabledCoin),
+        [...source.enabledCoins].map((enabledCoin) =>
+          Object.hasOwn(mappings, enabledCoin) ? mappings[enabledCoin] : enabledCoin,
+        ),
       );
 
       sourceCoins.forEach((baseCoin) => {
@@ -157,8 +159,8 @@ export class SourcesManager {
    */
   warnUnavailableBaseCoins() {
     const mappings = (this.config.get('mappings') as Record<string, string>) || {};
-    const baseCoins = ((this.config.get('base_coins') as string[]) || []).map(
-      (coin) => mappings[coin] ?? coin,
+    const baseCoins = ((this.config.get('base_coins') as string[]) || []).map((coin) =>
+      Object.hasOwn(mappings, coin) ? mappings[coin] : coin,
     );
 
     const unavailableBaseCoins = baseCoins.filter(

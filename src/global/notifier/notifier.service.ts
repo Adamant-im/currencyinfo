@@ -43,26 +43,37 @@ export class Notifier {
    * @param message - Notification message content
    */
   async notify(notifyLevel: LogLevelName, message: string): Promise<void> {
-    message = sanitizeErrorMessage(message);
-    const logMethod = notifyLevel === 'info' ? 'log' : notifyLevel;
-    if (logMethod in this.logger) {
-      (this.logger as any)[logMethod](removeMarkdown(message));
+    try {
+      const logMethod = notifyLevel === 'info' ? 'log' : notifyLevel;
+      if (logMethod in this.logger) {
+        (this.logger as any)[logMethod](removeMarkdown(sanitizeErrorMessage(message)));
+      }
+
+      const notify = this.config.get('notify');
+
+      if (!notify) {
+        return;
+      }
+
+      const name = this.config.get('name') as string;
+      const notifyMessage = `**${name}**# ${message}`;
+
+      const results = await Promise.allSettled([
+        this.notifySlack(notifyLevel, notifyMessage),
+        this.notifyDiscord(notifyLevel, notifyMessage),
+        this.notifyAdamant(notifyLevel, notifyMessage),
+      ]);
+
+      for (const result of results) {
+        if (result.status === 'rejected') {
+          this.logger.error(
+            `Failed to dispatch notification: ${sanitizeErrorMessage(String(result.reason))}`,
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.error(`Failed to prepare notification: ${sanitizeErrorMessage(String(error))}`);
     }
-
-    const notify = this.config.get('notify');
-
-    if (!notify) {
-      return;
-    }
-
-    const name = this.config.get('name') as string;
-    const notifyMessage = `**${name}**# ${message}`;
-
-    await Promise.allSettled([
-      this.notifySlack(notifyLevel, notifyMessage),
-      this.notifyDiscord(notifyLevel, notifyMessage),
-      this.notifyAdamant(notifyLevel, notifyMessage),
-    ]);
   }
 
   /**

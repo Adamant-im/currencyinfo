@@ -8,15 +8,15 @@
 
   "strategy": "priority", // Strategy to handle rates with close prices
 
-  "rateDifferencePercentThreshold": 25, // Percentage to group rates with close prices
-  "groupPercentage": 65, // Percentage threshold for notifying significant group deviations
+  "rateDifferencePercentThreshold": 25, // Percentage from 0 to 200 used to group close rates; use 200 to disable rate-distance splitting
+  "groupPercentage": 65, // Percentage from 0 to 200 used to notify about significant group deviations
 
-  "refreshInterval": 10, // The frequency of rate updates from sources in minutes (optional). Frequent refreshes may require paid API keys
-  "minSources": 2, // Minimum number of sources required for rate calculation
+  "refreshInterval": 10, // Positive update interval in minutes (optional). Frequent refreshes may require paid API keys
+  "minSources": 2, // Positive integer number of sources required for rate calculation
 
   // Specifies the duration (in minutes) for which the rates are considered relevant
   // Rates this old can be saved in history
-  "rateLifetime": 60,
+  "rateLifetime": 60, // Must be greater than zero
 
   "priorities": [
     "ExchangeRateHost",
@@ -56,13 +56,15 @@
   },
   "log_level": "log", // Specifies the verbosity of logs (none, error, warn, log, info)
 
-  // List of base coins for calculating all available pairs
+  // Non-empty list of base coins for calculating all available pairs
   "base_coins": ["USD", "RUB", "EUR", "CNY", "JPY", "BTC", "ETH"],
 
   // A mapping of symbols to their standardized names for consistency across different sources
   "mappings": {
     "CWIF": "$CWIF"
   },
+
+  // Optional per-source weights must be non-negative; zero gives a source no group weight
 
   // Free Moscow Exchange (https://moex.com) API configuration. Fiat currencies mostly.
   // Using a Russian proxy server because MOEX may block requests from hostile countries. The proxy updates data every 3 minutes.
@@ -105,7 +107,7 @@
   // The API supports world currencies, precious metals and Bitcoin: https://exchangerate.host/currencies
   // Spot exchange rate data is retrieved from several major forex data providers in real-time, validated, processed and delivered hourly, every 10 minutes, or even within the 60-second market window.
   "exchange_rate_host": {
-    "enabled": false, // Enable or disable ExchangeRate API (optional)
+    "enabled": false, // Set explicitly; when omitted, a configured source is treated as enabled
     "api_key": "API key for ExchangeRate", // obligatory
     "codes": [
       // List of currency and coin codes to fetch rates from ExchangeRateHost (optional)
@@ -122,7 +124,7 @@
   // CoinMarketCap (https://coinmarketcap.com) configuration
   // Comprehensive coin list with most endpoints update every 1 minute
   "coinmarketcap": {
-    "enabled": false, // Enable or disable CoinMarketCap API (optional)
+    "enabled": false, // Set explicitly; when omitted, a configured source is treated as enabled
     "api_key": "API key for CoinMarketCap", // obligatory
     "coins": [
       // List of coins to fetch rates from CoinMarketCap (optional, deprecated)

@@ -53,9 +53,15 @@ describe('Shared Schema Types', () => {
   describe('completeCoinPair', () => {
     it('should accept and normalize complete pairs only', () => {
       expect(completeCoinPair.safeParse('btc/usd').data).toBe('BTC/USD');
+      expect(completeCoinPair.safeParse('baby-doge/usd').data).toBe('BABY-DOGE/USD');
+      expect(completeCoinPair.safeParse('st.test/token_v2').data).toBe('ST.TEST/TOKEN_V2');
+      expect(completeCoinPair.safeParse('ærgo/usd').success).toBe(true);
       expect(completeCoinPair.safeParse('BTC/').success).toBe(false);
       expect(completeCoinPair.safeParse('/USD').success).toBe(false);
       expect(completeCoinPair.safeParse('/').success).toBe(false);
+      expect(completeCoinPair.safeParse('BTC USD/USD').success).toBe(false);
+      expect(completeCoinPair.safeParse('BTC/USD/EUR').success).toBe(false);
+      expect(completeCoinPair.safeParse(`${'A'.repeat(65)}/USD`).success).toBe(false);
     });
   });
 

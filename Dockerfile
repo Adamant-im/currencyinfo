@@ -25,7 +25,7 @@ RUN npm install -g pnpm@10.11.0 && \
 COPY --from=builder /usr/src/currencyinfo/dist ./dist
 COPY --from=builder /usr/src/currencyinfo/config.default.jsonc ./
 
-RUN mkdir -p ./logs && chown -R node:node /usr/src/currencyinfo
+RUN mkdir -p ./logs && chown node:node ./logs
 
 USER node
 
