@@ -1,6 +1,6 @@
 # ![ADAMANT Currencyinfo logo](./.github/logo.png) ADAMANT Currencyinfo v4
 
-*Reliable self-hosted crypto and fiat currency exchange rates service provider.*
+_Reliable self-hosted crypto and fiat currency exchange rates service provider._
 
 > Brought to you by the ADAMANT developer community and cryptofoundry.
 > Custom crypto software, trading bots, payment systems and blockchain infrastructure — built for production. [Tell us what to build](https://adamant.business#contact).
@@ -76,6 +76,15 @@ cp config.default.jsonc config.jsonc
 
 Edit `config.jsonc` to configure your MongoDB connection, base coins, active data sources, and optional notification webhooks.
 
+Configuration is validated strictly at startup:
+
+- `base_coins` must contain at least one symbol
+- `rateDifferencePercentThreshold` and `groupPercentage` must be between `0` and `200`; use `200` to disable rate-distance splitting
+- `refreshInterval`, when present, and `rateLifetime` must be greater than zero
+- `minSources` must be a positive integer
+- Optional source weights must be non-negative; zero gives a source no group weight
+- Set `enabled` explicitly for authenticated sources; if it is omitted for a configured ExchangeRateHost or CoinMarketCap source, the source is treated as enabled and requires an API key
+
 ### 3. Build and run
 
 ```bash
@@ -89,6 +98,13 @@ pnpm run start:prod
 
 ### Running with Docker
 
+The production image runs as the unprivileged `node` user with UID and GID `1000`. On Linux, keep the configuration restricted while making it readable by that identity:
+
+```bash
+sudo chown 1000:1000 config.jsonc
+chmod 600 config.jsonc
+```
+
 ```bash
 # Build Docker image
 docker build -t adamant/currencyinfo .
@@ -96,7 +112,7 @@ docker build -t adamant/currencyinfo .
 # Run container
 docker run -d \
   -p 36661:36661 \
-  -v $(pwd)/config.jsonc:/usr/src/currencyinfo/config.jsonc \
+  -v $(pwd)/config.jsonc:/usr/src/currencyinfo/config.jsonc:ro \
   --name currencyinfo \
   adamant/currencyinfo
 ```
@@ -138,6 +154,10 @@ GET /get?rateLifetime=30
 ### 2. Get Historical Rates
 
 Retrieves historical rate points stored in MongoDB:
+
+Pair filters use the documented `BASE/QUOTE` order. Deployments upgrading from versions with the inverted historical filter must remove any client-side pair reversal workaround.
+
+History snapshots are written only when at least one provider returns valid current data. A complete provider outage leaves a gap instead of recording cached rates as a new observation.
 
 ```http
 GET /getHistory?coin=ADM&limit=10
