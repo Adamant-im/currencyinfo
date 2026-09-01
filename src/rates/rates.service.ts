@@ -290,14 +290,15 @@ export class RatesService extends RatesMerger {
       );
     }
 
+    const dateRange: { $gte?: number; $lte?: number } = {};
+    if (from !== undefined) {
+      dateRange.$gte = from * 1000;
+    }
+    if (to !== undefined) {
+      dateRange.$lte = to * 1000;
+    }
+
     if (from !== undefined || to !== undefined) {
-      const dateRange: { $gte?: number; $lte?: number } = {};
-      if (from !== undefined) {
-        dateRange.$gte = from * 1000;
-      }
-      if (to !== undefined) {
-        dateRange.$lte = to * 1000;
-      }
       queries.push({
         $match: {
           date: dateRange,
@@ -309,7 +310,7 @@ export class RatesService extends RatesMerger {
     const coinMatch = this.buildCoinMatch(coin);
 
     if (timestamp !== undefined) {
-      const snapshotDate = await this.resolveSnapshotDate(timestamp, coinMatch);
+      const snapshotDate = await this.resolveSnapshotDate(timestamp, coinMatch, dateRange);
 
       if (snapshotDate === undefined) {
         return [];
@@ -388,14 +389,35 @@ export class RatesService extends RatesMerger {
    * than from the global snapshot registry, so the closest snapshot that actually
    * contains the requested pair is returned instead of an empty result.
    *
+   * A `from`/`to` window is applied here as well. The caller adds it to the pipeline as a
+   * second `date` predicate, so resolving outside the window would produce two mutually
+   * exclusive filters and an empty result rather than the newest snapshot inside it.
+   *
    * @param timestamp - Requested Unix timestamp in seconds
    * @param coinMatch - Optional coin filter the snapshot must satisfy
+   * @param dateRange - Optional `from`/`to` bounds in milliseconds the snapshot must fall within
    * @returns Snapshot date in milliseconds, or undefined when nothing matches
    */
-  async resolveSnapshotDate(timestamp: number, coinMatch?: CoinMatch): Promise<number | undefined> {
+  async resolveSnapshotDate(
+    timestamp: number,
+    coinMatch?: CoinMatch,
+    dateRange: { $gte?: number; $lte?: number } = {},
+  ): Promise<number | undefined> {
+    const upperBounds = [timestamp * 1000];
+    if (dateRange.$lte !== undefined) {
+      upperBounds.push(dateRange.$lte);
+    }
+
+    const dateFilter = (upperBound: number) => ({
+      date:
+        dateRange.$gte !== undefined
+          ? { $lte: upperBound, $gte: dateRange.$gte }
+          : { $lte: upperBound },
+    });
+
     if (!coinMatch) {
       const lastTimestamp = await this.timestampModel.findOne(
-        { date: { $lte: timestamp * 1000 } },
+        dateFilter(Math.min(...upperBounds)),
         null,
         { sort: { date: -1 } },
       );
@@ -407,11 +429,11 @@ export class RatesService extends RatesMerger {
     // date carrying the pair can belong to an orphaned snapshot. Pinning the pipeline to it
     // would drop the group later and return nothing, hiding an older valid snapshot, so each
     // candidate is validated against the registry before it is accepted.
-    let upperBound = timestamp * 1000;
+    let upperBound = Math.min(...upperBounds);
 
     for (let candidate = 0; candidate < MAX_SNAPSHOT_CANDIDATES; candidate += 1) {
       const ticker = await this.tickerModel.findOne(
-        { ...coinMatch, date: { $lte: upperBound } },
+        { ...coinMatch, ...dateFilter(upperBound) },
         null,
         { sort: { date: -1 } },
       );

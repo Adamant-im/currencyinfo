@@ -269,6 +269,29 @@ describe('Config Schema Validation', () => {
       ).toBe(false);
     });
 
+    it('should normalize mapping keys so case cannot silently disable a mapping', () => {
+      const lowerCaseKey = schema.safeParse({
+        ...validConfig,
+        mappings: { cwif: '$cwif' },
+        base_coins: ['USD', 'CWIF'],
+      });
+      const upperCaseKey = schema.safeParse({
+        ...validConfig,
+        mappings: { CWIF: '$CWIF' },
+        base_coins: ['USD', 'CWIF'],
+      });
+
+      expect(lowerCaseKey.success).toBe(true);
+      expect(upperCaseKey.success).toBe(true);
+
+      if (lowerCaseKey.success && upperCaseKey.success) {
+        expect(lowerCaseKey.data.mappings).toEqual({ CWIF: '$CWIF' });
+        // Both spellings must resolve the base coin identically.
+        expect(lowerCaseKey.data.base_coins).toEqual(upperCaseKey.data.base_coins);
+        expect(lowerCaseKey.data.base_coins).toContain('$CWIF');
+      }
+    });
+
     it('should allow CryptoCompare without its optional API key', () => {
       const configWithoutApiKey = {
         ...validConfig,

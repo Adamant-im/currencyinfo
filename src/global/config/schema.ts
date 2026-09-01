@@ -18,9 +18,14 @@ const optionalSecret = z
 const httpUrl = z
   .string()
   .url()
-  .refine((value) => URL.canParse(value) && ['http:', 'https:'].includes(new URL(value).protocol), {
-    message: 'Only HTTP and HTTPS URLs are supported',
-  });
+  .refine(
+    (value) => {
+      const url = URL.parse(value);
+
+      return url !== null && ['http:', 'https:'].includes(url.protocol);
+    },
+    { message: 'Only HTTP and HTTPS URLs are supported' },
+  );
 
 /**
  * Zod validation schema for Slack incoming webhook URLs.
@@ -120,7 +125,17 @@ export const schema = z
     log_level: z.enum(['none', 'error', 'warn', 'log', 'info']).default('log'),
 
     base_coins: z.array(coinName).min(1),
-    mappings: z.record(z.string(), coinName).default({}),
+    // Values are normalized to upper case by `coinName`, and every lookup site matches
+    // against already-uppercased symbols, so keys are normalized too. Without this a key
+    // differing only in case is a silent no-op that yields entirely different pair names.
+    mappings: z
+      .record(z.string(), coinName)
+      .default({})
+      .transform((mappings) =>
+        Object.fromEntries(
+          Object.entries(mappings).map(([symbol, canonical]) => [symbol.toUpperCase(), canonical]),
+        ),
+      ),
 
     // Sources API
     moex: apiSourceSchema
@@ -260,7 +275,9 @@ export const schema = z
   })
   .transform(({ base_coins: baseCoins, ...data }) => ({
     ...data,
-    base_coins: baseCoins.map((coin) => data.mappings[coin] ?? coin),
+    base_coins: baseCoins.map((coin) =>
+      Object.hasOwn(data.mappings, coin) ? data.mappings[coin] : coin,
+    ),
   }));
 
 export type Schema = z.infer<typeof schema>;

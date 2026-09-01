@@ -205,9 +205,37 @@ GET /status
 }
 ```
 
+- `ready` — whether a rate snapshot has been stored at least once since startup
+- `updating` — whether a refresh cycle is running at this moment. It is not an overdue indicator: after a failed cycle the service is idle and reports `false` until the next scheduled attempt. Compare `next_update` against your own clock to detect an overdue schedule
+- `next_update` — when the next refresh is scheduled, in milliseconds
+
 ### Upgrading
 
-Mongoose builds schema indexes on connect, so the first start of this version against an existing database creates the compound `{ base, quote, date }` index on `tickers`. On a large history collection that is real I/O and can delay readiness; build it out of band beforehand if that matters. The superseded `{ base: 1, quote: 1 }` index is not dropped automatically and can be removed once the new one is in place.
+Every `tickers` index is now date-ordered, so `/getHistory` sorts are served by an index instead of a blocking in-memory sort. Three indexes replace three from v4.1.2:
+
+| Created on first start | Superseded, not removed automatically |
+| --- | --- |
+| `{ base: 1, date: -1 }` | `{ base: 1 }` |
+| `{ quote: 1, date: -1 }` | `{ quote: 1 }` |
+| `{ base: 1, quote: 1, date: -1 }` | `{ base: 1, quote: 1 }` |
+
+`{ date: 1 }` is unchanged.
+
+Mongoose `autoIndex` creates missing indexes on connect but never drops undeclared ones, so a direct upgrade builds all three new indexes at startup and keeps all three old ones. On a large history collection that is real I/O and can delay readiness. Build the three new indexes out of band before deploying:
+
+```js
+db.tickers.createIndex({ base: 1, date: -1 }, { background: true });
+db.tickers.createIndex({ quote: 1, date: -1 }, { background: true });
+db.tickers.createIndex({ base: 1, quote: 1, date: -1 }, { background: true });
+```
+
+Once the new indexes are in place and the service has been validated, drop the three superseded ones to stop paying for their write amplification and disk:
+
+```js
+db.tickers.dropIndex('base_1');
+db.tickers.dropIndex('quote_1');
+db.tickers.dropIndex('base_1_quote_1');
+```
 
 ## Development and Testing
 

@@ -500,6 +500,21 @@ describe('RatesService', () => {
       expect(aggregateCursor.close).toHaveBeenCalled();
     });
 
+    it('should keep a resolved timestamp inside an explicit from/to window', async () => {
+      timestampModel.findOne.mockResolvedValue({ _id: 'timestamp-id', date: 1500 });
+      aggregateCursor.next.mockResolvedValue(null);
+
+      await service.getHistoryTickers({ timestamp: 9, from: 1, to: 2 });
+
+      // Without the window the lookup would use `$lte: 9000` and could resolve a
+      // snapshot the pipeline's range filter then excludes, yielding an empty result.
+      expect(timestampModel.findOne).toHaveBeenCalledWith(
+        { date: { $lte: 2000, $gte: 1000 } },
+        null,
+        { sort: { date: -1 } },
+      );
+    });
+
     it('should skip an orphaned snapshot when resolving a timestamp for a pair', async () => {
       // Newest matching date 3000 has no timestamps record; 2000 does.
       tickerModel.findOne = jest
