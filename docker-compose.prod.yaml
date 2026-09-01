@@ -8,7 +8,10 @@ services:
     depends_on:
       - mongodb
     volumes:
-      - ./config.jsonc:/usr/src/currencyinfo/config.jsonc
+      # The image runs as the unprivileged `node` user (UID/GID 1000) and Compose cannot change the
+      # ownership of a bind mount. Run `sudo chown 1000:1000 config.jsonc` on the host before the first
+      # start, otherwise a restricted config file is unreadable inside the container.
+      - ./config.jsonc:/usr/src/currencyinfo/config.jsonc:ro
     networks:
       - app_network
 

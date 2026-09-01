@@ -13,6 +13,7 @@ describe('RatesController', () => {
       lastUpdated: 1700000000000,
       refreshInterval: 600000,
       initializationTimestamp: 1699999000000,
+      isUpdating: false,
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -54,6 +55,14 @@ describe('RatesController', () => {
       const status = controller.getStatus();
       expect(status.ready).toBe(true);
       expect(status.next_update).toBe(1700000000000 + 600000);
+    });
+
+    it('should report the actual refresh state rather than an overdue schedule', () => {
+      // Overdue but idle: a failed cycle must not be reported as an update in flight.
+      expect(controller.getStatus().updating).toBe(false);
+
+      (ratesService as { isUpdating: boolean }).isUpdating = true;
+      expect(controller.getStatus().updating).toBe(true);
     });
   });
 });

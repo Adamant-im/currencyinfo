@@ -3,7 +3,7 @@ services:
     container_name: mongodb
     image: 'mongo:latest'
     ports:
-      - '27017:27017'
+      - '127.0.0.1:27017:27017'
     volumes:
       - mongo_data:/data/db
 

@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import { Logger } from '@nestjs/common';
 import axios from 'axios';
 import { Notifier } from './notifier.service';
 import { api } from './adamant/api';
@@ -91,5 +92,45 @@ describe('Notifier Service', () => {
     (api.sendMessage as jest.Mock).mockResolvedValue({ success: false, error: 'ADM node down' });
 
     await expect(notifier.notify('error', 'Failing notification')).resolves.not.toThrow();
+  });
+
+  it('should contain and sanitize notification setup failures', async () => {
+    const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    const secret = 'SECRET_WEBHOOK_TOKEN';
+    const failingConfig = {
+      get: jest.fn((key: string) => {
+        if (key === 'notify') {
+          throw new Error(`Invalid https://hooks.slack.com/services/T00000000/B00000000/${secret}`);
+        }
+        return 'CurrencyinfoTest';
+      }),
+    } as unknown as ConfigService;
+
+    const failingNotifier = new Notifier(failingConfig);
+
+    await expect(failingNotifier.notify('error', 'Test message')).resolves.not.toThrow();
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain(secret);
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('/services/***'));
+
+    errorSpy.mockRestore();
+  });
+
+  it('should redact webhook credentials from notification messages and error logs', async () => {
+    const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    const secret = 'SECRET_WEBHOOK_TOKEN';
+    mockedAxios.post.mockRejectedValue(
+      new Error(`Request to https://hooks.slack.com/services/T00000000/B00000000/${secret} failed`),
+    );
+
+    await notifier.notify(
+      'warn',
+      `Provider returned https://discord.com/api/webhooks/123456789/${secret}`,
+    );
+
+    const payloads = mockedAxios.post.mock.calls.map(([, payload]) => payload);
+    expect(JSON.stringify(payloads)).not.toContain(secret);
+    expect(JSON.stringify(warnSpy.mock.calls)).not.toContain(secret);
+
+    warnSpy.mockRestore();
   });
 });

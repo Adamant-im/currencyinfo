@@ -9,6 +9,7 @@ import {
   formatMessageForDiscord,
   makeBoldForSlack,
   removeMarkdown,
+  sanitizeErrorMessage,
 } from 'src/shared/utils';
 import { api } from './adamant/api';
 
@@ -42,31 +43,44 @@ export class Notifier {
    * @param message - Notification message content
    */
   async notify(notifyLevel: LogLevelName, message: string): Promise<void> {
-    const logMethod = notifyLevel === 'info' ? 'log' : notifyLevel;
-    if (logMethod in this.logger) {
-      (this.logger as any)[logMethod](removeMarkdown(message));
+    try {
+      const logMethod = notifyLevel === 'info' ? 'log' : notifyLevel;
+      if (logMethod in this.logger) {
+        (this.logger as any)[logMethod](removeMarkdown(sanitizeErrorMessage(message)));
+      }
+
+      const notify = this.config.get('notify');
+
+      if (!notify) {
+        return;
+      }
+
+      const name = this.config.get('name') as string;
+      const notifyMessage = `**${name}**# ${message}`;
+
+      const results = await Promise.allSettled([
+        this.notifySlack(notifyLevel, notifyMessage),
+        this.notifyDiscord(notifyLevel, notifyMessage),
+        this.notifyAdamant(notifyLevel, notifyMessage),
+      ]);
+
+      for (const result of results) {
+        if (result.status === 'rejected') {
+          this.logger.error(
+            `Failed to dispatch notification: ${sanitizeErrorMessage(String(result.reason))}`,
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.error(`Failed to prepare notification: ${sanitizeErrorMessage(String(error))}`);
     }
-
-    const notify = this.config.get('notify');
-
-    if (!notify) {
-      return;
-    }
-
-    const name = this.config.get('name') as string;
-    const notifyMessage = `**${name}**# ${message}`;
-
-    await Promise.allSettled([
-      this.notifySlack(notifyLevel, notifyMessage),
-      this.notifyDiscord(notifyLevel, notifyMessage),
-      this.notifyAdamant(notifyLevel, notifyMessage),
-    ]);
   }
 
   /**
    * Sends notifications to configured Slack webhooks.
    */
   async notifySlack(notifyLevel: LogLevelName, message: string): Promise<void> {
+    message = sanitizeErrorMessage(message);
     const slack = this.config.get<string[]>('notify.slack');
 
     if (!slack || !slack.length) {
@@ -88,7 +102,9 @@ export class Notifier {
       try {
         await axios.post(slackApp, params, { timeout: 10000 });
       } catch (error) {
-        this.logger.warn(`Request to Slack with message '${message}' failed: ${error}.`);
+        this.logger.warn(
+          `Request to Slack with message '${message}' failed: ${sanitizeErrorMessage(String(error))}.`,
+        );
       }
     }
   }
@@ -97,6 +113,7 @@ export class Notifier {
    * Sends notifications to configured Discord webhooks.
    */
   async notifyDiscord(notifyLevel: LogLevelName, message: string): Promise<void> {
+    message = sanitizeErrorMessage(message);
     const threads = this.config.get<string[]>('notify.discord');
 
     if (!threads || !threads.length) {
@@ -116,7 +133,9 @@ export class Notifier {
       try {
         await axios.post(thread, params, { timeout: 10000 });
       } catch (error) {
-        this.logger.warn(`Request to Discord with message '${message}' failed: ${error}.`);
+        this.logger.warn(
+          `Request to Discord with message '${message}' failed: ${sanitizeErrorMessage(String(error))}.`,
+        );
       }
     });
 
@@ -127,6 +146,7 @@ export class Notifier {
    * Sends notifications as encrypted direct messages via ADAMANT blockchain.
    */
   async notifyAdamant(notifyLevel: LogLevelName, message: string): Promise<void> {
+    message = sanitizeErrorMessage(message);
     const addresses = this.config.get<string[]>('notify.adamant');
     const passphrase = this.config.get<string>('notify.adamantPassphrase');
 
@@ -149,7 +169,7 @@ export class Notifier {
         }
       } catch (error) {
         this.logger.warn(
-          `Failed to send notification message '${formattedMessage}' to ${address}: ${error}.`,
+          `Failed to send notification message '${formattedMessage}' to ${address}: ${sanitizeErrorMessage(String(error))}.`,
         );
       }
     });

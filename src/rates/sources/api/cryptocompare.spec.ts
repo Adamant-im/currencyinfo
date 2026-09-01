@@ -64,4 +64,16 @@ describe('CryptoCompareApi Connector', () => {
     const rates = await api.fetch('USD');
     expect(rates).toEqual({});
   });
+
+  it('should remain enabled when the optional API key is omitted', () => {
+    mockConfig['cryptocompare.api_key'] = undefined;
+
+    const configService = {
+      get: jest.fn((key: string) => mockConfig[key]),
+    } as unknown as ConfigService;
+
+    const apiWithoutKey = new CryptoCompareApi(configService, mockLogger as Logger);
+
+    expect(apiWithoutKey.enabled).toBe(true);
+  });
 });

@@ -3,7 +3,10 @@ import {
   coinName,
   coinNameOrPair,
   coinPair,
+  completeCoinPair,
+  nonnegativeInteger,
   nonnegativeNumber,
+  positiveInteger,
   positiveNumber,
 } from './schema-types';
 
@@ -43,6 +46,30 @@ describe('Shared Schema Types', () => {
     it('should reject invalid coin pairs without slash or with multiple slashes', () => {
       expect(coinPair.safeParse('BTC').success).toBe(false);
       expect(coinPair.safeParse('BTC/USD/EUR').success).toBe(false);
+      expect(coinPair.safeParse('/').success).toBe(false);
+    });
+  });
+
+  describe('completeCoinPair', () => {
+    it('should accept and normalize complete pairs only', () => {
+      expect(completeCoinPair.safeParse('btc/usd').data).toBe('BTC/USD');
+      expect(completeCoinPair.safeParse('baby-doge/usd').data).toBe('BABY-DOGE/USD');
+      expect(completeCoinPair.safeParse('st.test/token_v2').data).toBe('ST.TEST/TOKEN_V2');
+      expect(completeCoinPair.safeParse('ærgo/usd').success).toBe(true);
+      expect(completeCoinPair.safeParse('BTC/').success).toBe(false);
+      expect(completeCoinPair.safeParse('/USD').success).toBe(false);
+      expect(completeCoinPair.safeParse('/').success).toBe(false);
+      expect(completeCoinPair.safeParse('BTC USD/USD').success).toBe(false);
+      expect(completeCoinPair.safeParse('BTC/USD/EUR').success).toBe(false);
+      expect(completeCoinPair.safeParse(`${'A'.repeat(65)}/USD`).success).toBe(false);
+    });
+
+    it('should reject symbols without any letter or number', () => {
+      expect(completeCoinPair.safeParse('.../...').success).toBe(false);
+      expect(completeCoinPair.safeParse('-/-').success).toBe(false);
+      expect(completeCoinPair.safeParse('$/$').success).toBe(false);
+      expect(completeCoinPair.safeParse('__/__').success).toBe(false);
+      expect(completeCoinPair.safeParse('BTC/...').success).toBe(false);
     });
   });
 
@@ -53,9 +80,16 @@ describe('Shared Schema Types', () => {
       expect(coinNameOrPair.safeParse('ADM').success).toBe(true);
     });
 
+    it('should accept every symbol form a rate source can produce', () => {
+      expect(coinNameOrPair.safeParse('baby-doge').data).toBe('BABY-DOGE');
+      expect(coinNameOrPair.safeParse('st.test').data).toBe('ST.TEST');
+      expect(coinNameOrPair.safeParse('token_v2/usd').data).toBe('TOKEN_V2/USD');
+    });
+
     it('should reject invalid input', () => {
       expect(coinNameOrPair.safeParse('').success).toBe(false);
       expect(coinNameOrPair.safeParse('BTC//USD').success).toBe(false);
+      expect(coinNameOrPair.safeParse('...').success).toBe(false);
     });
   });
 
@@ -68,9 +102,18 @@ describe('Shared Schema Types', () => {
       }
     });
 
+    it('should accept source-defined symbols so stored pairs stay filterable', () => {
+      expect(coinList.safeParse('baby-doge,st.test,token_v2').data).toEqual([
+        'BABY-DOGE',
+        'ST.TEST',
+        'TOKEN_V2',
+      ]);
+    });
+
     it('should reject invalid list with special characters', () => {
       expect(coinList.safeParse('btc!eth').success).toBe(false);
       expect(coinList.safeParse('').success).toBe(false);
+      expect(coinList.safeParse('BTC,...').success).toBe(false);
     });
   });
 
@@ -98,6 +141,18 @@ describe('Shared Schema Types', () => {
     it('should reject negative values', () => {
       expect(nonnegativeNumber.safeParse(-1).success).toBe(false);
       expect(nonnegativeNumber.safeParse('-10').success).toBe(false);
+    });
+  });
+
+  describe('integer schemas', () => {
+    it('should accept integer strings and reject fractional values', () => {
+      expect(nonnegativeInteger.safeParse('0').data).toBe(0);
+      expect(nonnegativeInteger.safeParse('10').data).toBe(10);
+      expect(nonnegativeInteger.safeParse('0.5').success).toBe(false);
+
+      expect(positiveInteger.safeParse('10').data).toBe(10);
+      expect(positiveInteger.safeParse(0).success).toBe(false);
+      expect(positiveInteger.safeParse('1.5').success).toBe(false);
     });
   });
 });

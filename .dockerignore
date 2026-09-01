@@ -1,0 +1,13 @@
+.ai-ignored
+.ai-tasks
+.claude
+.git
+.github
+config.jsonc
+config.test.jsonc
+coverage
+dist
+logs
+node_modules
+npm-debug.log*
+pnpm-debug.log*

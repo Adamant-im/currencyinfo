@@ -102,6 +102,19 @@ describe('Shared Utils', () => {
       );
     });
 
+    it('should redact Slack and Discord webhook credentials', () => {
+      expect(
+        sanitizeErrorMessage(
+          'Slack failed at https://hooks.slack.com/services/T00000000/B00000000/SECRET_TOKEN',
+        ),
+      ).toBe('Slack failed at https://hooks.slack.com/services/***');
+      expect(
+        sanitizeErrorMessage(
+          'Discord failed at https://discord.com/api/webhooks/123456789/SECRET-token_value',
+        ),
+      ).toBe('Discord failed at https://discord.com/api/webhooks/***');
+    });
+
     it('should redact Bearer and Basic authorization tokens', () => {
       expect(sanitizeErrorMessage('Authorization: Bearer secret_token_12345')).toBe(
         'Authorization: Bearer ***',

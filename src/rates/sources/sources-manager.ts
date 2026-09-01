@@ -97,6 +97,11 @@ export class SourcesManager {
 
   /**
    * Discovers enabled coins across all sources and tracks provider coverage per pair.
+   *
+   * Coverage is capped at `minSources`, which makes the recorded value the *effective*
+   * threshold for the pair rather than the configured one: `min(minSources, coverage)`.
+   * A pair advertised by a single source is therefore still served from that one quote,
+   * and `warnInsufficiency` reports every pair that falls short of the configured value.
    */
   async getEnabledCoins() {
     await this.prepareSources();
@@ -105,11 +110,16 @@ export class SourcesManager {
     const mappings = (this.config.get('mappings') as Record<string, string>) || {};
 
     const coins = new Set<string>();
+    this.sourcePairRecord = {};
 
     for (const source of enabledSources) {
-      source.enabledCoins.forEach((enabledCoin) => {
-        const baseCoin = mappings[enabledCoin] ?? enabledCoin;
+      const sourceCoins = new Set(
+        [...source.enabledCoins].map((enabledCoin) =>
+          Object.hasOwn(mappings, enabledCoin) ? mappings[enabledCoin] : enabledCoin,
+        ),
+      );
 
+      sourceCoins.forEach((baseCoin) => {
         if (baseCoin !== 'USD') {
           const pairName = `${baseCoin}/USD`;
           this.sourcePairRecord[pairName] = Math.min(
@@ -154,8 +164,8 @@ export class SourcesManager {
    */
   warnUnavailableBaseCoins() {
     const mappings = (this.config.get('mappings') as Record<string, string>) || {};
-    const baseCoins = ((this.config.get('base_coins') as string[]) || []).map(
-      (coin) => mappings[coin] ?? coin,
+    const baseCoins = ((this.config.get('base_coins') as string[]) || []).map((coin) =>
+      Object.hasOwn(mappings, coin) ? mappings[coin] : coin,
     );
 
     const unavailableBaseCoins = baseCoins.filter(

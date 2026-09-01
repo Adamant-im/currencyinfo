@@ -5,9 +5,13 @@ import { Logger } from './logger.service';
 describe('Logger Service', () => {
   let consoleLogSpy: jest.SpyInstance;
   let createWriteStreamSpy: jest.SpyInstance;
+  let mkdirSyncSpy: jest.SpyInstance;
+  let chmodSyncSpy: jest.SpyInstance;
 
   beforeEach(() => {
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    mkdirSyncSpy = jest.spyOn(fs, 'mkdirSync').mockImplementation(() => undefined);
+    chmodSyncSpy = jest.spyOn(fs, 'chmodSync').mockImplementation(() => undefined);
     createWriteStreamSpy = jest.spyOn(fs, 'createWriteStream').mockReturnValue({
       write: jest.fn(),
       end: jest.fn(),
@@ -16,6 +20,8 @@ describe('Logger Service', () => {
 
   afterEach(() => {
     consoleLogSpy.mockRestore();
+    mkdirSyncSpy.mockRestore();
+    chmodSyncSpy.mockRestore();
     createWriteStreamSpy.mockRestore();
   });
 
@@ -34,6 +40,22 @@ describe('Logger Service', () => {
     logger.error('Test error message');
 
     expect(consoleLogSpy).toHaveBeenCalledTimes(4);
+  });
+
+  it('should enforce restricted permissions on an existing logs directory', () => {
+    createLogger('log');
+
+    expect(mkdirSyncSpy).toHaveBeenCalledWith('./logs', { mode: 0o750, recursive: true });
+    expect(chmodSyncSpy).toHaveBeenCalledWith('./logs', 0o750);
+  });
+
+  it('should start even when the logs directory permissions cannot be changed', () => {
+    chmodSyncSpy.mockImplementation(() => {
+      throw Object.assign(new Error('EPERM: operation not permitted'), { code: 'EPERM' });
+    });
+
+    expect(() => createLogger('log')).not.toThrow();
+    expect(createWriteStreamSpy).toHaveBeenCalled();
   });
 
   it('should filter out info messages when log_level is log', () => {
@@ -83,5 +105,21 @@ describe('Logger Service', () => {
     logger.fatal('Fatal error message');
 
     expect(consoleLogSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it('should redact webhook credentials from console and file logs', () => {
+    const logger = createLogger('error');
+    const write = (createWriteStreamSpy.mock.results[0].value as { write: jest.Mock }).write;
+    const secret = 'SECRET_WEBHOOK_TOKEN';
+
+    logger.error(
+      `Request to https://hooks.slack.com/services/T00000000/B00000000/${secret} failed`,
+    );
+
+    expect(JSON.stringify(consoleLogSpy.mock.calls)).not.toContain(secret);
+    expect(JSON.stringify(write.mock.calls)).not.toContain(secret);
+    expect(write).toHaveBeenCalledWith(
+      expect.stringContaining('https://hooks.slack.com/services/***'),
+    );
   });
 });

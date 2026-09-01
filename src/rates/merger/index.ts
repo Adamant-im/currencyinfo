@@ -1,4 +1,4 @@
-import { calculatePercentageDifference } from 'src/shared/utils';
+import { calculatePercentageDifference, isNumber } from 'src/shared/utils';
 import { SourceTickers, TickerPrice, Tickers } from '../sources/api/dto/tickers.dto';
 import * as strategies from './strategy';
 import { ConfigService } from '@nestjs/config';
@@ -111,7 +111,16 @@ export abstract class RatesMerger {
           return;
         }
 
-        tickers[`${coin}/${baseCoin}`] = +(price * coinPrice).toFixed(decimals);
+        const crossRate = +(price * coinPrice).toFixed(decimals);
+
+        // Triangulation reintroduces values the provider boundary already rejected:
+        // rounding to `decimals` can collapse a small cross rate to 0, and a
+        // degenerate input can produce a non-finite one. Neither may be served.
+        if (!isNumber(crossRate) || crossRate <= 0) {
+          return;
+        }
+
+        tickers[`${coin}/${baseCoin}`] = crossRate;
       });
     });
 

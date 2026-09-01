@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
+import type { Express } from 'express';
 
 import { AppModule } from './app.module';
 
@@ -22,6 +23,8 @@ async function bootstrap() {
   const logger = app.get(Logger);
 
   app.useLogger(logger);
+  const expressApp = app.getHttpAdapter().getInstance() as Express;
+  expressApp.disable('x-powered-by');
 
   const port = config.get<number>('server.port') ?? 36661;
   await app.listen(port);
