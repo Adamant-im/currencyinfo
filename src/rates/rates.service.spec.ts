@@ -348,27 +348,40 @@ describe('RatesService', () => {
     );
   });
 
-  it('should carry pairs that are still fresh into the next snapshot and drop them after expiry', async () => {
+  it('should carry pairs that are still fresh into the next snapshot and drop them at the rateLifetime boundary', async () => {
     await service['ready'];
     sourceManager.sourcePairRecord = { 'Bitcoin/USD': 1, 'ADM/USD': 1 };
+    sourceManager.sourceCount = 1;
     jest.spyOn(service, 'saveTickers').mockResolvedValue();
 
+    // `getTimestamp` is in minutes; drive it directly so quotes age by the configured
+    // rateLifetime (60) rather than relying on wall-clock time.
+    const startMinute = 28_000_000;
+    const clock = jest.spyOn(service, 'getTimestamp').mockReturnValue(startMinute);
+
     sourceManager.sources = [new MockedApi('A', { 'BTC/USD': 50_000, 'ADM/USD': 0.05 }, true)];
-    sourceManager.sourceCount = 1;
     await service.updateTickers();
 
-    // A later cycle quotes only BTC; ADM is still inside rateLifetime.
+    // One minute later only BTC is quoted; the cached ADM quote is still well inside
+    // rateLifetime, so the snapshot stays a complete view and mixes observation times.
+    clock.mockReturnValue(startMinute + 1);
     sourceManager.sources = [new MockedApi('A', { 'BTC/USD': 51_000 }, true)];
     await service.updateTickers();
 
-    // `Bitcoin/USD` was quoted this cycle; `ADM/USD` is carried over from the previous one,
-    // so a single snapshot timestamp can cover observations made at different times.
     expect(Object.keys(service.tickers)).toEqual(
       expect.arrayContaining(['Bitcoin/USD', 'ADM/USD']),
     );
 
-    // Once the cached quote falls outside the requested lifetime it is dropped.
-    expect(Object.keys(service.getTickersWithLifetime(0))).not.toContain('ADM/USD');
+    // At the boundary the ADM quote is exactly rateLifetime old and drops out, while the
+    // BTC quote refreshed in this cycle is retained. Expiry must be selective.
+    clock.mockReturnValue(startMinute + 60);
+    sourceManager.sources = [new MockedApi('A', { 'BTC/USD': 52_000 }, true)];
+    await service.updateTickers();
+
+    expect(Object.keys(service.tickers)).toContain('Bitcoin/USD');
+    expect(Object.keys(service.tickers)).not.toContain('ADM/USD');
+
+    clock.mockRestore();
   });
 
   it('should skip overlapping scheduled updates', async () => {
@@ -487,18 +500,47 @@ describe('RatesService', () => {
       expect(aggregateCursor.close).toHaveBeenCalled();
     });
 
+    it('should skip an orphaned snapshot when resolving a timestamp for a pair', async () => {
+      // Newest matching date 3000 has no timestamps record; 2000 does.
+      tickerModel.findOne = jest
+        .fn()
+        .mockResolvedValueOnce({ date: 3000 })
+        .mockResolvedValueOnce({ date: 2000 });
+      timestampModel.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ _id: 'timestamp-id', date: 2000 });
+      aggregateCursor.next.mockResolvedValue(null);
+
+      await service.getHistoryTickers({ timestamp: 4, coin: 'ADM/USD' });
+
+      expect(tickerModel.findOne).toHaveBeenLastCalledWith(
+        { base: 'ADM', quote: 'USD', date: { $lte: 2999 } },
+        null,
+        { sort: { date: -1 } },
+      );
+      expect(tickerModel.aggregate).toHaveBeenCalledWith([
+        { $match: { date: 2000 } },
+        { $match: { base: 'ADM', quote: 'USD' } },
+        { $sort: { date: -1 } },
+      ]);
+    });
+
     it('should resolve a timestamp against the requested pair, not the global snapshot', async () => {
       tickerModel.findOne = jest.fn().mockResolvedValue({ date: 1500 });
+      timestampModel.findOne.mockResolvedValue({ _id: 'timestamp-id', date: 1500 });
       aggregateCursor.next.mockResolvedValue(null);
 
       await service.getHistoryTickers({ timestamp: 2, coin: 'ADM/USD' });
 
+      // The date comes from the pair's own history...
       expect(tickerModel.findOne).toHaveBeenCalledWith(
         { base: 'ADM', quote: 'USD', date: { $lte: 2000 } },
         null,
         { sort: { date: -1 } },
       );
-      expect(timestampModel.findOne).not.toHaveBeenCalled();
+      // ...and the registry is consulted only to confirm the snapshot is not orphaned,
+      // never as a `$lte` search that ignores the coin filter.
+      expect(timestampModel.findOne).toHaveBeenCalledWith({ date: 1500 });
       expect(tickerModel.aggregate).toHaveBeenCalledWith([
         { $match: { date: 1500 } },
         { $match: { base: 'ADM', quote: 'USD' } },

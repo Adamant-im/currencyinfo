@@ -55,6 +55,15 @@ const BASE_CURRENCY = 'USD';
 const MAX_HISTORY_GROUPS_SCANNED = 1000;
 
 /**
+ * Upper bound on candidate snapshots examined while resolving a `timestamp` request.
+ *
+ * The closest date carrying the requested pair may belong to an orphaned snapshot, so
+ * resolution walks backwards until a date validates against the `timestamps` registry.
+ * This bounds that walk when a run of consecutive snapshots is orphaned.
+ */
+const MAX_SNAPSHOT_CANDIDATES = 50;
+
+/**
  * Core rates service managing periodic data fetching, merging, persistence in MongoDB,
  * and querying current and historical rates.
  */
@@ -384,21 +393,43 @@ export class RatesService extends RatesMerger {
    * @returns Snapshot date in milliseconds, or undefined when nothing matches
    */
   async resolveSnapshotDate(timestamp: number, coinMatch?: CoinMatch): Promise<number | undefined> {
-    const upperBound = { $lte: timestamp * 1000 };
+    if (!coinMatch) {
+      const lastTimestamp = await this.timestampModel.findOne(
+        { date: { $lte: timestamp * 1000 } },
+        null,
+        { sort: { date: -1 } },
+      );
 
-    if (coinMatch) {
-      const ticker = await this.tickerModel.findOne({ ...coinMatch, date: upperBound }, null, {
-        sort: { date: -1 },
-      });
-
-      return ticker?.date;
+      return lastTimestamp?.date;
     }
 
-    const lastTimestamp = await this.timestampModel.findOne({ date: upperBound }, null, {
-      sort: { date: -1 },
-    });
+    // `saveTickers` writes tickers and their timestamp non-transactionally, so the newest
+    // date carrying the pair can belong to an orphaned snapshot. Pinning the pipeline to it
+    // would drop the group later and return nothing, hiding an older valid snapshot, so each
+    // candidate is validated against the registry before it is accepted.
+    let upperBound = timestamp * 1000;
 
-    return lastTimestamp?.date;
+    for (let candidate = 0; candidate < MAX_SNAPSHOT_CANDIDATES; candidate += 1) {
+      const ticker = await this.tickerModel.findOne(
+        { ...coinMatch, date: { $lte: upperBound } },
+        null,
+        { sort: { date: -1 } },
+      );
+
+      if (!ticker) {
+        return undefined;
+      }
+
+      const snapshot = await this.timestampModel.findOne({ date: ticker.date });
+
+      if (snapshot) {
+        return ticker.date;
+      }
+
+      upperBound = ticker.date - 1;
+    }
+
+    return undefined;
   }
 
   /**

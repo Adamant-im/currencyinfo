@@ -23,11 +23,20 @@ export class Ticker {
 
 export const TickerSchema = SchemaFactory.createForClass(Ticker);
 
+// Every `/getHistory` filter sorts by `date`, so each index ends with it and the sort
+// is index-provided rather than blocking. The leading fields are prefixes of these
+// keys, so `{ base: 1 }`, `{ quote: 1 }` and `{ base: 1, quote: 1 }` are not declared
+// separately.
+//
+// - `{ date: 1 }`                    unfiltered history
+// - `{ base: 1, date: -1 }`          `coin=ADM/`, and one branch of a bare `coin=ADM`
+// - `{ quote: 1, date: -1 }`         `coin=/USD`, and the other branch of `coin=ADM`
+// - `{ base: 1, quote: 1, date: -1 }` exact `coin=ADM/USD`
+//
+// The bare-symbol form is an `$or` over base and quote; giving both branches a
+// date-ordered index lets the planner merge them in sorted order instead of sorting
+// the whole matching history before the cursor can stop.
 TickerSchema.index({ date: 1 });
-TickerSchema.index({ base: 1 });
-TickerSchema.index({ quote: 1 });
-// Compound index serving the pair-filtered history query: the `base`/`quote`
-// match and the `date` sort are both covered, so no blocking in-memory sort is
-// needed. `{ base: 1, quote: 1 }` is a prefix of this index, so it is not
-// declared separately.
+TickerSchema.index({ base: 1, date: -1 });
+TickerSchema.index({ quote: 1, date: -1 });
 TickerSchema.index({ base: 1, quote: 1, date: -1 });

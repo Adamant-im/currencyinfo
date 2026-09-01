@@ -4,6 +4,7 @@
 .git
 .github
 config.jsonc
+config.test.jsonc
 coverage
 dist
 logs
