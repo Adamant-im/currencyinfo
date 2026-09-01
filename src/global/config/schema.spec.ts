@@ -226,6 +226,49 @@ describe('Config Schema Validation', () => {
       expect(schema.safeParse(invalidCoinMarketCap).success).toBe(false);
     });
 
+    it('should treat an empty or blank secret as omitted rather than failing startup', () => {
+      // v1 configs and scripts/migrate.mjs write "" to mean "no key".
+      expect(
+        schema.safeParse({
+          ...validConfig,
+          exchange_rate_host: { enabled: false, api_key: '', codes: ['USD'] },
+        }).success,
+      ).toBe(true);
+      expect(
+        schema.safeParse({
+          ...validConfig,
+          coinmarketcap: { enabled: false, api_key: '   ', coins: ['BTC'] },
+        }).success,
+      ).toBe(true);
+      expect(
+        schema.safeParse({
+          ...validConfig,
+          cryptocompare: { enabled: true, api_key: '', coins: ['BTC'] },
+        }).success,
+      ).toBe(true);
+      expect(
+        schema.safeParse({
+          ...validConfig,
+          notify: { adamant: [], adamantPassphrase: '' },
+        }).success,
+      ).toBe(true);
+    });
+
+    it('should still require a key when an authenticated source is actually enabled', () => {
+      expect(
+        schema.safeParse({
+          ...validConfig,
+          exchange_rate_host: { enabled: true, api_key: '', codes: ['USD'] },
+        }).success,
+      ).toBe(false);
+      expect(
+        schema.safeParse({
+          ...validConfig,
+          notify: { adamant: ['U1234567890'], adamantPassphrase: '  ' },
+        }).success,
+      ).toBe(false);
+    });
+
     it('should allow CryptoCompare without its optional API key', () => {
       const configWithoutApiKey = {
         ...validConfig,

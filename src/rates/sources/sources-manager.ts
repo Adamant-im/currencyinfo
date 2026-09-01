@@ -97,6 +97,11 @@ export class SourcesManager {
 
   /**
    * Discovers enabled coins across all sources and tracks provider coverage per pair.
+   *
+   * Coverage is capped at `minSources`, which makes the recorded value the *effective*
+   * threshold for the pair rather than the configured one: `min(minSources, coverage)`.
+   * A pair advertised by a single source is therefore still served from that one quote,
+   * and `warnInsufficiency` reports every pair that falls short of the configured value.
    */
   async getEnabledCoins() {
     await this.prepareSources();

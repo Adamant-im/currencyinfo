@@ -25,6 +25,12 @@ import {
 } from 'src/shared/utils';
 import { completeCoinPair } from 'src/shared/schema-types';
 
+/**
+ * MongoDB match fragment restricting tickers to a requested coin or pair.
+ */
+type CoinMatch =
+  { base?: string; quote?: string } | { $or: Array<{ base: string } | { quote: string }> };
+
 export interface HistoricalResult {
   _id: Types.ObjectId;
   date: number;
@@ -37,6 +43,16 @@ const CronIntervals = {
 };
 
 const BASE_CURRENCY = 'USD';
+
+/**
+ * Upper bound on ticker date groups examined by a single `/getHistory` request.
+ *
+ * Snapshots whose `timestamps` record is missing (a failed write between the two
+ * non-transactional inserts in `saveTickers`) are skipped rather than returned, so
+ * they must not consume the caller's result quota. The scan still has to terminate,
+ * which this bound guarantees even if every group in range is orphaned.
+ */
+const MAX_HISTORY_GROUPS_SCANNED = 1000;
 
 /**
  * Core rates service managing periodic data fetching, merging, persistence in MongoDB,
@@ -52,6 +68,16 @@ export class RatesService extends RatesMerger {
 
   private ready: Promise<void>;
   private updateInProgress = false;
+
+  /**
+   * Whether a rate refresh cycle is running right now.
+   *
+   * Backed by the same guard that prevents overlapping scheduled updates, so it is
+   * the authoritative refresh state rather than a schedule-derived approximation.
+   */
+  get isUpdating(): boolean {
+    return this.updateInProgress;
+  }
 
   constructor(
     @InjectModel(Ticker.name) private tickerModel: Model<Ticker>,
@@ -271,45 +297,22 @@ export class RatesService extends RatesMerger {
     }
 
     const limit = Math.min(options.limit ?? 100, 100);
+    const coinMatch = this.buildCoinMatch(coin);
 
     if (timestamp !== undefined) {
-      const lastTimestamp = await this.timestampModel.findOne(
-        {
-          date: { $lte: timestamp * 1000 },
-        },
-        null,
-        { sort: { date: -1 } },
-      );
+      const snapshotDate = await this.resolveSnapshotDate(timestamp, coinMatch);
 
-      if (!lastTimestamp) {
+      if (snapshotDate === undefined) {
         return [];
       }
 
       queries.push({
-        $match: { date: lastTimestamp.date },
+        $match: { date: snapshotDate },
       });
     }
 
-    if (coin) {
-      if (coin.includes('/')) {
-        const [baseCoin, quoteCoin] = coin.split('/');
-
-        const match: { quote?: string; base?: string } = {};
-        if (baseCoin) {
-          match.base = baseCoin;
-        }
-        if (quoteCoin) {
-          match.quote = quoteCoin;
-        }
-
-        queries.push({ $match: match });
-      } else {
-        queries.push({
-          $match: {
-            $or: [{ base: coin }, { quote: coin }],
-          },
-        });
-      }
+    if (coinMatch) {
+      queries.push({ $match: coinMatch });
     }
 
     queries.push({ $sort: { date: -1 } });
@@ -320,9 +323,9 @@ export class RatesService extends RatesMerger {
 
     try {
       let doc: Ticker | null = await cursor.next();
-      let processedGroups = 0;
+      let scannedGroups = 0;
 
-      while (doc && processedGroups < limit) {
+      while (doc && results.length < limit && scannedGroups < MAX_HISTORY_GROUPS_SCANNED) {
         const date = doc.date;
         const tickers: Tickers = {};
 
@@ -331,7 +334,7 @@ export class RatesService extends RatesMerger {
           doc = await cursor.next();
         } while (doc && doc.date === date);
 
-        processedGroups += 1;
+        scannedGroups += 1;
         await this.addTickerWithTimestamp(results, tickers, date);
       }
     } finally {
@@ -339,6 +342,63 @@ export class RatesService extends RatesMerger {
     }
 
     return results;
+  }
+
+  /**
+   * Builds the MongoDB match for a `coin` query filter.
+   *
+   * @param coin - Coin symbol, or a full or one-sided `BASE/QUOTE` pair
+   * @returns Match fragment, or undefined when no coin filter was requested
+   */
+  buildCoinMatch(coin?: string): CoinMatch | undefined {
+    if (!coin) {
+      return undefined;
+    }
+
+    if (!coin.includes('/')) {
+      return { $or: [{ base: coin }, { quote: coin }] };
+    }
+
+    const [baseCoin, quoteCoin] = coin.split('/');
+    const match: { base?: string; quote?: string } = {};
+
+    if (baseCoin) {
+      match.base = baseCoin;
+    }
+    if (quoteCoin) {
+      match.quote = quoteCoin;
+    }
+
+    return match;
+  }
+
+  /**
+   * Resolves the newest snapshot date at or before the requested timestamp.
+   *
+   * When a coin filter is present the date is resolved from the stored rates rather
+   * than from the global snapshot registry, so the closest snapshot that actually
+   * contains the requested pair is returned instead of an empty result.
+   *
+   * @param timestamp - Requested Unix timestamp in seconds
+   * @param coinMatch - Optional coin filter the snapshot must satisfy
+   * @returns Snapshot date in milliseconds, or undefined when nothing matches
+   */
+  async resolveSnapshotDate(timestamp: number, coinMatch?: CoinMatch): Promise<number | undefined> {
+    const upperBound = { $lte: timestamp * 1000 };
+
+    if (coinMatch) {
+      const ticker = await this.tickerModel.findOne({ ...coinMatch, date: upperBound }, null, {
+        sort: { date: -1 },
+      });
+
+      return ticker?.date;
+    }
+
+    const lastTimestamp = await this.timestampModel.findOne({ date: upperBound }, null, {
+      sort: { date: -1 },
+    });
+
+    return lastTimestamp?.date;
   }
 
   /**

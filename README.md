@@ -82,7 +82,10 @@ Configuration is validated strictly at startup:
 - `rateDifferencePercentThreshold` and `groupPercentage` must be between `0` and `200`
 - Set `rateDifferencePercentThreshold` to `200` to disable rate-distance splitting entirely; note that `groupPercentage` behaves the opposite way, and `200` there rejects every pair that splits into more than one group
 - `refreshInterval`, when present, and `rateLifetime` must be greater than zero
-- `minSources` must be a positive integer
+- `minSources` must be a positive integer. It is an upper bound, not a guarantee: the effective
+  threshold per pair is `min(minSources, number of enabled sources advertising that pair)`, so a pair
+  offered by a single provider is still served from that one quote. Startup logs every pair whose
+  coverage is below the configured value
 - Optional source weights must be non-negative; zero gives a source no group weight
 - Set `enabled` explicitly for authenticated sources; if it is omitted for a configured ExchangeRateHost or CoinMarketCap source, the source is treated as enabled and requires an API key
 
@@ -105,6 +108,8 @@ The production image runs as the unprivileged `node` user with UID and GID `1000
 sudo chown 1000:1000 config.jsonc
 chmod 600 config.jsonc
 ```
+
+The same ownership requirement applies to `docker-compose.prod.yaml`, which mounts the file read-only but cannot change its ownership: run the `chown` above on the host before the first `docker compose up`, or the container exits with `EACCES`.
 
 ```bash
 # Build Docker image
@@ -160,6 +165,10 @@ Pair filters use the documented `BASE/QUOTE` order. Deployments upgrading from v
 
 History snapshots are written only when at least one provider returns valid current data. A complete provider outage leaves a gap instead of recording cached rates as a new observation.
 
+A snapshot is a complete view of every pair considered current, not only the pairs quoted in that cycle. Pairs whose last quote is still inside `rateLifetime` are carried into the snapshot, so a single snapshot timestamp can cover observations made at different times within that window. Pairs are dropped once their last quote falls outside `rateLifetime`.
+
+When `timestamp` is combined with `coin`, the closest snapshot **that contains the requested pair** is returned, rather than the globally closest snapshot filtered afterwards. A request no longer comes back empty because the nearest snapshot happened not to carry that pair.
+
 ```http
 GET /getHistory?coin=ADM&limit=10
 GET /getHistory?coin=ADM/USD&from=1720400000&to=1720470000
@@ -195,6 +204,10 @@ GET /status
   "version": "4.2.0"
 }
 ```
+
+### Upgrading
+
+Mongoose builds schema indexes on connect, so the first start of this version against an existing database creates the compound `{ base, quote, date }` index on `tickers`. On a large history collection that is real I/O and can delay readiness; build it out of band beforehand if that matters. The superseded `{ base: 1, quote: 1 }` index is not dropped automatically and can be removed once the new one is in place.
 
 ## Development and Testing
 

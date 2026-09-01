@@ -126,6 +126,35 @@ describe('SourcesManager', () => {
         mockConfig.mappings = originalMappings;
       }
     });
+
+    it('should cap per-pair coverage at the configured minSources', async () => {
+      // minSources is an upper bound: a pair advertised by one source records 1,
+      // so the merger accepts that single quote instead of requiring two.
+      sourcesManager.sources = [
+        {
+          enabled: true,
+          enabledCoins: new Set(['BTC', 'SOLO']),
+          ready: Promise.resolve(),
+          weight: 500,
+          resourceName: 'FirstSource',
+          fetch: jest.fn(),
+        },
+        {
+          enabled: true,
+          enabledCoins: new Set(['BTC']),
+          ready: Promise.resolve(),
+          weight: 500,
+          resourceName: 'SecondSource',
+          fetch: jest.fn(),
+        },
+      ] as BaseApi[];
+
+      await sourcesManager.getEnabledCoins();
+
+      // `BTC` is mapped to `Bitcoin` by the shared mock config.
+      expect(sourcesManager.sourcePairRecord['SOLO/USD']).toBe(1);
+      expect(sourcesManager.sourcePairRecord['Bitcoin/USD']).toBe(2);
+    });
   });
 
   describe('warnInsufficiency', () => {

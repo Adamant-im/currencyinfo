@@ -89,6 +89,27 @@ describe('RatesMerger', () => {
       // USD/BTC rate: 1 / 50000 = 0.00002
       expect(normalized['USD/BTC']).toBe(0.00002);
     });
+
+    it('should not emit cross-rates that rounding collapses to zero', () => {
+      const originalGet = config.get.getMockImplementation();
+      config.get.mockImplementation((key: string) =>
+        key === 'decimals' ? 0 : key === 'base_coins' ? ['USD', 'BTC'] : undefined,
+      );
+
+      try {
+        const normalized = ratesMerger.normalizeTickers({
+          'BTC/USD': 50000,
+          'ADM/USD': 0.05,
+          'USD/USD': 1,
+        });
+
+        // 0.05 / 50000 rounds to 0 at `decimals: 0`; a zero rate must never be served.
+        expect(normalized['ADM/BTC']).toBeUndefined();
+        expect(Object.values(normalized).every((rate) => rate > 0)).toBe(true);
+      } finally {
+        config.get.mockImplementation(originalGet);
+      }
+    });
   });
 
   describe('cutRatesBySourceCount', () => {

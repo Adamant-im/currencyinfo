@@ -348,6 +348,29 @@ describe('RatesService', () => {
     );
   });
 
+  it('should carry pairs that are still fresh into the next snapshot and drop them after expiry', async () => {
+    await service['ready'];
+    sourceManager.sourcePairRecord = { 'Bitcoin/USD': 1, 'ADM/USD': 1 };
+    jest.spyOn(service, 'saveTickers').mockResolvedValue();
+
+    sourceManager.sources = [new MockedApi('A', { 'BTC/USD': 50_000, 'ADM/USD': 0.05 }, true)];
+    sourceManager.sourceCount = 1;
+    await service.updateTickers();
+
+    // A later cycle quotes only BTC; ADM is still inside rateLifetime.
+    sourceManager.sources = [new MockedApi('A', { 'BTC/USD': 51_000 }, true)];
+    await service.updateTickers();
+
+    // `Bitcoin/USD` was quoted this cycle; `ADM/USD` is carried over from the previous one,
+    // so a single snapshot timestamp can cover observations made at different times.
+    expect(Object.keys(service.tickers)).toEqual(
+      expect.arrayContaining(['Bitcoin/USD', 'ADM/USD']),
+    );
+
+    // Once the cached quote falls outside the requested lifetime it is dropped.
+    expect(Object.keys(service.getTickersWithLifetime(0))).not.toContain('ADM/USD');
+  });
+
   it('should skip overlapping scheduled updates', async () => {
     await service['ready'];
 
@@ -433,19 +456,54 @@ describe('RatesService', () => {
       expect(aggregateCursor.close).toHaveBeenCalled();
     });
 
-    it('should stop after the requested number of date groups even when timestamps are missing', async () => {
+    it('should skip snapshots with a missing timestamp without spending the result limit', async () => {
       aggregateCursor.next
         .mockResolvedValueOnce({ date: 3000, base: 'BTC', quote: 'USD', rate: 51_000 })
         .mockResolvedValueOnce({ date: 2000, base: 'BTC', quote: 'USD', rate: 50_000 })
         .mockResolvedValueOnce({ date: 1000, base: 'BTC', quote: 'USD', rate: 49_000 });
+      // The newest group is orphaned; the next one is intact.
+      timestampModel.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ _id: 'timestamp-id' });
+
+      const result = await service.getHistoryTickers({ limit: 1 });
+
+      expect(result).toEqual([{ _id: 'timestamp-id', date: 2000, tickers: { 'BTC/USD': 50_000 } }]);
+      expect(timestampModel.findOne).toHaveBeenCalledTimes(2);
+      expect(aggregateCursor.close).toHaveBeenCalled();
+    });
+
+    it('should terminate when every snapshot in range is orphaned', async () => {
+      let date = 1_000_000;
+      aggregateCursor.next.mockImplementation(() =>
+        Promise.resolve({ date: (date -= 1000), base: 'BTC', quote: 'USD', rate: 50_000 }),
+      );
       timestampModel.findOne.mockResolvedValue(null);
 
       await expect(service.getHistoryTickers({ limit: 1 })).resolves.toEqual([]);
 
-      expect(timestampModel.findOne).toHaveBeenCalledTimes(1);
-      expect(timestampModel.findOne).toHaveBeenCalledWith({ date: 3000 });
-      expect(aggregateCursor.next).toHaveBeenCalledTimes(2);
+      // Bounded by MAX_HISTORY_GROUPS_SCANNED rather than by the cursor running dry.
+      expect(timestampModel.findOne).toHaveBeenCalledTimes(1000);
       expect(aggregateCursor.close).toHaveBeenCalled();
+    });
+
+    it('should resolve a timestamp against the requested pair, not the global snapshot', async () => {
+      tickerModel.findOne = jest.fn().mockResolvedValue({ date: 1500 });
+      aggregateCursor.next.mockResolvedValue(null);
+
+      await service.getHistoryTickers({ timestamp: 2, coin: 'ADM/USD' });
+
+      expect(tickerModel.findOne).toHaveBeenCalledWith(
+        { base: 'ADM', quote: 'USD', date: { $lte: 2000 } },
+        null,
+        { sort: { date: -1 } },
+      );
+      expect(timestampModel.findOne).not.toHaveBeenCalled();
+      expect(tickerModel.aggregate).toHaveBeenCalledWith([
+        { $match: { date: 1500 } },
+        { $match: { base: 'ADM', quote: 'USD' } },
+        { $sort: { date: -1 } },
+      ]);
     });
   });
 

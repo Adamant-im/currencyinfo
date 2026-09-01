@@ -12,7 +12,10 @@
   "groupPercentage": 65, // Percentage from 0 to 200 used to notify about significant group deviations
 
   "refreshInterval": 10, // Positive update interval in minutes (optional). Frequent refreshes may require paid API keys
-  "minSources": 2, // Positive integer number of sources required for rate calculation
+  // Upper bound on the number of independent sources required per pair. The effective threshold is
+  // min(minSources, number of enabled sources advertising the pair), so a pair offered by a single
+  // provider is still served. Pairs below the configured value are listed in a startup warning
+  "minSources": 2,
 
   // Specifies the duration (in minutes) for which the rates are considered relevant
   // Rates this old can be saved in history

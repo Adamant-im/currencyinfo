@@ -2,6 +2,19 @@ import { z } from 'zod';
 import { coinName } from 'src/shared/schema-types';
 
 const percentage = z.number().min(0).max(200);
+
+/**
+ * Optional secret that treats an empty or whitespace-only value as omitted.
+ *
+ * Currencyinfo v1 used `""` to mean "no key", and `scripts/migrate.mjs` copies
+ * `cmcApiKey` / `ccApiKey` across verbatim, so rejecting the empty string here
+ * would fail closed on upgrade before `superRefine` can decide whether the
+ * source actually needs a key.
+ */
+const optionalSecret = z
+  .string()
+  .trim()
+  .transform((value) => (value.length ? value : undefined));
 const httpUrl = z
   .string()
   .url()
@@ -99,7 +112,7 @@ export const schema = z
         slack: slackWebhookUrl.array(),
         discord: discordWebhookUrl.array(),
         adamant: adamantAddress.array(),
-        adamantPassphrase: z.string().trim().min(1).optional(),
+        adamantPassphrase: optionalSecret.optional(),
       })
       .partial()
       .strict()
@@ -128,7 +141,7 @@ export const schema = z
 
     exchange_rate_host: apiSourceSchema
       .extend({
-        api_key: z.string().trim().min(1),
+        api_key: optionalSecret,
         codes: z.array(coinName).default([]),
       })
       .partial()
@@ -137,7 +150,7 @@ export const schema = z
 
     coinmarketcap: apiSourceSchema
       .extend({
-        api_key: z.string().trim().min(1),
+        api_key: optionalSecret,
         coins: z.array(coinName),
         ids: z.record(z.string(), z.number().int().positive()),
       })
@@ -146,7 +159,7 @@ export const schema = z
       .optional(),
     cryptocompare: apiSourceSchema
       .extend({
-        api_key: z.string().trim().min(1),
+        api_key: optionalSecret,
         coins: z.array(coinName),
       })
       .partial()
