@@ -40,14 +40,37 @@ GET http://localhost:36661/get?coin=ADM,BTC,ETH
 ![Data sources (light theme)](./.github/banner-light.png#gh-light-mode-only)
 ![Data sources (dark theme)](./.github/banner-dark.png#gh-dark-mode-only)
 
-Currencyinfo integrates with multiple reliable market rate providers:
+Currencyinfo integrates with multiple reliable market rate providers.
 
-- 🦎 [CoinGecko](https://coingecko.com) — Broad cryptocurrency rates stably refreshed every 1 to 5 minutes
-- 📈 [CoinMarketCap](https://coinmarketcap.com) — Fast-updating cryptocurrency quotes with flexible API tiers
-- 💱 [CryptoCompare](https://cryptocompare.com) — Comprehensive crypto and fiat rate endpoints
+Enabled by default, keyless, and requiring no signup:
+
+- 🌶️ [CoinPaprika](https://coinpaprika.com) — Broad cryptocurrency rates, 20,000 calls per month and 10 requests per second
+- 🪙 [CoinLore](https://coinlore.com) — Broad cryptocurrency rates, the whole coin set in a single request per cycle
+- 🟡 [Binance](https://binance.com) — Public spot market data from an exchange rather than an aggregator
 - 💵 [Currency API](https://github.com/fawazahmed0/exchange-api) — Free, open-source fiat currency exchange rates
+- 💶 [ExchangeRate-API](https://www.exchangerate-api.com) — Keyless fiat endpoint covering 166 currencies, updated daily
+
+Disabled by default because they need a key:
+
+- 🦎 [CoinGecko](https://coingecko.com) — Broad cryptocurrency rates stably refreshed every 1 to 5 minutes. The free Demo plan key is required, see [Enabling CoinGecko](#enabling-coingecko).
+- 📈 [CoinMarketCap](https://coinmarketcap.com) — Fast-updating cryptocurrency quotes with flexible API tiers
 - 🏦 [ExchangeRate.host](https://exchangerate.host) — Global currency, forex, and precious metals exchange rates
-- 🏛️ [MOEX](https://moex.com) — Moscow Exchange market data for reliable fiat currency pricing
+- 🏛️ [MOEX](https://moex.com) — Moscow Exchange market data for fiat currency pricing. Disabled because USD and EUR trading has been prohibited there since June 2024.
+
+Deprecated:
+
+- 💱 [CryptoCompare](https://developers.coindesk.com), now CoinDesk Data — Comprehensive crypto and fiat rate endpoints. The free tier was retired on 21 May 2026 and `min-api.cryptocompare.com` answers `401` without a paid subscription, so the source is disabled by default. The connector is kept for subscribers, see [Deprecated sources](#deprecated-sources).
+
+The default configuration therefore provides three keyless crypto sources and two keyless fiat sources, so `minSources: 2` is satisfiable out of the box without any API key.
+
+### Source terms and quotas
+
+- CoinPaprika's free plan is keyless and allows 20,000 calls per month at 10 requests per second. A refresh cycle costs one ranked bulk call plus one call per configured ID that ranks outside `coinpaprika.bulk_limit`, which is two calls per cycle with the shipped defaults. That is ~8,900 calls in a 31-day month at the default `refreshInterval` of 10 minutes. The quota therefore bounds the interval: two calls per cycle exhaust it below ~4.5 minutes, so keep `refreshInterval` at 5 or more, raise `coinpaprika.bulk_limit` above the rank of every configured ID to get back to a single call per cycle, or disable the source.
+- CoinLore publishes an open API that requires no registration and no key. It states no strict rate limit and recommends around one request per second, which a single multi-ID request per cycle stays far below.
+- Binance geo-blocks some regions with HTTP `451`. The connector reports the block once, disables itself for the run, and the remaining sources keep serving. Restarting the service re-probes availability.
+- Binance quotes no direct USD pairs. Rates are requested against `binance.quote_asset` (`USDT` by default) and served as `USD`, so a depeg of the quote asset shifts every Binance rate by the depeg magnitude. The divergence machinery covers that case: the affected rates split into their own group, `groupPercentage` raises the alert, and `strategy` resolves the pair from the healthy group. `USDT/USD` and `USDC/USD` stay in the aggregator source defaults so a depeg remains directly observable in the served data.
+- Coin discovery runs once per start, not per cycle. CoinPaprika downloads its `/v1/coins` directory (~1.4 MB gzipped) and CoinLore its `/api/assets/` directory (~0.4 MB gzipped) only when a source has symbols left to resolve; a `coinlore.ids` map that covers every configured symbol skips that request entirely. Binance validates its markets with one small `exchangeInfo` call.
+- The default coin lists cover every coin in `adamant-wallets` [`assets/general`](https://github.com/Adamant-im/adamant-wallets/tree/master/assets/general) that ADAMANT clients quote as a currency of its own: `ADM`, `BTC`, `ETH`, `BNB`, `DOGE`, `DASH`, `USDT` and `USDC`. `XRP`, `SOL`, `ADA`, `TRX` and `LTC` are added on top because every crypto source quotes them, which gives the divergence check enough overlap to be meaningful. ERC-20 tokens listed in `adamant-wallets` are not enabled by default; add them to the per-source coin lists when an operator needs them.
 
 ## Prerequisites
 
@@ -87,7 +110,31 @@ Configuration is validated strictly at startup:
   offered by a single provider is still served from that one quote. Startup logs every pair whose
   coverage is below the configured value
 - Optional source weights must be non-negative; zero gives a source no group weight
-- Set `enabled` explicitly for authenticated sources; if it is omitted for a configured ExchangeRateHost or CoinMarketCap source, the source is treated as enabled and requires an API key
+- Set `enabled` explicitly for authenticated sources; if it is omitted for a configured ExchangeRateHost, CoinMarketCap, CoinGecko or CryptoCompare source, the source is treated as enabled and requires an API key
+- `binance.coins` must not contain `binance.quote_asset`, because there is no market of an asset against itself
+- The template ships readable placeholders in every `api_key` and in `notify.adamantPassphrase` so you can see where each credential goes. They are treated as no credential at all: enabling a source while its placeholder is still in place fails at startup with the message naming that source, instead of failing on every request afterwards. Placeholders from earlier templates and from Currencyinfo v1 are recognized too
+
+#### Enabling CoinGecko
+
+The keyless CoinGecko plan is throttled to 5-15 calls per minute and rate limits unpredictably, so it is disabled by default. The free Demo plan gives 10,000 calls per month at 100 calls per minute and needs no credit card:
+
+1. Create a key at [the CoinGecko developer dashboard](https://www.coingecko.com/en/developers/dashboard)
+2. Put it in `coingecko.api_key`; the connector sends it as the `x-cg-demo-api-key` header
+3. Set `coingecko.enabled` to `true`
+
+The connector issues one `/coins/list` call at startup and one `/simple/price` call per cycle, roughly 4,300 calls per month at the default 10 minute interval.
+
+#### Deprecated sources
+
+CryptoCompare (now CoinDesk Data) retired its free API tier on 21 May 2026. `cryptocompare.enabled` is `false` by default and `CryptoCompare` has been removed from the default `priorities`. The connector is not removed: operators holding a CoinDesk Data subscription can set `cryptocompare.enabled` to `true`, provide `cryptocompare.api_key`, and add `CryptoCompare` back to `priorities`. Full removal is planned for the next major release.
+
+Running `pnpm run migrate` on a v1 configuration never produces an enabled source that cannot work:
+
+- CryptoCompare stays enabled only when the legacy `ccApiKey` is present, and the migration reminds you to add `CryptoCompare` back to `priorities` in that case
+- CoinMarketCap stays enabled only when the legacy `cmcApiKey` is present
+- CoinGecko is always disabled, because v1 configurations carry no Demo key
+
+Every case prints a warning naming the follow-up step.
 
 ### 3. Build and run
 

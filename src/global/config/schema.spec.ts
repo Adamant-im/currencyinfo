@@ -1,4 +1,14 @@
-import { adamantAddress, discordWebhookUrl, schema, slackWebhookUrl } from './schema';
+import { readFileSync } from 'fs';
+
+import JSON5 from 'json5';
+
+import {
+  adamantAddress,
+  discordWebhookUrl,
+  isPlaceholderSecret,
+  schema,
+  slackWebhookUrl,
+} from './schema';
 
 describe('Config Schema Validation', () => {
   describe('slackWebhookUrl', () => {
@@ -60,6 +70,7 @@ describe('Config Schema Validation', () => {
       },
       coingecko: {
         enabled: true,
+        api_key: 'CG-demo-key',
         coins: ['ADM', 'BTC', 'ETH'],
       },
     };
@@ -181,6 +192,7 @@ describe('Config Schema Validation', () => {
         ...validConfig,
         coingecko: {
           enabled: true,
+          api_key: 'CG-demo-key',
           coins: ['BTC'],
           weight: 0,
         },
@@ -189,6 +201,7 @@ describe('Config Schema Validation', () => {
         ...validConfig,
         coingecko: {
           enabled: true,
+          api_key: 'CG-demo-key',
           coins: ['BTC'],
           weight: -1,
         },
@@ -243,7 +256,7 @@ describe('Config Schema Validation', () => {
       expect(
         schema.safeParse({
           ...validConfig,
-          cryptocompare: { enabled: true, api_key: '', coins: ['BTC'] },
+          cryptocompare: { enabled: false, api_key: '', coins: ['BTC'] },
         }).success,
       ).toBe(true);
       expect(
@@ -292,16 +305,208 @@ describe('Config Schema Validation', () => {
       }
     });
 
-    it('should allow CryptoCompare without its optional API key', () => {
-      const configWithoutApiKey = {
+    it('should require an API key for CryptoCompare, whose free tier was retired', () => {
+      const withoutApiKey = {
         ...validConfig,
         cryptocompare: {
           enabled: true,
           coins: ['BTC'],
         },
       };
+      const withApiKey = {
+        ...validConfig,
+        cryptocompare: {
+          enabled: true,
+          api_key: 'coindesk-data-key',
+          coins: ['BTC'],
+        },
+      };
+      const disabled = {
+        ...validConfig,
+        cryptocompare: {
+          enabled: false,
+          coins: ['BTC'],
+        },
+      };
 
-      expect(schema.safeParse(configWithoutApiKey).success).toBe(true);
+      expect(schema.safeParse(withoutApiKey).success).toBe(false);
+      expect(schema.safeParse(withApiKey).success).toBe(true);
+      expect(schema.safeParse(disabled).success).toBe(true);
+    });
+
+    it('should require a Demo API key when CoinGecko is enabled', () => {
+      const withoutApiKey = {
+        ...validConfig,
+        coingecko: {
+          enabled: true,
+          coins: ['BTC'],
+        },
+      };
+      const disabled = {
+        ...validConfig,
+        coingecko: {
+          enabled: false,
+          coins: ['BTC'],
+        },
+      };
+
+      expect(schema.safeParse(withoutApiKey).success).toBe(false);
+      expect(schema.safeParse(disabled).success).toBe(true);
+    });
+
+    it('should validate the keyless CoinPaprika block', () => {
+      expect(
+        schema.safeParse({
+          ...validConfig,
+          coinpaprika: {
+            enabled: true,
+            ids: ['btc-bitcoin'],
+            bulk_limit: 200,
+            max_individual_requests: 5,
+          },
+        }).success,
+      ).toBe(true);
+      expect(schema.safeParse({ ...validConfig, coinpaprika: { enabled: true } }).success).toBe(
+        false,
+      );
+      // CoinPaprika caps the ranked response at 2000 rows regardless of a higher limit.
+      expect(
+        schema.safeParse({
+          ...validConfig,
+          coinpaprika: { enabled: true, coins: ['BTC'], bulk_limit: 2001 },
+        }).success,
+      ).toBe(false);
+    });
+
+    it('should validate the keyless CoinLore block', () => {
+      expect(
+        schema.safeParse({
+          ...validConfig,
+          coinlore: { enabled: true, coins: ['BTC'], ids: { ADM: 33250 } },
+        }).success,
+      ).toBe(true);
+      expect(schema.safeParse({ ...validConfig, coinlore: { enabled: true } }).success).toBe(false);
+      expect(
+        schema.safeParse({
+          ...validConfig,
+          coinlore: { enabled: true, ids: { ADM: 0 } },
+        }).success,
+      ).toBe(false);
+    });
+
+    it('should validate the keyless Binance block', () => {
+      expect(
+        schema.safeParse({
+          ...validConfig,
+          binance: { enabled: true, quote_asset: 'USDT', coins: ['BTC', 'ETH'] },
+        }).success,
+      ).toBe(true);
+      expect(schema.safeParse({ ...validConfig, binance: { enabled: true } }).success).toBe(false);
+      // There is no market of the quote asset against itself.
+      expect(
+        schema.safeParse({
+          ...validConfig,
+          binance: { enabled: true, quote_asset: 'USDT', coins: ['BTC', 'USDT'] },
+        }).success,
+      ).toBe(false);
+    });
+
+    it('should validate the keyless ExchangeRate-API block', () => {
+      expect(
+        schema.safeParse({
+          ...validConfig,
+          exchange_rate_api: {
+            enabled: true,
+            url: 'https://open.er-api.com/v6/latest/USD',
+            codes: ['USD', 'RUB'],
+          },
+        }).success,
+      ).toBe(true);
+      expect(
+        schema.safeParse({
+          ...validConfig,
+          exchange_rate_api: {
+            enabled: true,
+            url: 'https://open.er-api.com/v6/latest/USD',
+            codes: [],
+          },
+        }).success,
+      ).toBe(false);
+      expect(
+        schema.safeParse({
+          ...validConfig,
+          exchange_rate_api: { enabled: true, url: 'file:///etc/passwd', codes: ['USD'] },
+        }).success,
+      ).toBe(false);
+    });
+
+    it('should refuse the shipped placeholder secrets as if no key were configured', () => {
+      // Copying config.default.jsonc and flipping `enabled` without replacing the placeholder
+      // used to pass validation and then fail on every request with 401.
+      const cases = [
+        ['coingecko', { enabled: true, api_key: 'Demo API key for CoinGecko', coins: ['BTC'] }],
+        [
+          'cryptocompare',
+          { enabled: true, api_key: 'API key for CoinDesk Data (CryptoCompare)', coins: ['BTC'] },
+        ],
+        // Superseded template spelling, still carried by upgrading operators.
+        ['cryptocompare', { enabled: true, api_key: 'API key for CryptoCompare', coins: ['BTC'] }],
+        ['coinmarketcap', { enabled: true, api_key: 'API key for CoinMarketCap', coins: ['BTC'] }],
+        [
+          'exchange_rate_host',
+          { enabled: true, api_key: 'API key for ExchangeRate', codes: ['EUR'] },
+        ],
+        // Currencyinfo v1 placeholders, copied across verbatim by scripts/migrate.mjs.
+        [
+          'coinmarketcap',
+          { enabled: true, api_key: 'Put yours Coinmarketcap API key', coins: ['BTC'] },
+        ],
+      ] as const;
+
+      for (const [block, value] of cases) {
+        const result = schema.safeParse({ ...validConfig, coingecko: undefined, [block]: value });
+
+        expect([block, result.success]).toEqual([block, false]);
+      }
+    });
+
+    it('should reject the placeholder passphrase when ADAMANT recipients are configured', () => {
+      expect(
+        schema.safeParse({
+          ...validConfig,
+          notify: { adamant: ['U17636520927910270607'], adamantPassphrase: 'apple banana...' },
+        }).success,
+      ).toBe(false);
+    });
+
+    // A placeholder the detector does not know is a placeholder that passes validation and then
+    // fails on every request, so the template and the detector have to stay in step.
+    it('should recognize every secret shipped in config.default.jsonc as a placeholder', () => {
+      const template = JSON5.parse(readFileSync('./config.default.jsonc', 'utf-8'));
+
+      const shipped = {
+        'exchange_rate_host.api_key': template.exchange_rate_host?.api_key,
+        'coinmarketcap.api_key': template.coinmarketcap?.api_key,
+        'cryptocompare.api_key': template.cryptocompare?.api_key,
+        'coingecko.api_key': template.coingecko?.api_key,
+        'notify.adamantPassphrase': template.notify?.adamantPassphrase,
+      };
+
+      for (const [path, secret] of Object.entries(shipped)) {
+        expect([path, typeof secret]).toEqual([path, 'string']);
+        expect([path, isPlaceholderSecret(secret)]).toEqual([path, true]);
+      }
+    });
+
+    // `.strict()` rejects unknown fields, so the shipped template and the schema have to be
+    // updated together. This test is what makes that requirement enforceable.
+    it('should validate the shipped config.default.jsonc template', () => {
+      const template = JSON5.parse(readFileSync('./config.default.jsonc', 'utf-8'));
+
+      const result = schema.safeParse(template);
+
+      expect(result.error?.issues ?? []).toEqual([]);
+      expect(result.success).toBe(true);
     });
 
     it('should reject invalid strategy enum value', () => {

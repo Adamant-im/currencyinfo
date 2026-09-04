@@ -21,11 +21,17 @@
   // Rates this old can be saved in history
   "rateLifetime": 60, // Must be greater than zero
 
+  // Source resolution order for the "priority" strategy, highest priority first.
+  // CryptoCompare is intentionally absent: its free tier was retired on 21 May 2026
+  // and the source is disabled by default. Add it back when running with a subscription
   "priorities": [
     "ExchangeRateHost",
     "Coinmarketcap",
     "Coingecko",
-    "CryptoCompare",
+    "CoinPaprika",
+    "CoinLore",
+    "Binance",
+    "ExchangeRateApi",
     "CurrencyApi",
     "MOEX"
   ],
@@ -106,6 +112,25 @@
     ]
   },
 
+  // Free ExchangeRate-API (https://www.exchangerate-api.com) open endpoint configuration
+  // Keyless, no signup, 166 currencies, updated once a day
+  // Fiat only: BTC and ETH are covered by the crypto sources and must not be listed here
+  "exchange_rate_api": {
+    // Enable or disable ExchangeRateApi (optional)
+    "enabled": true,
+    // API URL. The base currency is part of the path and must stay USD
+    "url": "https://open.er-api.com/v6/latest/USD",
+    "codes": [
+      // List of fiat currency codes to fetch rates from ExchangeRate-API (optional)
+      "USD",
+      "RUB",
+      "EUR",
+      "CNY",
+      "JPY"
+      // ...
+    ]
+  },
+
   // ExchangeRate (https://exchangerate.host) configuration
   // The API supports world currencies, precious metals and Bitcoin: https://exchangerate.host/currencies
   // Spot exchange rate data is retrieved from several major forex data providers in real-time, validated, processed and delivered hourly, every 10 minutes, or even within the 60-second market window.
@@ -146,11 +171,15 @@
     }
   },
 
-  // CryptoCompare (https://cryptocompare.com) configuration
-  // Comprehensive coin and fiat list with frequent updates
+  // CryptoCompare, now CoinDesk Data (https://developers.coindesk.com) configuration
+  // DEPRECATED and disabled by default. The free tier was retired on 21 May 2026 and
+  // min-api.cryptocompare.com answers 401 without a paid subscription, so leaving this
+  // source enabled fails on every refresh cycle and raises a notification every interval
+  // Kept for operators who hold a subscription: set "enabled": true and provide "api_key",
+  // then add "CryptoCompare" back to "priorities"
   "cryptocompare": {
-    "enabled": true, // Enable or disable CryptoCompare API (optional)
-    "api_key": "API key for CryptoCompare", // optional
+    "enabled": false, // Enable or disable CryptoCompare API (optional)
+    "api_key": "API key for CoinDesk Data (CryptoCompare)", // obligatory when enabled
     "coins": [
       // List of coins to fetch rates from CryptoCompare (optional)
       "USD",
@@ -165,12 +194,18 @@
     ]
   },
 
-  // Free CoinGecko (https://coingecko.com) configuration
+  // CoinGecko (https://coingecko.com) configuration
   // Comprehensive coin list. Endpoints are all cached to around 1 to 5 minutes and you can expect most data to be updated at similar intervals.
+  // Disabled by default because the keyless public plan is throttled to 5-15 calls per minute
+  // and rate limits unpredictably. The free Demo plan gives 10,000 calls per month at
+  // 100 calls per minute with no credit card: https://www.coingecko.com/en/developers/dashboard
+  // Get a Demo key, put it in "api_key", and set "enabled": true
   "coingecko": {
-    "enabled": true, // Enable or disable CoinGecko API (optional)
+    "enabled": false, // Enable or disable CoinGecko API (optional)
+    "api_key": "Demo API key for CoinGecko", // obligatory when enabled
     "coins": [
       // List of coins to fetch rates from CoinGecko (optional, deprecated)
+      // Symbols are ambiguous on CoinGecko; prefer "ids" below
       "BTC",
       "ETH",
       "ADM"
@@ -181,7 +216,131 @@
       // Search for API ID on a specific coin page, e.g., https://www.coingecko.com/en/coins/adamant-messenger
       "bitcoin",
       "ethereum",
+      "binancecoin",
+      "ripple",
+      "solana",
+      "dogecoin",
+      "cardano",
+      "tron",
+      "litecoin",
+      "dash",
+      "tether",
+      "usd-coin",
       "adamant-messenger"
+      // ...
+    ]
+  },
+
+  // Free CoinPaprika (https://coinpaprika.com) configuration
+  // Keyless, no signup, 20,000 calls per month and 10 requests per second
+  // CoinPaprika has no batch-by-ids ticker endpoint, so a cycle costs one ranked bulk call
+  // plus one call per configured ID that ranks outside "bulk_limit". With the defaults below
+  // that is two calls per cycle: ~8,900 calls in a 31-day month at "refreshInterval": 10, and
+  // the free quota is exhausted below a ~4.5 minute interval
+  "coinpaprika": {
+    // Enable or disable CoinPaprika API (optional)
+    "enabled": true,
+    "coins": [
+      // List of coins to fetch rates from CoinPaprika (optional, deprecated)
+      // CoinPaprika symbols are ambiguous (ADM matches two active coins), so prefer "ids"
+      "BTC",
+      "ETH",
+      "ADM"
+      // ...
+    ],
+    "ids": [
+      // Array of CoinPaprika coin IDs for specific coin rates (optional, preferred)
+      // Search for the ID on a specific coin page, e.g., https://coinpaprika.com/coin/adm-adamant-messenger/
+      "btc-bitcoin",
+      "eth-ethereum",
+      "bnb-binance-coin",
+      "xrp-xrp",
+      "sol-solana",
+      "doge-dogecoin",
+      "ada-cardano",
+      "trx-tron",
+      "ltc-litecoin",
+      "dash-dash",
+      "usdt-tether",
+      "usdc-usd-coin",
+      "adm-adamant-messenger"
+      // ...
+    ],
+    // "limit" of the single ranked bulk call, up to 2000 (optional, defaults to 200)
+    // Every ID above except ADM ranks inside the top 100; 200 leaves headroom
+    "bulk_limit": 200,
+    // Upper bound on the per-coin calls made for IDs outside the ranked bulk range
+    // (optional, defaults to 5). Truncation is logged so a large "ids" list cannot
+    // silently burn the monthly quota
+    "max_individual_requests": 5
+  },
+
+  // Free CoinLore (https://coinlore.com) configuration
+  // Keyless, no signup. The whole coin set is covered by a single multi-ID request per cycle
+  "coinlore": {
+    // Enable or disable CoinLore API (optional)
+    "enabled": true,
+    "coins": [
+      // List of coins to fetch rates from CoinLore (optional)
+      // Symbols listed here without an entry in "ids" are resolved at startup from the
+      // lightweight /api/assets/ directory, in a single request
+      "BTC",
+      "ETH",
+      "ADM"
+      // ...
+    ],
+    "ids": {
+      // Record of CoinLore Symbol/ID pairs for specific coin rates (optional, preferred)
+      // Numeric CoinLore IDs are reassigned across listings, so a stale ID is rejected at
+      // runtime when the returned symbol does not match. Find the ID in the API response of
+      // https://api.coinlore.net/api/tickers/
+      "BTC": 90,
+      "ETH": 80,
+      "BNB": 2710,
+      "XRP": 58,
+      "SOL": 48543,
+      "DOGE": 2,
+      "ADA": 257,
+      "TRX": 2713,
+      "LTC": 1,
+      "DASH": 8,
+      "USDT": 518,
+      "USDC": 33285,
+      "ADM": 33250
+      // ...
+    }
+  },
+
+  // Free Binance (https://binance.com) public market data configuration
+  // Keyless, no signup, high rate limits. Binance is an exchange rather than an aggregator,
+  // so it adds genuine source independence from CoinGecko, CoinMarketCap, CoinPaprika and
+  // CoinLore, which partly share upstream data
+  // Binance geo-blocks some regions with HTTP 451; the connector disables itself and alerts
+  // once instead of failing every cycle
+  // ADM is not listed on Binance, so ADM coverage comes from the aggregator sources
+  "binance": {
+    // Enable or disable Binance API (optional)
+    "enabled": true,
+    // Binance has no direct USD pairs, only stablecoin pairs. Rates are requested against
+    // this asset and served as USD, so a depeg of the quote asset shifts every Binance rate
+    // by the depeg magnitude. The divergence machinery covers that: the affected rates split
+    // into their own group and "strategy" resolves the pair from the healthy one. Switch to
+    // "USDC" without a code change if preferred. Do NOT express this as a global "mappings"
+    // entry: that would rewrite the genuine USDT/USD quote into a degenerate USD/USD and
+    // hide the very depeg this assumption needs to stay observable
+    "quote_asset": "USDT",
+    "coins": [
+      // List of coins to fetch rates from Binance (optional)
+      "BTC",
+      "ETH",
+      "BNB",
+      "XRP",
+      "SOL",
+      "DOGE",
+      "ADA",
+      "TRX",
+      "LTC",
+      "DASH"
       // ...
     ]
   }

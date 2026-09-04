@@ -4,7 +4,44 @@ import { coinName } from 'src/shared/schema-types';
 const percentage = z.number().min(0).max(200);
 
 /**
- * Optional secret that treats an empty or whitespace-only value as omitted.
+ * Readable placeholders that ship in `config.default.jsonc` and in the Currencyinfo v1 template.
+ *
+ * The template has to show operators where each credential goes, so it ships a descriptive
+ * placeholder rather than an empty string. Copying the template to `config.jsonc` and switching a
+ * source to `"enabled": true` without replacing that placeholder would otherwise pass validation,
+ * and the source would fail on every request with `401` instead of failing loudly at startup.
+ * Legacy spellings are kept because operators carry them across upgrades and `scripts/migrate.mjs`
+ * copies the v1 values over verbatim.
+ *
+ * Compared case-insensitively against the trimmed value.
+ */
+const placeholderSecrets = new Set([
+  // config.default.jsonc
+  'api key for exchangerate',
+  'api key for coinmarketcap',
+  'api key for coindesk data (cryptocompare)',
+  'demo api key for coingecko',
+  'apple banana...',
+  // Superseded config.default.jsonc spellings
+  'api key for cryptocompare',
+  // Currencyinfo v1 (Adamant-im/adamant-currencyinfo-services)
+  'put yours coinmarketcap api key',
+  'put yours cryptocompare api key',
+  'no need for coingecko api key',
+]);
+
+/**
+ * Reports whether a configured secret is one of the shipped placeholders rather than a real one.
+ *
+ * @param value - Raw configured secret
+ * @returns Whether the value is a known placeholder and must be treated as no secret at all
+ */
+export function isPlaceholderSecret(value: string): boolean {
+  return placeholderSecrets.has(value.trim().toLowerCase());
+}
+
+/**
+ * Optional secret that treats an empty, whitespace-only or placeholder value as omitted.
  *
  * Currencyinfo v1 used `""` to mean "no key", and `scripts/migrate.mjs` copies
  * `cmcApiKey` / `ccApiKey` across verbatim, so rejecting the empty string here
@@ -14,7 +51,7 @@ const percentage = z.number().min(0).max(200);
 const optionalSecret = z
   .string()
   .trim()
-  .transform((value) => (value.length ? value : undefined));
+  .transform((value) => (value.length && !isPlaceholderSecret(value) ? value : undefined));
 const httpUrl = z
   .string()
   .url()
@@ -154,6 +191,16 @@ export const schema = z
       .strict()
       .optional(),
 
+    // Keyless ExchangeRate-API endpoint (open.er-api.com). Fiat only: crypto codes
+    // belong to the crypto sources, which quote them far more frequently.
+    exchange_rate_api: apiSourceSchema
+      .extend({
+        url: httpUrl,
+        codes: z.array(coinName).default([]),
+      })
+      .strict()
+      .optional(),
+
     exchange_rate_host: apiSourceSchema
       .extend({
         api_key: optionalSecret,
@@ -182,8 +229,46 @@ export const schema = z
       .optional(),
     coingecko: apiSourceSchema
       .extend({
+        api_key: optionalSecret,
         coins: z.array(coinName),
         ids: z.array(z.string().trim().min(1)),
+      })
+      .partial()
+      .strict()
+      .optional(),
+
+    coinpaprika: apiSourceSchema
+      .extend({
+        coins: z.array(coinName),
+        ids: z.array(z.string().trim().min(1)),
+        // `limit` of the single ranked bulk call. CoinPaprika caps the response at 2000 rows
+        // regardless of a higher value, so the schema caps it there too.
+        bulk_limit: z.number().int().positive().max(2000),
+        // Upper bound on the per-coin fan-out for ids outside the ranked bulk range.
+        // The free tier allows 20,000 calls/month, so an unbounded `ids` list would burn it.
+        max_individual_requests: z.number().int().nonnegative().max(100),
+      })
+      .partial()
+      .strict()
+      .optional(),
+
+    coinlore: apiSourceSchema
+      .extend({
+        coins: z.array(coinName),
+        // Numeric CoinLore ids are reassigned across listings, so they are verified against the
+        // symbol the quote carries at runtime rather than trusted outright.
+        ids: z.record(z.string(), z.number().int().positive()),
+      })
+      .partial()
+      .strict()
+      .optional(),
+
+    binance: apiSourceSchema
+      .extend({
+        // Binance quotes no direct USD pairs. Rates are requested against this asset and
+        // served as USD; see the Binance connector for the depeg trade-off.
+        quote_asset: coinName,
+        coins: z.array(coinName),
       })
       .partial()
       .strict()
@@ -237,7 +322,19 @@ export const schema = z
       });
     }
 
-    if (config.cryptocompare?.enabled === true && !config.cryptocompare.coins?.length) {
+    // CryptoCompare retired its free tier on 21 May 2026 and `min-api.cryptocompare.com`
+    // now answers 401 without a subscription, so the key is mandatory rather than optional.
+    const cryptocompareEnabled = config.cryptocompare?.enabled !== false;
+    if (cryptocompareEnabled && config.cryptocompare?.coins?.length) {
+      if (!config.cryptocompare.api_key) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['cryptocompare', 'api_key'],
+          message:
+            'Provide a CoinDesk Data (former CryptoCompare) API key when CryptoCompare is enabled. The free tier was retired on 21 May 2026',
+        });
+      }
+    } else if (config.cryptocompare?.enabled === true) {
       ctx.addIssue({
         code: 'custom',
         path: ['cryptocompare', 'coins'],
@@ -245,15 +342,77 @@ export const schema = z
       });
     }
 
-    if (
-      config.coingecko?.enabled === true &&
-      !config.coingecko.coins?.length &&
-      !config.coingecko.ids?.length
-    ) {
+    // The keyless CoinGecko plan is throttled to 5-15 calls/minute and rate limits
+    // unpredictably. The free Demo plan (10,000 calls/month, no credit card) is required
+    // instead: https://www.coingecko.com/en/developers/dashboard
+    const coingeckoEnabled = config.coingecko?.enabled !== false;
+    const coingeckoHasCoins = Boolean(
+      config.coingecko?.coins?.length || config.coingecko?.ids?.length,
+    );
+    if (coingeckoEnabled && coingeckoHasCoins) {
+      if (!config.coingecko?.api_key) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['coingecko', 'api_key'],
+          message:
+            'Provide a free CoinGecko Demo API key when CoinGecko is enabled. Get one at https://www.coingecko.com/en/developers/dashboard',
+        });
+      }
+    } else if (config.coingecko?.enabled === true) {
       ctx.addIssue({
         code: 'custom',
         path: ['coingecko', 'coins'],
         message: 'Provide at least one coin or ID when CoinGecko is enabled',
+      });
+    }
+
+    if (
+      config.coinpaprika?.enabled === true &&
+      !config.coinpaprika.coins?.length &&
+      !config.coinpaprika.ids?.length
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['coinpaprika', 'coins'],
+        message: 'Provide at least one coin or ID when CoinPaprika is enabled',
+      });
+    }
+
+    if (
+      config.coinlore?.enabled === true &&
+      !config.coinlore.coins?.length &&
+      !Object.keys(config.coinlore.ids || {}).length
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['coinlore', 'coins'],
+        message: 'Provide at least one coin or ID when CoinLore is enabled',
+      });
+    }
+
+    if (config.binance?.enabled === true && !config.binance.coins?.length) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['binance', 'coins'],
+        message: 'Provide at least one coin when Binance is enabled',
+      });
+    }
+
+    // Binance builds its markets as `<COIN><quote_asset>`, so a coin equal to the quote
+    // asset would ask for a market that does not exist (`USDTUSDT`).
+    if (config.binance?.quote_asset && config.binance.coins?.includes(config.binance.quote_asset)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['binance', 'coins'],
+        message: `Remove '${config.binance.quote_asset}' from the Binance coins: it is the configured quote asset and has no market against itself`,
+      });
+    }
+
+    if (config.exchange_rate_api?.enabled && !config.exchange_rate_api.codes.length) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['exchange_rate_api', 'codes'],
+        message: 'Provide at least one currency code when ExchangeRateApi is enabled',
       });
     }
 
