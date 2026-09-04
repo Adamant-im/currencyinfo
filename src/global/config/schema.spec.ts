@@ -411,6 +411,30 @@ describe('Config Schema Validation', () => {
       ).toBe(false);
     });
 
+    it('should only allow USD-pegged Binance quote assets', () => {
+      // The connector serves <COIN><quote_asset> as <COIN>/USD without converting, so a non-USD
+      // asset is a unit error: ETHBTC at 0.03 would be served as ETH/USD = 0.03.
+      for (const quoteAsset of ['USDT', 'USDC', 'FDUSD', 'DAI', 'USD']) {
+        expect([
+          quoteAsset,
+          schema.safeParse({
+            ...validConfig,
+            binance: { enabled: true, quote_asset: quoteAsset, coins: ['ETH'] },
+          }).success,
+        ]).toEqual([quoteAsset, true]);
+      }
+
+      for (const quoteAsset of ['BTC', 'ETH', 'BNB', 'EUR', 'TRY']) {
+        expect([
+          quoteAsset,
+          schema.safeParse({
+            ...validConfig,
+            binance: { enabled: true, quote_asset: quoteAsset, coins: ['ETH'] },
+          }).success,
+        ]).toEqual([quoteAsset, false]);
+      }
+    });
+
     it('should validate the keyless ExchangeRate-API block', () => {
       expect(
         schema.safeParse({

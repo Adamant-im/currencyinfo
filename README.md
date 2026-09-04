@@ -63,12 +63,23 @@ Deprecated:
 
 The default configuration therefore provides three keyless crypto sources and two keyless fiat sources, so `minSources: 2` is satisfiable out of the box without any API key.
 
-### Source terms and quotas
+### Source terms and redistribution
+
+Keyless access is not the same as permission to republish the data. Both keyless sources enabled by default restrict what an operator may do with their rates, and the restriction depends on how the instance is used rather than on whether a key is paid for.
+
+| Source | Private or development instance, rates consumed by you | Public or commercial instance serving these rates onwards |
+| --- | --- | --- |
+| [CoinPaprika](https://docs.coinpaprika.com/api-plans) | Permitted on the free plan, which is marked "Personal" usage | Redistribution is offered on the Enterprise plan only. The paid Starter through Ultimate plans allow commercial usage without granting redistribution |
+| [ExchangeRate-API](https://www.exchangerate-api.com/docs/free) | Permitted, and attribution is required | Not permitted. Contact the provider for written permission |
+
+### Source quotas and behaviour
 
 - CoinPaprika's free plan is keyless and allows 20,000 calls per month at 10 requests per second. A refresh cycle costs one ranked bulk call plus one call per configured ID that ranks outside `coinpaprika.bulk_limit`, which is two calls per cycle with the shipped defaults. That is ~8,900 calls in a 31-day month at the default `refreshInterval` of 10 minutes. The quota therefore bounds the interval: two calls per cycle exhaust it below ~4.5 minutes, so keep `refreshInterval` at 5 or more, raise `coinpaprika.bulk_limit` above the rank of every configured ID to get back to a single call per cycle, or disable the source.
 - CoinLore publishes an open API that requires no registration and no key. It states no strict rate limit and recommends around one request per second, which a single multi-ID request per cycle stays far below.
 - Binance geo-blocks some regions with HTTP `451`. The connector reports the block once, disables itself for the run, and the remaining sources keep serving. Restarting the service re-probes availability.
-- Binance quotes no direct USD pairs. Rates are requested against `binance.quote_asset` (`USDT` by default) and served as `USD`, so a depeg of the quote asset shifts every Binance rate by the depeg magnitude. The divergence machinery covers that case: the affected rates split into their own group, `groupPercentage` raises the alert, and `strategy` resolves the pair from the healthy group. `USDT/USD` and `USDC/USD` stay in the aggregator source defaults so a depeg remains directly observable in the served data.
+- Binance quotes no direct USD pairs. Rates are requested against `binance.quote_asset` (`USDT` by default) and served as `USD`, so a depeg of the quote asset shifts every Binance rate by the depeg magnitude. `binance.quote_asset` only accepts USD-pegged assets, because the connector relabels the quote as USD instead of converting it
+- Whether a depeg raises an alert depends on your thresholds and source mix, and the default settings do not catch a small one. Rates are grouped by `rateDifferencePercentThreshold`, computed as the difference over the mean, so at the default `25` a Binance quote stays in the same group as the honest ones until the peg falls to roughly `0.78`. Below that the Binance quotes split off, `groupPercentage` decides whether the divergence is reported, and `strategy` resolves the pair from the dominant group. Lower `rateDifferencePercentThreshold` if you need a tighter bound, and keep at least two non-Binance sources for every pair Binance quotes
+- `USDT/USD` and `USDC/USD` stay in the aggregator source defaults, so the peg itself is visible in the served data whatever the grouping decides.
 - Coin discovery runs once per start, not per cycle. CoinPaprika downloads its `/v1/coins` directory (~1.4 MB gzipped) and CoinLore its `/api/assets/` directory (~0.4 MB gzipped) only when a source has symbols left to resolve; a `coinlore.ids` map that covers every configured symbol skips that request entirely. Binance validates its markets with one small `exchangeInfo` call.
 - The default coin lists cover every coin in `adamant-wallets` [`assets/general`](https://github.com/Adamant-im/adamant-wallets/tree/master/assets/general) that ADAMANT clients quote as a currency of its own: `ADM`, `BTC`, `ETH`, `BNB`, `DOGE`, `DASH`, `USDT` and `USDC`. `XRP`, `SOL`, `ADA`, `TRX` and `LTC` are added on top because every crypto source quotes them, which gives the divergence check enough overlap to be meaningful. ERC-20 tokens listed in `adamant-wallets` are not enabled by default; add them to the per-source coin lists when an operator needs them.
 

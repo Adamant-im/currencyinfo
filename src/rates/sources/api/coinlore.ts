@@ -255,17 +255,21 @@ export class CoinLoreApi extends CoinIdFetcher {
     ];
 
     if (pending.length) {
-      const { data } = await axios.get<CoinloreAssetsDto>(assetsUrl, {
-        // ~15k rows, so compression matters even though the payload is far smaller than
-        // the quoted listing.
-        headers: { 'Accept-Encoding': 'gzip' },
-        timeout: 20000,
-      });
+      const assets = await this.fetchAssets();
 
-      const assets = data?.data;
+      if (!assets) {
+        // The directory is only needed for symbols that `coinlore.ids` does not cover, so an
+        // outage must not discard the ids that resolved without it. Falling through here keeps
+        // `this.coins` and `enabledCoins` in step: leaving early would let `fetch()` keep serving
+        // those coins while `SourcesManager` saw no CoinLore coverage for them, which silently
+        // lowers the effective `minSources` requirement for every pair they take part in.
+        this.notifier.notify(
+          'warn',
+          `Unable to resolve ${this.resourceName} ids for ${pending.join(', ')}: the coin directory at ${assetsUrl} is unavailable. The explicitly configured 'coinlore.ids' are served as usual.`,
+        );
 
-      if (!Array.isArray(assets)) {
-        throw new Error(`Unexpected response from ${assetsUrl}: an array of assets is expected.`);
+        this.publishCoins();
+        return;
       }
 
       const unresolved: string[] = [];
@@ -312,6 +316,50 @@ export class CoinLoreApi extends CoinIdFetcher {
       }
     }
 
+    this.publishCoins();
+  }
+
+  /**
+   * Fetches the coin directory used to resolve symbols that `coinlore.ids` does not cover.
+   *
+   * @returns The directory rows, or `undefined` when it is unavailable and explicitly configured
+   *    ids can carry the source on their own
+   * @throws When nothing has been resolved yet, so `CoinIdFetcher` retries the whole discovery
+   */
+  private async fetchAssets(): Promise<CoinloreAssetDto[] | undefined> {
+    try {
+      const { data } = await axios.get<CoinloreAssetsDto>(assetsUrl, {
+        // ~15k rows, so compression matters even though the payload is far smaller than
+        // the quoted listing.
+        headers: { 'Accept-Encoding': 'gzip' },
+        timeout: 20000,
+      });
+
+      if (!Array.isArray(data?.data)) {
+        throw new Error(`Unexpected response from ${assetsUrl}: an array of assets is expected.`);
+      }
+
+      return data.data;
+    } catch (error) {
+      if (!this.coins.length) {
+        throw error;
+      }
+
+      this.logger.warn(
+        `Unable to fetch the ${this.resourceName} coin directory. Error: ${error}. Continuing with the explicitly configured ids.`,
+      );
+
+      return undefined;
+    }
+  }
+
+  /**
+   * Advertises the resolved coins, or reports the source as unavailable when none resolved.
+   *
+   * `enabledCoins` is what `SourcesManager` counts towards `minSources`, so it must always end up
+   * describing exactly the coins `fetch()` is going to quote.
+   */
+  private publishCoins(): void {
     if (!this.coins.length) {
       this.logger.error(`Could not fetch coin list for ${this.resourceName}.`);
       this.notifier.notify(

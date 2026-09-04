@@ -6,6 +6,14 @@ import { Logger } from 'src/global/logger/logger.service';
 import { BaseApi } from './base';
 import { Tickers } from './dto/tickers.dto';
 
+/**
+ * The only base currency this connector can serve.
+ *
+ * Rates are inverted into `CODE/USD` pairs, so a response quoted against anything else would be
+ * mislabelled rather than converted.
+ */
+const BASE_CODE = 'USD';
+
 export interface ExchangeRateApiRates {
   [code: string]: number;
 }
@@ -18,7 +26,8 @@ export interface ExchangeRateApiDto {
   result: string;
 
   /**
-   * Currency the `rates` map is quoted against, `USD` for the configured endpoint.
+   * Currency the `rates` map is quoted against. Must be `USD`: the connector inverts the rates
+   * into `CODE/USD` pairs and cannot convert another base.
    */
   base_code?: string;
 
@@ -97,6 +106,18 @@ export class ExchangeRateApi extends BaseApi {
     if (data?.result !== 'success' || typeof data.rates !== 'object' || data.rates === null) {
       throw new Error(
         `Unable to get rates from ${url}. Result: ${data?.result}, error type: ${data?.['error-type']}`,
+      );
+    }
+
+    // The base currency is part of the URL, which is operator-configurable, and the inversion
+    // below is only correct against USD. A perfectly valid response from another base
+    // (`/v6/latest/EUR`) would otherwise be relabelled as USD and served as a plausible but
+    // wrong rate, so the response has to state the base this connector assumes.
+    if (data.base_code?.toUpperCase() !== BASE_CODE) {
+      throw new Error(
+        `Unable to use rates from ${url}: expected them to be quoted against ${BASE_CODE}, ` +
+          `but the response is quoted against '${data.base_code}'. ` +
+          `Point 'exchange_rate_api.url' at the ${BASE_CODE} endpoint.`,
       );
     }
 

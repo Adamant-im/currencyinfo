@@ -92,6 +92,39 @@ export const discordWebhookUrl = z.custom<string>(
 );
 
 /**
+ * Assets the Binance connector may quote against.
+ *
+ * The connector serves `<COIN><quote_asset>` markets as `<COIN>/USD` without converting anything,
+ * which is only defensible while the quote asset tracks the US dollar. Any other asset turns the
+ * substitution into a unit error rather than an approximation: `quote_asset: "BTC"` would serve
+ * the real `ETHBTC` price of ~0.03 as `ETH/USD`. Extend this list only with assets pegged to USD.
+ */
+const binanceUsdQuoteAssets = [
+  'USD',
+  'USDT',
+  'USDC',
+  'FDUSD',
+  'USD1',
+  'USDS',
+  'TUSD',
+  'USDP',
+  'PYUSD',
+  'RLUSD',
+  'DAI',
+  'BUSD',
+] as const;
+
+/**
+ * Zod validation schema for `binance.quote_asset`, restricted to USD-pegged assets.
+ */
+const binanceQuoteAsset = coinName.refine(
+  (value) => (binanceUsdQuoteAssets as readonly string[]).includes(value),
+  {
+    message: `Binance rates are served as USD without conversion, so 'quote_asset' must be a USD-pegged asset: ${binanceUsdQuoteAssets.join(', ')}`,
+  },
+);
+
+/**
  * Common configuration schema for external API rate sources.
  */
 const apiSourceSchema = z
@@ -267,7 +300,7 @@ export const schema = z
       .extend({
         // Binance quotes no direct USD pairs. Rates are requested against this asset and
         // served as USD; see the Binance connector for the depeg trade-off.
-        quote_asset: coinName,
+        quote_asset: binanceQuoteAsset,
         coins: z.array(coinName),
       })
       .partial()

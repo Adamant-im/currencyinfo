@@ -249,6 +249,61 @@ describe('CoinLoreApi Connector', () => {
     expect(rates['C149/USD']).toBe(3);
   });
 
+  it('should keep advertised coins in step with served coins when the directory fails', async () => {
+    mockConfig['coinlore.ids'] = { ADM: 33250 };
+    mockConfig['coinlore.coins'] = ['NEO'];
+
+    mockedAxios.get.mockRejectedValueOnce(new Error('ETIMEDOUT'));
+
+    const degraded = createApi();
+    await degraded.ready;
+
+    // `enabledCoins` is what SourcesManager counts towards minSources. Leaving it empty while
+    // fetch() still quoted ADM lowered the effective requirement for every pair ADM takes part in.
+    expect(degraded.enabledCoins).toEqual(new Set(['ADM']));
+    expect(mockNotifier.notify).toHaveBeenCalledWith('warn', expect.stringContaining('NEO'));
+
+    mockedAxios.get.mockResolvedValueOnce({ data: [makeRow(33250, 'ADM', '0.5')] });
+
+    const rates = await degraded.fetch('USD');
+
+    expect(rates).toEqual({ 'ADM/USD': 0.5 });
+    // Every quoted pair is advertised, and nothing is advertised that is not quoted.
+    expect(new Set(Object.keys(rates).map((pair) => pair.split('/')[0]))).toEqual(
+      degraded.enabledCoins,
+    );
+  });
+
+  it('should fail discovery when the directory is the only way to resolve anything', async () => {
+    mockConfig['coinlore.ids'] = {};
+    mockConfig['coinlore.coins'] = ['NEO'];
+
+    // Nothing resolves without the directory here, so the failure must propagate and let
+    // CoinIdFetcher retry rather than advertising a half-initialized source.
+    mockedAxios.get.mockRejectedValue(new Error('ETIMEDOUT'));
+
+    jest.useFakeTimers();
+
+    try {
+      const failing = createApi();
+
+      // Collapses the backoff between the three discovery attempts.
+      await jest.advanceTimersByTimeAsync(60000);
+      await failing.ready;
+
+      expect(mockedAxios.get).toHaveBeenCalledTimes(3);
+      expect(failing.enabledCoins).toEqual(new Set());
+      await expect(failing.fetch('USD')).resolves.toEqual({});
+      expect(mockNotifier.notify).toHaveBeenCalledWith(
+        'error',
+        expect.stringContaining('CoinLore'),
+      );
+    } finally {
+      jest.useRealTimers();
+      mockedAxios.get.mockReset();
+    }
+  });
+
   it('should return empty object if disabled', async () => {
     api.enabled = false;
 

@@ -115,6 +115,13 @@
   // Free ExchangeRate-API (https://www.exchangerate-api.com) open endpoint configuration
   // Keyless, no signup, 166 currencies, updated once a day
   // Fiat only: BTC and ETH are covered by the crypto sources and must not be listed here
+  //
+  // USAGE TERMS. Keyless access is not permission to republish the rates.
+  // - Private or development instance, rates consumed by you: permitted, add the attribution
+  //   link <a href="https://www.exchangerate-api.com">Rates By Exchange Rate API</a> where the
+  //   rates are shown
+  // - Public or commercial instance serving these rates onwards: contact the provider for
+  //   written redistribution permission, or set "enabled": false
   "exchange_rate_api": {
     // Enable or disable ExchangeRateApi (optional)
     "enabled": true,
@@ -233,6 +240,13 @@
 
   // Free CoinPaprika (https://coinpaprika.com) configuration
   // Keyless, no signup, 20,000 calls per month and 10 requests per second
+  //
+  // USAGE TERMS. The plan matrix marks the Free plan
+  // as "Personal" usage with redistribution unavailable; redistribution is offered on the
+  // Enterprise plan only
+  // - Private or development instance, rates consumed by you: permitted on the free plan
+  // - Public or commercial instance serving these rates onwards: an Enterprise agreement is
+  //   required, or set "enabled": false
   // CoinPaprika has no batch-by-ids ticker endpoint, so a cycle costs one ranked bulk call
   // plus one call per configured ID that ranks outside "bulk_limit". With the defaults below
   // that is two calls per cycle: ~8,900 calls in a 31-day month at "refreshInterval": 10, and

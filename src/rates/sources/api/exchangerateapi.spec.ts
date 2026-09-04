@@ -120,6 +120,29 @@ describe('ExchangeRateApi Connector', () => {
     expect(mockLogger.info).toHaveBeenCalledWith('ExchangeRateApi rates updated successfully.');
   });
 
+  it('should refuse a successful response quoted against another base currency', async () => {
+    // `exchange_rate_api.url` is operator-configurable, so /v6/latest/EUR is a valid URL that
+    // returns a valid payload. Inverting it as USD would serve EUR/USD = 1 as a plausible rate.
+    mockedAxios.get.mockResolvedValueOnce({
+      data: {
+        result: 'success',
+        base_code: 'EUR',
+        rates: { EUR: 1, USD: 1.161942, RUB: 100.4 },
+      },
+    });
+
+    await expect(api.fetch()).rejects.toThrow("quoted against 'EUR'");
+    expect(mockLogger.info).not.toHaveBeenCalled();
+  });
+
+  it('should refuse a response that does not state its base currency', async () => {
+    mockedAxios.get.mockResolvedValueOnce({
+      data: { result: 'success', rates: { RUB: 86.409515 } },
+    });
+
+    await expect(api.fetch()).rejects.toThrow('quoted against USD');
+  });
+
   it('should return empty object if disabled', async () => {
     api.enabled = false;
 
