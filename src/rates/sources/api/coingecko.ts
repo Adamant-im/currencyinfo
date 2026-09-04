@@ -18,8 +18,16 @@ export interface CoingeckoCoin {
   cg_id: string;
 }
 
+const coinsListUrl = 'https://api.coingecko.com/api/v3/coins/list';
+const priceUrl = 'https://api.coingecko.com/api/v3/simple/price';
+
 /**
  * CoinGecko API provider connector.
+ *
+ * The keyless public plan is throttled to 5-15 calls per minute and rate limits
+ * unpredictably, so the connector authenticates with a free Demo plan key sent as the
+ * `x-cg-demo-api-key` header. One `/coins/list` call at startup plus one `/simple/price`
+ * call per refresh cycle stays inside the 10,000 calls per month Demo quota.
  */
 export class CoingeckoApi extends CoinIdFetcher {
   static resourceName = 'Coingecko';
@@ -41,6 +49,7 @@ export class CoingeckoApi extends CoinIdFetcher {
 
     this.enabled =
       this.config.get('coingecko.enabled') !== false &&
+      !!this.config.get<string>('coingecko.api_key') &&
       !!(
         this.config.get<string[]>('coingecko.coins')?.length ||
         this.config.get<string[]>('coingecko.ids')?.length
@@ -48,6 +57,17 @@ export class CoingeckoApi extends CoinIdFetcher {
     this.weight = this.config.get<number>('coingecko.weight') ?? 10;
 
     this.ready = this.fetchCoinIds();
+  }
+
+  /**
+   * Builds the request headers, authenticating with the Demo plan key when configured.
+   *
+   * @returns Header record passed to every CoinGecko request
+   */
+  private getHeaders(): Record<string, string> {
+    const apiKey = this.config.get<string>('coingecko.api_key');
+
+    return apiKey ? { 'x-cg-demo-api-key': apiKey } : {};
   }
 
   async fetch(baseCurrency: string): Promise<Tickers> {
@@ -68,11 +88,11 @@ export class CoingeckoApi extends CoinIdFetcher {
       vs_currencies: baseCurrency,
     };
 
-    const url = 'https://api.coingecko.com/api/v3/simple/price';
     const decimals = this.config.get<number>('decimals') ?? 12;
 
-    const { data } = await axios.get(url, {
+    const { data } = await axios.get(priceUrl, {
       params,
+      headers: this.getHeaders(),
       timeout: 10000,
     });
 
@@ -101,27 +121,39 @@ export class CoingeckoApi extends CoinIdFetcher {
 
     this.coins = [];
 
-    const coinsListUrl = 'https://api.coingecko.com/api/v3/coins/list';
-    const { data } = await axios.get<CoingeckoCoinDto[]>(coinsListUrl, { timeout: 15000 });
+    const { data } = await axios.get<CoingeckoCoinDto[]>(coinsListUrl, {
+      headers: this.getHeaders(),
+      timeout: 15000,
+    });
 
-    const coins = this.config.get<string[]>('coingecko.coins');
+    const resolvedIds = new Set<string>();
+    const resolvedSymbols = new Set<string>();
 
-    coins?.forEach((symbol) => {
-      const coin = data.find((item) => item.symbol === symbol.toLowerCase());
+    // Deduplicating on the id alone is not enough: two distinct ids carrying the same ticker
+    // would both emit the same pair, and the later price would silently overwrite the earlier
+    // one. The first resolution wins and the collision is reported.
+    const addCoin = (rawSymbol: string, cgId: string) => {
+      const symbol = rawSymbol.toUpperCase();
 
-      if (!coin) {
-        return this.notifier.notify(
-          'warn',
-          `Unable to get ticker for ${this.resourceName} symbol '${symbol}'. Check if the coin exists: ${coinsListUrl}.`,
+      if (resolvedIds.has(cgId)) {
+        return;
+      }
+
+      if (resolvedSymbols.has(symbol)) {
+        return this.logger.warn(
+          `Skipping ${this.resourceName} id '${cgId}': symbol ${symbol} is already served by ` +
+            `'${this.coins.find((coin) => coin.symbol === symbol)?.cg_id}'. ` +
+            `Remove one of them from 'coingecko.ids'.`,
         );
       }
 
-      this.coins.push({
-        symbol: symbol.toUpperCase(),
-        cg_id: coin.id,
-      });
-    });
+      resolvedIds.add(cgId);
+      resolvedSymbols.add(symbol);
+      this.coins.push({ symbol, cg_id: cgId });
+    };
 
+    // Explicit IDs are resolved first so they always win over symbol resolution, and so a
+    // symbol that also appears in the deprecated `coins` list cannot be requested twice.
     const coinIds = this.config.get<string[]>('coingecko.ids');
 
     coinIds?.forEach((id) => {
@@ -134,10 +166,42 @@ export class CoingeckoApi extends CoinIdFetcher {
         );
       }
 
-      this.coins.push({
-        symbol: coin.symbol.toUpperCase(),
-        cg_id: id,
-      });
+      addCoin(coin.symbol, id);
+    });
+
+    const coins = this.config.get<string[]>('coingecko.coins');
+
+    coins?.forEach((symbol) => {
+      const normalizedSymbol = symbol.toUpperCase();
+
+      // Already pinned through `coingecko.ids`, which is the explicit and preferred path.
+      if (resolvedSymbols.has(normalizedSymbol)) {
+        return;
+      }
+
+      const candidates = data.filter((item) => item.symbol?.toUpperCase() === normalizedSymbol);
+
+      if (!candidates.length) {
+        return this.notifier.notify(
+          'warn',
+          `Unable to get ticker for ${this.resourceName} symbol '${symbol}'. Check if the coin exists: ${coinsListUrl}.`,
+        );
+      }
+
+      // Symbols are not unique on CoinGecko, and unlike CoinPaprika the `/coins/list`
+      // payload carries neither a rank nor an activity flag, so there is nothing to rank
+      // the candidates by. The first entry in CoinGecko's own ordering is kept, which is
+      // the historical behaviour, and the ambiguity is surfaced so an operator can pin the
+      // intended asset through `coingecko.ids` instead of silently getting another coin.
+      if (candidates.length > 1) {
+        this.logger.warn(
+          `${this.resourceName} symbol '${normalizedSymbol}' matches ${candidates.length} coins (${candidates
+            .map(({ id }) => id)
+            .join(', ')}). Using '${candidates[0].id}'. Set 'coingecko.ids' to select explicitly.`,
+        );
+      }
+
+      addCoin(normalizedSymbol, candidates[0].id);
     });
 
     if (!this.coins.length) {

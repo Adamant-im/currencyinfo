@@ -11,6 +11,10 @@ import { CryptoCompareApi } from './api/cryptocompare';
 import { MoexApi } from './api/moex';
 import { CoinmarketcapApi } from './api/coinmarketcap';
 import { ExchangeRateHost } from './api/exchangeratehost';
+import { ExchangeRateApi } from './api/exchangerateapi';
+import { CoinPaprikaApi } from './api/coinpaprika';
+import { CoinLoreApi } from './api/coinlore';
+import { BinanceApi } from './api/binance';
 
 /**
  * Manages external rate provider connectors, lifecycle initialization,
@@ -60,11 +64,15 @@ export class SourcesManager {
   initializeSources() {
     this.sources = [
       new CurrencyApi(this.config, this.logger),
+      new ExchangeRateApi(this.config, this.logger),
       new ExchangeRateHost(this.config, this.logger),
       new MoexApi(this.config, this.logger, this.notifier),
       new CoinmarketcapApi(this.config, this.logger, this.notifier),
       new CryptoCompareApi(this.config, this.logger),
       new CoingeckoApi(this.config, this.logger, this.notifier),
+      new CoinPaprikaApi(this.config, this.logger, this.notifier),
+      new CoinLoreApi(this.config, this.logger, this.notifier),
+      new BinanceApi(this.config, this.logger, this.notifier),
     ];
 
     this.sourceCount = this.getEnabledSources().length;

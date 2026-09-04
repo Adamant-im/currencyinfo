@@ -1,10 +1,88 @@
+import { readFileSync } from 'fs';
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import JSON5 from 'json5';
+
 import { Logger } from 'src/global/logger/logger.service';
 import { Notifier } from 'src/global/notifier/notifier.service';
 import { SourcesManager } from './sources-manager';
 import { BaseApi } from './api/base';
 import { Schema } from 'src/global/config/schema';
+
+import { CurrencyApi } from './api/currencyapi';
+import { CoingeckoApi } from './api/coingecko';
+import { CryptoCompareApi } from './api/cryptocompare';
+import { MoexApi } from './api/moex';
+import { CoinmarketcapApi } from './api/coinmarketcap';
+import { ExchangeRateHost } from './api/exchangeratehost';
+import { ExchangeRateApi } from './api/exchangerateapi';
+import { CoinPaprikaApi } from './api/coinpaprika';
+import { CoinLoreApi } from './api/coinlore';
+import { BinanceApi } from './api/binance';
+
+/**
+ * `RatesMerger.getPriority` resolves a source by its `resourceName`, so a name in `priorities`
+ * that matches no connector silently ranks that source last instead of failing loudly.
+ */
+describe('config.default.jsonc priorities', () => {
+  const registeredSources = [
+    CurrencyApi,
+    ExchangeRateApi,
+    ExchangeRateHost,
+    MoexApi,
+    CoinmarketcapApi,
+    CryptoCompareApi,
+    CoingeckoApi,
+    CoinPaprikaApi,
+    CoinLoreApi,
+    BinanceApi,
+  ];
+
+  it('should only reference registered connector resource names', () => {
+    const template = JSON5.parse(readFileSync('./config.default.jsonc', 'utf-8'));
+    const resourceNames = registeredSources.map(({ resourceName }) => resourceName);
+
+    expect(template.priorities).not.toHaveLength(0);
+
+    for (const name of template.priorities) {
+      expect(resourceNames).toContain(name);
+    }
+  });
+
+  it('should leave the deprecated CryptoCompare source out of the defaults', () => {
+    const template = JSON5.parse(readFileSync('./config.default.jsonc', 'utf-8'));
+
+    expect(template.priorities).not.toContain(CryptoCompareApi.resourceName);
+    expect(template.cryptocompare.enabled).toBe(false);
+  });
+
+  it('should enable exactly the keyless sources by default', () => {
+    const template = JSON5.parse(readFileSync('./config.default.jsonc', 'utf-8'));
+
+    expect({
+      coinpaprika: template.coinpaprika.enabled,
+      coinlore: template.coinlore.enabled,
+      binance: template.binance.enabled,
+      currency_api: template.currency_api.enabled,
+      exchange_rate_api: template.exchange_rate_api.enabled,
+      coingecko: template.coingecko.enabled,
+      coinmarketcap: template.coinmarketcap.enabled,
+      exchange_rate_host: template.exchange_rate_host.enabled,
+      moex: template.moex.enabled,
+    }).toEqual({
+      coinpaprika: true,
+      coinlore: true,
+      binance: true,
+      currency_api: true,
+      exchange_rate_api: true,
+      coingecko: false,
+      coinmarketcap: false,
+      exchange_rate_host: false,
+      moex: false,
+    });
+  });
+});
 
 describe('SourcesManager', () => {
   let sourcesManager: SourcesManager;
