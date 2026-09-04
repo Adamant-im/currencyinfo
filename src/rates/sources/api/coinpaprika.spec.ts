@@ -3,6 +3,9 @@ import axios from 'axios';
 import { Logger } from 'src/global/logger/logger.service';
 import { Notifier } from 'src/global/notifier/notifier.service';
 import { CoinPaprikaApi } from './coinpaprika';
+import { SourcesManager } from '../sources-manager';
+import { RatesMerger } from '../../merger';
+import { SourceTickers } from './dto/tickers.dto';
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
@@ -213,21 +216,175 @@ describe('CoinPaprikaApi Connector', () => {
     expect(mockedAxios.get.mock.calls[1][0]).toBe(`${TICKERS_URL}/adm-adamant-messenger`);
   });
 
-  it('should cap the per-coin fan-out and log the truncation', async () => {
+  it('should exclude excess individual coins at startup and warn only once across cycles', async () => {
     mockConfig['coinpaprika.ids'] = ['adm-adamant-messenger', 'kcs-kucoin-token'];
     mockConfig['coinpaprika.max_individual_requests'] = 1;
 
     const api = createApi();
     await api.ready;
 
-    mockedAxios.get.mockResolvedValueOnce({ data: admTicker });
-
-    const rates = await api.fetch('USD');
-
-    expect(rates).toEqual({ 'ADM/USD': 0.01234568 });
-    expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+    expect(api.enabledCoins).toEqual(new Set(['ADM']));
     expect(warnings()).toContain('coinpaprika.max_individual_requests');
     expect(warnings()).toContain('KCS');
+    expect(mockLogger.warn).toHaveBeenCalledTimes(1);
+
+    for (let cycle = 0; cycle < 2; cycle++) {
+      mockedAxios.get.mockResolvedValueOnce({ data: admTicker });
+
+      expect(await api.fetch('USD')).toEqual({ 'ADM/USD': 0.01234568 });
+    }
+
+    expect(mockedAxios.get).toHaveBeenCalledTimes(3);
+    expect(mockedAxios.get.mock.calls.slice(1).map(([url]) => url)).toEqual([
+      `${TICKERS_URL}/adm-adamant-messenger`,
+      `${TICKERS_URL}/adm-adamant-messenger`,
+    ]);
+    expect(mockLogger.warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('should keep bulk-boundary coins and budget unranked coins in configured order', async () => {
+    mockConfig['coinpaprika.ids'] = [
+      'eth-ethereum',
+      'adm-adamant-messenger',
+      'btc-bitcoin',
+      'kcs-kucoin-token',
+    ];
+    mockConfig['coinpaprika.max_individual_requests'] = 1;
+
+    const api = createApi(
+      coinsList.map((coin) => ({
+        ...coin,
+        rank: coin.symbol === 'ETH' ? 0 : coin.symbol === 'BTC' ? 200 : coin.rank,
+      })),
+    );
+    await api.ready;
+
+    expect(api.enabledCoins).toEqual(new Set(['ETH', 'BTC']));
+    expect(warnings()).toContain('ADM');
+    expect(warnings()).toContain('KCS');
+  });
+
+  it.each([
+    { ids: ['btc-bitcoin', 'adm-adamant-messenger'], enabled: true, coins: ['BTC'] },
+    { ids: ['adm-adamant-messenger'], enabled: false, coins: [] },
+  ])('should support a zero individual cap with $ids', async ({ ids, enabled, coins }) => {
+    mockConfig['coinpaprika.ids'] = ids;
+    mockConfig['coinpaprika.max_individual_requests'] = 0;
+
+    const api = createApi();
+    await api.ready;
+
+    expect(api.enabled).toBe(enabled);
+    expect(api.enabledCoins).toEqual(new Set(coins));
+    expect(warnings()).toContain('ADM');
+
+    for (let cycle = 0; cycle < 2; cycle++) {
+      if (enabled) {
+        mockedAxios.get.mockResolvedValueOnce({
+          data: [{ id: 'btc-bitcoin', symbol: 'BTC', quotes: { USD: { price: 60000 } } }],
+        });
+      }
+
+      expect(await api.fetch('USD')).toEqual(enabled ? { 'BTC/USD': 60000 } : {});
+    }
+
+    expect(mockedAxios.get).toHaveBeenCalledTimes(enabled ? 3 : 1);
+    expect(mockLogger.warn).toHaveBeenCalledTimes(1);
+    expect(mockNotifier.notify).not.toHaveBeenCalled();
+  });
+
+  it('should retain advertised bulk coins through a temporary response gap and recover', async () => {
+    mockConfig['coinpaprika.ids'] = ['btc-bitcoin', 'eth-ethereum', 'adm-adamant-messenger'];
+    mockConfig['coinpaprika.max_individual_requests'] = 1;
+
+    const api = createApi();
+    await api.ready;
+
+    expect(mockLogger.warn).not.toHaveBeenCalled();
+    mockedAxios.get.mockResolvedValueOnce({ data: [] });
+    mockedAxios.get.mockResolvedValueOnce({
+      data: { id: 'btc-bitcoin', symbol: 'BTC', quotes: { USD: { price: 60000 } } },
+    });
+
+    expect(await api.fetch('USD')).toEqual({ 'BTC/USD': 60000 });
+    expect(api.enabledCoins).toEqual(new Set(['BTC', 'ETH', 'ADM']));
+    expect(mockedAxios.get).toHaveBeenCalledTimes(3);
+    expect(warnings()).toContain('coinpaprika.max_individual_requests');
+
+    mockedAxios.get.mockResolvedValueOnce({
+      data: [
+        { id: 'btc-bitcoin', symbol: 'BTC', quotes: { USD: { price: 60000 } } },
+        { id: 'eth-ethereum', symbol: 'ETH', quotes: { USD: { price: 2500 } } },
+      ],
+    });
+    mockedAxios.get.mockResolvedValueOnce({ data: admTicker });
+
+    expect(await api.fetch('USD')).toEqual({
+      'BTC/USD': 60000,
+      'ETH/USD': 2500,
+      'ADM/USD': 0.01234568,
+    });
+    expect(mockedAxios.get).toHaveBeenCalledTimes(5);
+  });
+
+  it('should let another source serve excluded coins without inflating its source-count gate', async () => {
+    mockConfig['coinpaprika.ids'] = ['adm-adamant-messenger'];
+    mockConfig['coinpaprika.coins'] = ['KCS'];
+    mockConfig['coinpaprika.max_individual_requests'] = 1;
+
+    const api = createApi();
+    await api.ready;
+
+    const config = new ConfigService({
+      minSources: 2,
+      base_coins: ['USD'],
+      decimals: 8,
+      rateDifferencePercentThreshold: 25,
+      groupPercentage: 65,
+      priorities: ['CoinPaprika', 'OtherSource'],
+    });
+    const manager = new SourcesManager(config, mockNotifier as Notifier, mockLogger as Logger);
+    const otherSource = {
+      enabled: true,
+      enabledCoins: new Set(['ADM', 'KCS']),
+      ready: Promise.resolve(),
+      weight: 10,
+      resourceName: 'OtherSource',
+      fetch: jest.fn().mockResolvedValue({ 'ADM/USD': 0.0123, 'KCS/USD': 12.34 }),
+    };
+    manager.sources = [api, otherSource];
+    await manager.getEnabledCoins();
+
+    expect(manager.sourcePairRecord).toEqual({ 'ADM/USD': 2, 'KCS/USD': 1 });
+
+    class TestMerger extends RatesMerger {
+      sourcesManager = manager;
+      pairSources = manager.sourcePairRecord;
+      config = config;
+      notifier = mockNotifier as Notifier;
+      rateLifetime = 60;
+    }
+    const merger = new TestMerger('priority', manager.getSourceWeights());
+
+    for (let cycle = 0; cycle < 2; cycle++) {
+      mockedAxios.get.mockResolvedValueOnce({ data: admTicker });
+      const quotes: SourceTickers = {};
+      merger.mergeTickers(quotes, await api.fetch('USD'), { name: api.resourceName });
+      merger.mergeTickers(quotes, await otherSource.fetch(), { name: otherSource.resourceName });
+      merger.setTickers(quotes);
+
+      expect(merger.tickers['KCS/USD']).toBe(12.34);
+      expect(merger.tickers['ADM/USD']).toBe(0.01234568);
+      expect(merger.getRatesWithFewerSources()).toEqual([]);
+    }
+
+    const quotes: SourceTickers = {};
+    merger.mergeTickers(quotes, await otherSource.fetch(), { name: otherSource.resourceName });
+    merger.setTickers(quotes);
+
+    expect(merger.tickers['KCS/USD']).toBe(12.34);
+    expect(merger.tickers['ADM/USD']).toBeUndefined();
+    expect(merger.getRatesWithFewerSources()).toEqual([['ADM/USD', 2, 1]]);
   });
 
   it('should keep other rates when a per-coin request fails', async () => {

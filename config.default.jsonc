@@ -283,9 +283,11 @@
     // "limit" of the single ranked bulk call, up to 2000 (optional, defaults to 200)
     // Every ID above except ADM ranks inside the top 100; 200 leaves headroom
     "bulk_limit": 200,
-    // Upper bound on the per-coin calls made for IDs outside the ranked bulk range
-    // (optional, defaults to 5). Truncation is logged so a large "ids" list cannot
-    // silently burn the monthly quota
+    // Upper bound on per-coin calls (optional, defaults to 5, 0 keeps only bulk-range coins)
+    // At startup, out-of-range/unranked coins beyond this cap are excluded from requests
+    // and source coverage, with a warning. Explicit IDs take precedence over symbols
+    // Raise this cap or adjust "bulk_limit", then restart to reconsider excluded coins
+    // The same cap limits fallback calls when a bulk response temporarily omits a coin
     "max_individual_requests": 5
   },
 

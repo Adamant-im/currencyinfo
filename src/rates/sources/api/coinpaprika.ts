@@ -103,9 +103,9 @@ export class CoinPaprikaApi extends CoinIdFetcher {
   /**
    * Fetches rates for every resolved coin against the given base currency.
    *
-   * The requests are split at runtime from the ranks stored during coin discovery: coins inside
-   * the bulk rank window are covered by one `/v1/tickers?limit=N` call, the rest get one
-   * `/v1/tickers/{coin_id}` call each, capped by `coinpaprika.max_individual_requests`.
+   * Discovery admits only as many out-of-range coins as the individual request cap can cover.
+   * Coins inside the bulk rank window share one `/v1/tickers?limit=N` call; missing prices use
+   * `/v1/tickers/{coin_id}`, still capped when a bulk response temporarily omits expected rows.
    *
    * @param baseCurrency Quote currency of the returned pairs, for example `USD`.
    * @returns Map of `BASE/QUOTE` pair strings to prices; empty when the source is disabled,
@@ -134,7 +134,7 @@ export class CoinPaprikaApi extends CoinIdFetcher {
 
     // Skip the bulk call when no configured coin can be inside the ranked window: an operator
     // tracking only low-ranked coins must not pay for a payload they cannot use.
-    const hasBulkCoins = this.coins.some(({ rank }) => rank > 0 && rank <= bulkLimit);
+    const hasBulkCoins = this.coins.some(({ rank }) => this.isRanked(rank) && rank <= bulkLimit);
 
     if (hasBulkCoins) {
       const { data } = await axios.get<CoinpaprikaTickerDto[]>(TICKERS_URL, {
@@ -231,6 +231,8 @@ export class CoinPaprikaApi extends CoinIdFetcher {
    *
    * Explicit `coinpaprika.ids` are resolved first and win over `coinpaprika.coins`, because
    * symbol resolution is ambiguous by nature (see the class-level note on duplicate symbols).
+   * Coins outside the bulk window beyond the individual request cap are excluded for this run
+   * before advertising coverage, so they cannot inflate the downstream source-count gate.
    *
    * @returns Nothing. Populates `enabledCoins` on success; on a total failure it reports the
    *   problem and leaves `enabledCoins` untouched so the source stays unavailable.
@@ -356,7 +358,46 @@ export class CoinPaprikaApi extends CoinIdFetcher {
       return;
     }
 
+    const bulkLimit = this.config.get<number>('coinpaprika.bulk_limit') ?? DEFAULT_BULK_LIMIT;
+    const maxIndividualRequests =
+      this.config.get<number>('coinpaprika.max_individual_requests') ??
+      DEFAULT_MAX_INDIVIDUAL_REQUESTS;
+    let individualCount = 0;
+    const excluded: string[] = [];
+
+    // Discovery order puts explicit ids first. Keep every bulk coin and only the individual
+    // coins we can actually request each cycle; excluded coins must not count towards minSources.
+    this.coins = this.coins.filter(({ symbol, rank }) => {
+      if (this.isRanked(rank) && rank <= bulkLimit) {
+        return true;
+      }
+
+      if (individualCount++ < maxIndividualRequests) {
+        return true;
+      }
+
+      excluded.push(symbol);
+      return false;
+    });
+
+    if (excluded.length) {
+      this.logger.warn(
+        `${this.resourceName} excludes coins outside the bulk rank window that exceed ` +
+          `'coinpaprika.max_individual_requests' (${maxIndividualRequests}): ${excluded.join(', ')}. ` +
+          `They will not be requested or counted as source coverage for this run. Increase ` +
+          `'coinpaprika.max_individual_requests' or adjust 'coinpaprika.bulk_limit', then restart.`,
+      );
+    }
+
     this.enabledCoins = new Set(this.coins.map(({ symbol }) => symbol));
+
+    // A zero cap with only out-of-range coins leaves no usable source. Do not poll it and
+    // emit an unavailable-source notification every cycle for this deliberate configuration.
+    if (!this.coins.length) {
+      this.enabled = false;
+      return;
+    }
+
     this.logger.info(`${this.resourceName} coin IDs fetched successfully.`);
   }
 
