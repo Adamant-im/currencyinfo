@@ -1,0 +1,129 @@
+name: Publish Docker image
+
+# Publishes ghcr.io/adamant-im/currencyinfo.
+#
+# Release-driven only. A push, a branch, or a manual run never publishes: the job refuses to
+# continue unless the release tag is an ancestor of `master`, so an image can only come from
+# reviewed, merged code. `latest` moves only for the newest non-prerelease release.
+#
+# The published manifest covers linux/amd64 and linux/arm64 and carries OCI labels, a build
+# provenance attestation, and an SBOM. See the vulnerability scanning policy at
+# https://currencyinfo.docs.adamant.im/guide/security#vulnerability-scanning-policy
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-docker-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Build and push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          fetch-depth: 0
+
+      # An image must never be published from `develop`, from an unreviewed commit, or from an
+      # arbitrary workflow run. This is the gate that enforces it.
+      - name: Verify the release tag is on master
+        run: |
+          git fetch origin master
+          git merge-base --is-ancestor HEAD origin/master
+
+      # `latest` must point at the newest stable release, not at a patch published later on an
+      # older line. GitHub's own "latest release" is the authority on which tag that is.
+      - name: Decide whether this release moves `latest`
+        id: channel
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name }}
+          PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          if [ "$PRERELEASE" = "true" ]; then
+            echo "latest=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          newest="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq .tag_name 2>/dev/null || echo '')"
+
+          if [ "$newest" = "$TAG" ]; then
+            echo "latest=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "latest=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive tags and OCI labels
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/adamant-im/currencyinfo
+          # Semantic version plus the moving major and minor aliases. `latest` is added only when
+          # the step above confirmed this is the newest stable release.
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable=${{ steps.channel.outputs.latest == 'true' }}
+          labels: |
+            org.opencontainers.image.title=Currencyinfo
+            org.opencontainers.image.description=Universal self-hosted crypto and fiat exchange rates service aggregating multiple sources behind one REST API
+            org.opencontainers.image.url=https://currencyinfo.dev
+            org.opencontainers.image.documentation=https://currencyinfo.docs.adamant.im
+            org.opencontainers.image.licenses=GPL-3.0
+            org.opencontainers.image.vendor=ADAMANT community developers
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ steps.meta.outputs.version }}
+            REVISION=${{ github.sha }}
+            CREATED=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: mode=max
+          sbom: true
+
+      - name: Summarize the published manifest
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          {
+            echo "### Published images"
+            echo
+            echo '```'
+            echo "$TAGS"
+            echo '```'
+            echo
+            echo "Platforms: \`linux/amd64\`, \`linux/arm64\`, with provenance and an SBOM."
+          } >> "$GITHUB_STEP_SUMMARY"

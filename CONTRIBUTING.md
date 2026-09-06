@@ -1,6 +1,12 @@
-# Contributing to ADAMANT Currencyinfo
+# Contributing to Currencyinfo
 
 Thank you for improving `currencyinfo`. Changes should protect calculation accuracy, rate merging reliability, service security, and contributor clarity.
+
+Currencyinfo is a universal, self-hosted exchange rates service maintained by the ADAMANT developer community. Treat any change that makes it harder to run outside ADAMANT as a regression.
+
+- Documentation: <https://currencyinfo.docs.adamant.im>
+- Landing page: <https://currencyinfo.dev>
+- Container image: `ghcr.io/adamant-im/currencyinfo`
 
 ## Before you start
 
@@ -55,6 +61,15 @@ pnpm run lint
 pnpm run format:check
 ```
 
+When the change touches documentation, also run:
+
+```bash
+pnpm run docs:build
+pnpm run docs:links
+```
+
+`docs:build` fails on a dead internal link inside the site, and `docs:links` checks relative links and heading anchors across every Markdown file in the repository.
+
 Also check dependencies and security when relevant:
 
 ```bash
@@ -95,10 +110,56 @@ MIGRATE_DB_URL="$(< /run/secrets/mongo_uri)" pnpm exec node scripts/migrate-db.m
 
 - `src/rates/`: REST controllers, rate fetch scheduler, MongoDB persistence, and cache
 - `src/rates/merger/`: core rates merging engine, divergence detection, and strategy resolvers
-- `src/rates/sources/`: data source manager and external API connectors (CoinGecko, CoinMarketCap, CryptoCompare, CurrencyAPI, ExchangeRate.host, MOEX)
+- `src/rates/sources/`: data source manager and external API connectors (Binance, CoinGecko, CoinLore, CoinMarketCap, CoinPaprika, CryptoCompare, Currency API, ExchangeRate-API, ExchangeRate.host, MOEX)
 - `src/global/`: global configuration loader and schema, custom Winston logger, and notifier modules
 - `src/shared/`: shared Zod schema types and formatting utilities
-- `scripts/`: configuration and database migration utilities
+- `scripts/`: configuration and database migration utilities, and the Markdown link checker
+- `docs/`: the VitePress documentation site published to <https://currencyinfo.docs.adamant.im>
+- `.github/workflows/`: documentation checks and deployment, container build and smoke test, GHCR publication
+
+## Documentation
+
+The documentation site is version-controlled in `docs/` and is the canonical technical reference. The GitHub Wiki is deprecated and kept only as a tombstone; do not add content to it or link to it.
+
+```bash
+pnpm run docs:dev      # local server with hot reload
+pnpm run docs:build    # production build, fails on dead internal links
+pnpm run docs:preview  # serve the built output
+```
+
+| Path | Contents |
+| --- | --- |
+| `docs/.vitepress/config.mts` | Site config, navigation, sidebar, search |
+| `docs/guide/` | Narrative documentation |
+| `docs/reference/` | REST API, configuration, and per-source reference |
+| `docs/project/` | Contributor and project pages |
+| `docs/public/` | Static assets and the GitHub Pages `CNAME` |
+
+Rules:
+
+- documentation follows the code. If they disagree, the code is right and the page is a bug
+- an option documented on the site must exist in `src/global/config/schema.ts` and in `config.default.jsonc`
+- credentials in examples must be unmistakably synthetic. Never write a plausible webhook URL, API key, or passphrase
+- adding a page means adding it to the sidebar in `docs/.vitepress/config.mts`
+- no analytics, tracking, or third-party telemetry may be added to the site
+
+## Adding a rate source
+
+A new connector needs all of these in one pull request:
+
+1. a class in `src/rates/sources/api/` extending `BaseApi`, or `CoinIdFetcher` when the provider needs coin discovery
+2. registration in `src/rates/sources/sources-manager.ts`
+3. a schema entry in `src/global/config/schema.ts`, including any cross-field rule the source needs
+4. a documented block in `config.default.jsonc`, stating the quota and the redistribution terms
+5. a `*.spec.ts` covering the success path, a malformed response, and the failure mode
+6. a page under `docs/reference/sources/`, plus rows in the tables of `docs/reference/sources/index.md` and the `README.md` source lists
+
+Design rules the existing connectors follow:
+
+- emit `<COIN>/USD` pairs; USD is the pivot and the merger triangulates everything else
+- never throw for a condition the operator cannot fix this cycle. Disable the source and alert once, as the Binance connector does for a geo-block
+- verify provider identifiers: IDs get reassigned and ticker symbols collide
+- document the quota and derive a safe `refreshInterval` from it
 
 ## Pull requests
 

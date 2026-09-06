@@ -3,10 +3,12 @@
 .claude
 .git
 .github
+.vscode
 config.jsonc
 config.test.jsonc
 coverage
 dist
+docs
 logs
 node_modules
 npm-debug.log*

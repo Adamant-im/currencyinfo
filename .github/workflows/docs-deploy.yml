@@ -1,0 +1,89 @@
+name: Docs deploy
+
+# Publishes https://currencyinfo.docs.adamant.im to GitHub Pages.
+#
+# Only reviewed production content is deployed: a published release whose tag is an ancestor of
+# `master`, a push to `master` itself, or a manual dispatch. Pull requests are built by
+# docs-check.yml, which holds no Pages permissions.
+#
+# GitHub Pages must be configured with "Source: GitHub Actions" and the custom domain
+# `currencyinfo.docs.adamant.im` in the repository settings. The DNS CNAME and docs/public/CNAME
+# alone do not publish the site or provision the certificate.
+
+on:
+  release:
+    types: [published]
+  push:
+    branches:
+      - master
+    paths:
+      - 'docs/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/docs-deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time, and never cancel one that is already publishing.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build docs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.ref }}
+          fetch-depth: 0
+
+      - name: Verify the release tag is on master
+        if: github.event_name == 'release'
+        run: |
+          git fetch origin master
+          git merge-base --is-ancestor HEAD origin/master
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build docs
+        run: pnpm run docs:build
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/.vitepress/dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5

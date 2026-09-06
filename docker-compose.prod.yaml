@@ -1,7 +1,13 @@
 services:
   app:
     container_name: currencyinfo
-    build: .
+    # Published on every stable release for linux/amd64 and linux/arm64.
+    # Pin an exact version in production, for example `:4.2.0`, so an upgrade is a deliberate act.
+    image: ghcr.io/adamant-im/currencyinfo:latest
+    # Contributors and platforms outside the published manifest: comment out `image` above and
+    # uncomment this to build from the checkout instead.
+    # build:
+    #   context: .
     restart: always
     ports:
       - '36661:36661'
@@ -17,7 +23,10 @@ services:
 
   mongodb:
     container_name: mongodb
-    image: 'mongo:latest'
+    # Pinned to a supported major version. `latest` would silently carry the database across a
+    # major upgrade on the next `docker compose pull`.
+    image: 'mongo:8.0'
+    restart: always
     volumes:
       - mongo_data:/data/db
     networks:

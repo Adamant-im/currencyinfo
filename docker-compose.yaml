@@ -1,7 +1,9 @@
+# Development helper: a local MongoDB for `pnpm run start:dev`.
+# For a production deployment use docker-compose.prod.yaml instead.
 services:
   mongodb:
     container_name: mongodb
-    image: 'mongo:latest'
+    image: 'mongo:8.0'
     ports:
       - '127.0.0.1:27017:27017'
     volumes:

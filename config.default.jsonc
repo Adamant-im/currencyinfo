@@ -3,8 +3,10 @@
 
   "decimals": 12, // Number of decimal places for rate values
 
-  // Read Dealing with Rate Differences from Multiple Sources
-  // https://github.com/Adamant-im/currencyinfo/wiki/Dealing-with-Rate-Differences-from-Multiple-Sources
+  // Read how disagreeing quotes become a single rate:
+  // https://currencyinfo.docs.adamant.im/guide/rate-calculation
+  // Every option below is documented at:
+  // https://currencyinfo.docs.adamant.im/reference/configuration
 
   "strategy": "priority", // Strategy to handle rates with close prices
 

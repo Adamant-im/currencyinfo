@@ -1,7 +1,7 @@
 {
   "name": "currencyinfo",
   "version": "4.2.0",
-  "description": "Self-hosted crypto and fiat currency rates service provider",
+  "description": "Universal self-hosted crypto and fiat exchange rates service aggregating multiple sources behind one REST API",
   "author": "ADAMANT community developers <devs@adamant.im>, ADAMANT Foundation <devs@adamant.im>",
   "private": true,
   "license": "GPL-3.0",
@@ -20,7 +20,11 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "deps:setup": "pnpm rebuild @swc/core"
+    "deps:setup": "pnpm rebuild @swc/core",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
+    "docs:links": "node scripts/check-docs-links.mjs"
   },
   "engines": {
     "node": ">=22"
@@ -67,7 +71,8 @@
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "5.9.3",
-    "typescript-eslint": "^8.67.0"
+    "typescript-eslint": "^8.67.0",
+    "vitepress": "^1.6.4"
   },
   "pnpm": {
     "overrides": {
@@ -119,8 +124,15 @@
     "exchange",
     "exchange-rates",
     "crypto",
+    "crypto-rates",
     "cryptocurrency",
     "fiat",
+    "fiat-currency",
+    "forex",
+    "market-data",
+    "price-aggregation",
+    "multi-source",
+    "historical-data",
     "rates-provider",
     "coingecko",
     "coinmarketcap",
@@ -145,6 +157,7 @@
     "nestjs",
     "typescript",
     "mongodb",
+    "docker",
     "self-hosted",
     "decentralization"
   ],
@@ -155,5 +168,5 @@
   "bugs": {
     "url": "https://github.com/Adamant-im/currencyinfo/issues"
   },
-  "homepage": "https://github.com/Adamant-im/currencyinfo#readme"
+  "homepage": "https://currencyinfo.dev"
 }

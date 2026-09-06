@@ -11,6 +11,10 @@ config.test.jsonc
 /node_modules
 *.tsbuildinfo
 
+# docs site build output
+docs/.vitepress/dist
+docs/.vitepress/cache
+
 # Logs
 logs
 *.log
