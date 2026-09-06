@@ -84,7 +84,8 @@ The published image already:
 
 - runs as the unprivileged `node` user, UID and GID `1000`, never as root
 - contains no configuration, no credentials, no logs, and no database state
-- installs production dependencies only, with lifecycle scripts disabled
+- contains production dependencies only, installed with lifecycle scripts disabled
+- ships **no package manager**. npm, pnpm and yarn are removed from the runtime layer, because the service runs `node dist/main` against an already-built dependency tree and a package manager in a production image is attack surface rather than a tool
 - carries a build provenance attestation and an SBOM
 
 Worth adding at the deployment level:
@@ -140,7 +141,7 @@ grype sbom:sbom.json
 
 The project's commitments:
 
-- the base image is `node:22-alpine`, refreshed on every release build, so base-image fixes reach users through the next release
+- the base image is `node:22-alpine`, and every build runs `apk upgrade`, so an Alpine security fix reaches users on the next release rather than waiting for the base image itself to be rebuilt
 - a `critical` or `high` finding with a fix available blocks publication, and is addressed in a patch release
 - a finding with no upstream fix is documented in the release notes rather than silently carried
 - the SBOM published with each image is the authoritative component list for your own scanner

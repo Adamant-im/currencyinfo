@@ -17,6 +17,17 @@ RUN npm install -g pnpm@10.11.0 && \
 COPY . .
 RUN pnpm run build
 
+# Reduce the tree to production dependencies and hand it to the runtime stage, so that stage
+# needs no package manager at all. Safe to cross-copy because nothing in the production tree
+# ships a native binding — the guard below fails the build the day that stops being true.
+RUN pnpm prune --prod && \
+    if find node_modules -name '*.node' -print -quit | grep -q .; then \
+      echo 'A production dependency ships a native binding, so it cannot be built on' >&2; \
+      echo '$BUILDPLATFORM and copied into another target platform. Install production' >&2; \
+      echo 'dependencies in the runtime stage instead, or drop the dependency.' >&2; \
+      exit 1; \
+    fi
+
 # Production
 FROM node:22-alpine
 
@@ -40,12 +51,20 @@ LABEL org.opencontainers.image.title="Currencyinfo" \
 
 WORKDIR /usr/src/currencyinfo
 
-COPY --from=builder /usr/src/currencyinfo/package.json \
-  /usr/src/currencyinfo/pnpm-lock.yaml ./
+# Apply outstanding Alpine security updates instead of waiting for the base image to be rebuilt,
+# then strip the package managers. The service runs `node dist/main` against a dependency tree
+# that is already built, so npm, pnpm and yarn are dead weight and attack surface — and they are
+# where the overwhelming majority of this image's CVEs used to live.
+RUN apk upgrade --no-cache && \
+    rm -rf /usr/local/lib/node_modules/npm \
+           /usr/local/bin/npm /usr/local/bin/npx \
+           /opt/yarn-v* /usr/local/bin/yarn /usr/local/bin/yarnpkg \
+           /root/.npm /root/.cache
 
-RUN npm install -g pnpm@10.11.0 && \
-    pnpm install --prod --ignore-scripts --frozen-lockfile
-
+# `package.json` is required at runtime: the version reported by `/get`, `/getHistory` and
+# `/status` is read from it. `pnpm-lock.yaml` is not, and is left behind.
+COPY --from=builder /usr/src/currencyinfo/package.json ./
+COPY --from=builder /usr/src/currencyinfo/node_modules ./node_modules
 COPY --from=builder /usr/src/currencyinfo/dist ./dist
 COPY --from=builder /usr/src/currencyinfo/config.default.jsonc ./
 
