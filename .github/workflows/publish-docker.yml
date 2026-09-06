@@ -82,8 +82,12 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ghcr.io/adamant-im/currencyinfo
-          # Semantic version plus the moving major and minor aliases. `latest` is added only when
-          # the step above confirmed this is the newest stable release.
+          # `latest=auto` would attach `latest` to every semver tag, so a stable patch published
+          # later on an older release line would overwrite it and defeat the check above. The
+          # conditional raw entry below is the only thing allowed to move `latest`.
+          flavor: |
+            latest=false
+          # Semantic version plus the moving major and minor aliases.
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}

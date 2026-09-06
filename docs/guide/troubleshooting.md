@@ -36,7 +36,7 @@ The container runs as UID and GID `1000`, and Docker cannot change the ownership
 
 ```bash
 sudo chown 1000:1000 config.jsonc
-chmod 600 config.jsonc
+sudo chmod 600 config.jsonc
 ```
 
 ### `App configuration is invalid:`

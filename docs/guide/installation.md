@@ -63,7 +63,7 @@ Because the process runs as UID `1000` and Docker cannot change the ownership of
 
 ```bash
 sudo chown 1000:1000 config.jsonc
-chmod 600 config.jsonc
+sudo chmod 600 config.jsonc
 ```
 
 ### Verifying the image
@@ -92,7 +92,7 @@ curl -fsSL -o docker-compose.yaml \
   https://raw.githubusercontent.com/Adamant-im/currencyinfo/master/docker-compose.prod.yaml
 curl -fsSL -o config.jsonc \
   https://raw.githubusercontent.com/Adamant-im/currencyinfo/master/config.default.jsonc
-sudo chown 1000:1000 config.jsonc && chmod 600 config.jsonc
+sudo chown 1000:1000 config.jsonc && sudo chmod 600 config.jsonc
 docker compose up -d
 ```
 
@@ -101,10 +101,20 @@ Local overrides belong in `docker-compose.override.yml`, which Compose merges au
 ```yaml
 services:
   app:
-    ports:
+    ports: !override
       - '127.0.0.1:36661:36661'
     restart: unless-stopped
 ```
+
+::: warning `ports` merges by appending, not by replacing
+Without the `!override` tag Compose keeps **both** mappings, so the public `36661:36661` binding from the shipped file survives and the service stays exposed on every interface. Two publishers on the same host port can also fail to start. Check the merged result before relying on it:
+
+```bash
+docker compose -f docker-compose.yaml -f docker-compose.override.yml config
+```
+
+`!override` needs Compose v2.24 or newer. On an older Compose, edit the `ports` list in the main file instead of layering an override.
+:::
 
 ## Building the image yourself
 

@@ -89,7 +89,7 @@ curl -fsSL -o config.jsonc \
   https://raw.githubusercontent.com/Adamant-im/currencyinfo/master/config.default.jsonc
 
 # 2. The container runs as UID/GID 1000 and cannot chown a bind mount
-sudo chown 1000:1000 config.jsonc && chmod 600 config.jsonc
+sudo chown 1000:1000 config.jsonc && sudo chmod 600 config.jsonc
 
 # 3. Compose file with the app and a pinned MongoDB
 curl -fsSL -o docker-compose.yaml \

@@ -4,10 +4,15 @@ name: Docs check
 # is dead. It never deploys and never requests Pages permissions: `vitepress build` fails on a
 # dead internal link, which is the whole point of running it here.
 
+# The path filter has to cover every surface `scripts/check-docs-links.mjs` walks, not just
+# `docs/`: it also validates README.md, CONTRIBUTING.md, AGENTS.md and the wiki tombstones, and a
+# change to the checker itself must re-run it.
 on:
   pull_request:
     paths:
       - 'docs/**'
+      - '**/*.md'
+      - 'scripts/check-docs-links.mjs'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - '.github/workflows/docs-check.yml'

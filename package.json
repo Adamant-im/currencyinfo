@@ -72,7 +72,7 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.67.0",
-    "vitepress": "^1.6.4"
+    "vitepress": "2.0.0-alpha.20"
   },
   "pnpm": {
     "overrides": {

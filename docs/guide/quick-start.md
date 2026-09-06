@@ -42,8 +42,10 @@ The container runs as the unprivileged `node` user with UID and GID `1000`, and 
 
 ```bash
 sudo chown 1000:1000 config.jsonc
-chmod 600 config.jsonc
+sudo chmod 600 config.jsonc
 ```
+
+Both commands need `sudo`: after the `chown` the file belongs to UID `1000`, so an unprivileged `chmod` fails with `Operation not permitted` and silently leaves a credential-bearing file world-readable.
 
 Do this before the first start. On macOS and Windows the Docker Desktop file sharing layer remaps ownership, and the `chown` is unnecessary.
 
