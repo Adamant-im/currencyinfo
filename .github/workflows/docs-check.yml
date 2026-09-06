@@ -1,0 +1,54 @@
+name: Docs check
+
+# Builds the documentation site on pull requests to prove it compiles and that no internal link
+# is dead. It never deploys and never requests Pages permissions: `vitepress build` fails on a
+# dead internal link, which is the whole point of running it here.
+
+# The path filter has to cover every surface `scripts/check-docs-links.mjs` walks, not just
+# `docs/`: it also validates README.md, CONTRIBUTING.md, AGENTS.md and the wiki tombstones, and a
+# change to the checker itself must re-run it.
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - '**/*.md'
+      - 'scripts/check-docs-links.mjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/docs-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Reproducible install straight from the lockfile, with lifecycle scripts disabled as
+      # required by the repository dependency policy. The docs build needs no native rebuild.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build docs
+        run: pnpm run docs:build
+
+      - name: Check for dead relative links in Markdown sources
+        run: pnpm run docs:links

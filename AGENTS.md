@@ -1,10 +1,14 @@
-# ADAMANT Currencyinfo: AI Agent Operating Manual
+# Currencyinfo: AI Agent Operating Manual
 
 This document defines how AI agents must work in this repository.
 
 ## Mission
 
-`currencyinfo` is a self-hosted crypto and fiat currency exchange rates service provider for the ADAMANT ecosystem and external integrators. It fetches, validates, normalizes, and merges rates from multiple public and authenticated sources, stores historical rates in MongoDB, and serves them via a RESTful API.
+`currencyinfo` is a universal, self-hosted crypto and fiat exchange rates service. It fetches, validates, normalizes, and merges rates from multiple public and authenticated sources, stores historical rates in MongoDB, and serves them through a small REST API.
+
+It is an independent open-source product, not an ADAMANT-internal component. Its audience is any operator who needs exchange rates without depending on a single commercial API: wallets, payment processors, trading tools, accounting systems, dashboards, research pipelines, and infrastructure operators. ADAMANT is a production adopter and the project steward, and the ADAMANT developer community maintains the repository.
+
+Treat any change that makes the service harder to use outside ADAMANT as a regression. `ADM` is one symbol among the default coin lists, and the ADAMANT Messenger notification channel is one optional integration among three.
 
 Agent output must optimize for:
 
@@ -32,20 +36,31 @@ If tradeoffs are required, preserve reliability, rate calculation accuracy, and 
 
 ## Project Positioning and Values
 
-ADAMANT is a decentralized, anonymous, community-driven communication and transaction infrastructure.
+`currencyinfo` is positioned as a universal open-source rates service. Every public surface must present it that way first, and describe ADAMANT as a real-world adopter and maintainer rather than as the intended consumer:
 
-`currencyinfo` serves exchange rate data across the ecosystem:
+- Landing page: <https://currencyinfo.dev>
+- Documentation: <https://currencyinfo.docs.adamant.im>
+- Source: <https://github.com/Adamant-im/currencyinfo>
+- Container image: `ghcr.io/adamant-im/currencyinfo`
+
+ADAMANT is a decentralized, anonymous, community-driven communication and transaction infrastructure. Its Messenger clients consume a Currencyinfo deployment in production, which is where the reliability requirements come from.
+
+Project values, in the order they win a tradeoff:
 
 - Keep rate provision verifiable, transparent, and multi-sourced
-- Avoid dependence on any single centralized rate provider
+- Keep pair calculation accurate: pair direction, inverse triangulation, and rounding are explicit and tested
+- Avoid dependence on any single centralized rate provider, and keep the default source set free of mandatory credentials
 - Keep local resource requirements minimal so independent operators can self-host easily
-- Keep user tracking, analytics, and telemetry at zero by default
+- Keep user tracking, analytics, and telemetry at zero by default, in the service and on the documentation site
 
 ## Sources of Truth
 
 Use these sources when implementing or reviewing changes:
 
-- This repository: `README.md`, `config.default.jsonc`, current code, and passing tests
+- This repository: current code and passing tests, `config.default.jsonc`, `src/global/config/schema.ts`, `README.md`, and the documentation site under `docs/`
+- Published documentation: https://currencyinfo.docs.adamant.im
+- Landing page: https://currencyinfo.dev
+- Release notes: https://github.com/Adamant-im/currencyinfo/releases
 - ADAMANT Node guidelines baseline: https://github.com/Adamant-im/adamant/blob/master/AGENTS.md
 - ADAMANT Messenger guidelines: https://github.com/Adamant-im/adamant-im/blob/master/AGENTS.md
 - ADAMANT Console guidelines: https://github.com/Adamant-im/adamant-console/blob/master/AGENTS.md
@@ -165,11 +180,15 @@ src/
       api/
         base.ts                   # Abstract base class for rate data providers
         coin-id-fetcher.ts        # Helper to discover remote coin IDs
-        coingecko.ts              # CoinGecko connector
-        coinmarketcap.ts          # CoinMarketCap connector
-        cryptocompare.ts          # CryptoCompare connector
-        currencyapi.ts            # CurrencyAPI connector (fiat rates)
-        exchangeratehost.ts       # ExchangeRate.host connector
+        binance.ts                # Binance public spot market connector (keyless)
+        coingecko.ts              # CoinGecko connector (free Demo key)
+        coinlore.ts               # CoinLore connector (keyless)
+        coinmarketcap.ts          # CoinMarketCap connector (paid key)
+        coinpaprika.ts            # CoinPaprika connector (keyless)
+        cryptocompare.ts          # CryptoCompare connector (deprecated, subscription only)
+        currencyapi.ts            # CurrencyAPI connector (keyless fiat rates)
+        exchangerateapi.ts        # ExchangeRate-API connector (keyless fiat rates)
+        exchangeratehost.ts       # ExchangeRate.host connector (paid key)
         moex.ts                   # Moscow Exchange (MOEX) connector
         dto/
           tickers.dto.ts          # SourceTickers, Tickers, and Price types
@@ -184,6 +203,19 @@ src/
 scripts/
   migrate.mjs                     # Config migration script from legacy v1 format
   migrate-db.mjs                  # MongoDB database migration script
+  check-docs-links.mjs            # Repository-wide Markdown link and anchor check
+docs/
+  .vitepress/config.mts           # VitePress site config: nav, sidebar, search, sitemap
+  index.md                        # Documentation home
+  guide/                          # Narrative documentation
+  reference/                      # REST API, configuration, and per-source reference
+  project/                        # Contributor and project pages
+  public/                         # Static assets and the GitHub Pages CNAME
+.github/workflows/
+  docs-check.yml                  # Builds docs on pull requests, never deploys
+  docs-deploy.yml                 # Deploys docs to GitHub Pages from master and releases
+  docker-ci.yml                   # Pull-request image build and smoke test, never pushes
+  publish-docker.yml              # Release-driven multi-platform GHCR publication
 ```
 
 ## Rates Aggregation and Business Logic Invariants
@@ -202,7 +234,32 @@ When modifying rate calculation, merging, or source logic, preserve these rules:
 - `config.default.jsonc` defines defaults and serves as the template
 - `config.jsonc` is user-local configuration and must remain git-ignored
 - The Zod configuration schema in `src/global/config/schema.ts` uses `.strict()` to reject unknown fields and catch legacy config mismatches early
-- Always update both `config.default.jsonc` and `src/global/config/schema.ts` when adding or deprecating configuration properties
+- Always update `config.default.jsonc`, `src/global/config/schema.ts`, and `docs/reference/configuration.md` together when adding or deprecating configuration properties
+
+## Documentation Policy
+
+The canonical technical documentation is the version-controlled VitePress site in `docs/`, published to <https://currencyinfo.docs.adamant.im>. The GitHub Wiki is deprecated and is kept only as a tombstone pointing at that site; never add content to it, and never link to it from `README.md`, from repository metadata, or from contributor documentation.
+
+Documentation follows the code. If a page and the implementation disagree, the code is right and the page is a bug.
+
+A change is not complete until the documentation that describes it is updated in the same pull request:
+
+| Change | Pages that must be updated |
+| --- | --- |
+| Configuration option added, renamed, or deprecated | `config.default.jsonc`, `src/global/config/schema.ts`, `docs/reference/configuration.md` |
+| Rate source added, changed, or deprecated | `docs/reference/sources/<source>.md`, `docs/reference/sources/index.md`, `README.md` source lists, `config.default.jsonc` |
+| Endpoint parameter, response field, or validation rule | `docs/reference/api.md` |
+| Merging, grouping, triangulation, or freshness behavior | `docs/guide/rate-calculation.md` |
+| Storage layout, index, or migration | `docs/guide/history.md`, `docs/guide/upgrading.md` |
+| Deployment, container, or operational behavior | `docs/guide/installation.md`, `docs/guide/operations.md`, `docker-compose.prod.yaml` |
+
+Rules for every documentation page:
+
+- adding a page means adding it to the sidebar in `docs/.vitepress/config.mts`
+- credentials in examples must be unmistakably synthetic. Never write a plausible webhook URL, API key, or passphrase, even a fake one that looks real
+- document the quota, the identifier form, the failure mode, and the redistribution terms for every rate source
+- no analytics, tracking, or third-party telemetry may be added to the site
+- follow the Markdown rules in this document, and verify with `pnpm run docs:build` and `pnpm run docs:links`
 
 ## JSDoc and Code Documentation Policy
 
@@ -213,7 +270,7 @@ When modifying rate calculation, merging, or source logic, preserve these rules:
 
 ## Security and Secret Handling
 
-- **Never log or expose secrets**: Slack webhook URLs, Discord webhook URLs, ADAMANT passphrases, and third-party API keys (CoinMarketCap, ExchangeRateHost, CryptoCompare) must never appear in logs, error payloads, or Git commits
+- **Never log or expose secrets**: Slack webhook URLs, Discord webhook URLs, ADAMANT passphrases, and third-party API keys (CoinGecko, CoinMarketCap, ExchangeRateHost, CryptoCompare) must never appear in logs, error payloads, or Git commits
 - **Input Validation**: Validate all incoming query parameters and payloads using Zod pipes (`ZodValidationPipe`)
 - **No Dynamic Execution**: Do not use `eval`, dynamic code construction, or unsanitized shell commands
 - **Zero Telemetry**: Do not introduce analytics, metrics exporters to third parties, or tracking
@@ -262,6 +319,19 @@ pnpm run format
 pnpm run build
 ```
 
+### Documentation validation commands
+
+```bash
+# Build the documentation site; fails on any dead internal link
+pnpm run docs:build
+
+# Check relative links and heading anchors across every Markdown file
+pnpm run docs:links
+
+# Serve the documentation locally while editing
+pnpm run docs:dev
+```
+
 ### Reporting standards
 
 In PRs and task summaries, always report:
@@ -289,9 +359,13 @@ Before finalizing a PR, verify all:
 - [ ] List punctuation adheres to writing style (no period for 1 sentence, period for 2+ sentences)
 - [ ] Markdown formatting complies with `.markdownlint.jsonc` and MD032
 - [ ] No secrets, webhooks, or passphrases committed or logged
-- [ ] Strict config validation in `schema.ts` matches `config.default.jsonc`
+- [ ] Strict config validation in `schema.ts` matches `config.default.jsonc` and `docs/reference/configuration.md`
+- [ ] Documentation updated in the same PR, per the Documentation Policy table
+- [ ] Public positioning is consistent: universal product first, ADAMANT as adopter and maintainer
+- [ ] No link to the deprecated GitHub Wiki was added
 - [ ] Unit tests added or updated where appropriate
-- [ ] `pnpm test`, `pnpm run lint`, and `pnpm run build` pass cleanly
+- [ ] `pnpm test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build` pass cleanly
+- [ ] `pnpm run docs:build` and `pnpm run docs:links` pass when documentation changed
 - [ ] PR targets the `develop` branch and references the corresponding issue (`Closes #...`)
 
 ## Definition of Done
@@ -300,7 +374,8 @@ A change is considered done only when:
 
 - Rate calculation accuracy and merging integrity are preserved
 - Security and secret-handling rules are fully maintained
-- All validation commands (`pnpm test`, `pnpm run lint`, `pnpm run build`) pass
+- All validation commands (`pnpm test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`) pass
+- Documentation is updated and `pnpm run docs:build` and `pnpm run docs:links` pass
 - PR is submitted to `develop` following the naming, structure, and linking conventions
 - All repository artifacts are strictly in English
 
@@ -314,3 +389,15 @@ A change is considered done only when:
 | [`adamant-api-jsclient`](https://github.com/Adamant-im/adamant-api-jsclient) | `adamant-api` npm library used for ADAMANT blockchain notifications in `src/global/notifier/adamant/`                                                                    |
 | [`adamant-wallets`](https://github.com/Adamant-im/adamant-wallets)           | Authoritative specification for coin IDs, token mappings, and node endpoints across ADAMANT apps (`assets/general/adamant/info.json`)                                   |
 | [ADAMANT Documentation](https://docs.adamant.im)                             | Official architecture, API specifications, and developer guides                                                                                                           |
+
+## Product Surfaces
+
+| Surface | Location | Owned in |
+| --- | --- | --- |
+| Landing page | https://currencyinfo.dev | Separate marketing repository |
+| Documentation | https://currencyinfo.docs.adamant.im | `docs/` in this repository, deployed by `.github/workflows/docs-deploy.yml` |
+| Source | https://github.com/Adamant-im/currencyinfo | This repository |
+| Releases | https://github.com/Adamant-im/currencyinfo/releases | This repository |
+| Container image | `ghcr.io/adamant-im/currencyinfo` | Published by `.github/workflows/publish-docker.yml` |
+
+Keep the description, links, license, and version consistent across `README.md`, `package.json`, the container labels in `Dockerfile`, the documentation site, and the GitHub repository metadata.

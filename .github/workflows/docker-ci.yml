@@ -1,0 +1,194 @@
+name: Docker build and smoke test
+
+# Builds the production image on pull requests and proves it actually works, without pushing
+# anything anywhere. The smoke test starts MongoDB and Currencyinfo from a clean checkout using
+# the shipped `config.default.jsonc`, which is the claim worth testing: the default configuration
+# must start and return rates with no API key at all.
+#
+# No registry credentials and no provider credentials are used or required.
+
+on:
+  pull_request:
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'docker-compose*.yaml'
+      - 'config.default.jsonc'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'src/**'
+      - 'scripts/**'
+      - '.github/workflows/docker-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: currencyinfo:ci
+  NETWORK: currencyinfo-ci
+
+jobs:
+  build-and-smoke:
+    name: Build image and smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # Single platform and loaded into the local daemon: the multi-platform manifest is a release
+      # concern, and emulating arm64 here would only slow the pull request down.
+      - name: Build image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ${{ env.IMAGE }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify OCI labels are present
+        run: |
+          docker image inspect "$IMAGE" \
+            --format '{{ json .Config.Labels }}' | tee labels.json
+          node -e '
+            const labels = require("./labels.json");
+            const required = [
+              "org.opencontainers.image.title",
+              "org.opencontainers.image.description",
+              "org.opencontainers.image.url",
+              "org.opencontainers.image.documentation",
+              "org.opencontainers.image.source",
+              "org.opencontainers.image.licenses",
+            ];
+            const missing = required.filter((key) => !labels[key]);
+            if (missing.length) {
+              console.error("Missing OCI labels: " + missing.join(", "));
+              process.exit(1);
+            }
+            console.log("All required OCI labels present.");
+          '
+
+      - name: Verify the image carries no configuration or secrets
+        run: |
+          # `config.jsonc` must never be baked into a layer, and neither may logs or a database.
+          if docker run --rm --entrypoint sh "$IMAGE" -c '[ -e config.jsonc ]'; then
+            echo "config.jsonc must not exist inside the image" >&2
+            exit 1
+          fi
+          echo "No configuration file baked into the image."
+
+      - name: Start MongoDB
+        run: |
+          docker network create "$NETWORK"
+          docker run -d --name mongodb --network "$NETWORK" mongo:8.0 --quiet
+          for _ in $(seq 1 30); do
+            if docker exec mongodb mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' \
+              | grep -q 1; then
+              echo "MongoDB is up."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "MongoDB did not become ready" >&2
+          docker logs mongodb
+          exit 1
+
+      - name: Start Currencyinfo with the shipped default configuration
+        run: |
+          # Unmodified: `server.mongodb.host` is already `mongodb`, which matches the container
+          # name above, and every source enabled by default is keyless.
+          cp config.default.jsonc config.jsonc
+          docker run -d \
+            --name currencyinfo \
+            --network "$NETWORK" \
+            -p 36661:36661 \
+            -v "$PWD/config.jsonc:/usr/src/currencyinfo/config.jsonc:ro" \
+            "$IMAGE"
+
+      - name: Confirm the container runs as a non-root user
+        run: |
+          uid="$(docker exec currencyinfo id -u)"
+          user="$(docker exec currencyinfo id -un)"
+          echo "Running as ${user} (uid ${uid})"
+          if [ "$uid" = "0" ]; then
+            echo "The container must not run as root" >&2
+            exit 1
+          fi
+
+      - name: Wait for /status to report ready
+        run: |
+          for attempt in $(seq 1 60); do
+            body="$(curl -fsS http://127.0.0.1:36661/status || true)"
+            echo "attempt ${attempt}: ${body}"
+            case "$body" in
+              *'"ready":true'*)
+                echo "Service is ready."
+                exit 0
+                ;;
+            esac
+            sleep 5
+          done
+          echo "Service never became ready" >&2
+          docker logs currencyinfo
+          exit 1
+
+      - name: Retrieve at least one rate from /get
+        run: |
+          body="$(curl -fsS 'http://127.0.0.1:36661/get?coin=BTC')"
+          echo "$body"
+          node -e '
+            const body = JSON.parse(process.argv[1]);
+            if (!body.success) {
+              throw new Error("/get did not report success");
+            }
+            const pairs = Object.keys(body.result || {});
+            if (!pairs.length) {
+              throw new Error("/get returned no rates for BTC");
+            }
+            console.log("Received " + pairs.length + " pair(s), e.g. " + pairs[0]);
+          ' "$body"
+
+      # Runs after the functional checks on purpose. As a gate it has to fail the job, and a
+      # finding is not a reason to lose the smoke-test result: a pull request should report both
+      # whether the image works and whether it is publishable.
+      # Same severity policy as the release gate, so a pull request that would block publication
+      # fails here instead of at release time.
+      # https://currencyinfo.docs.adamant.im/guide/security#vulnerability-scanning-policy
+      - name: Scan the image for fixable critical and high vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Report findings that have no fix available
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: false
+          exit-code: '0'
+
+      - name: Show container logs
+        if: always()
+        run: docker logs currencyinfo || true
+
+      - name: Tear down
+        if: always()
+        run: |
+          docker rm -f currencyinfo mongodb || true
+          docker network rm "$NETWORK" || true
+          rm -f config.jsonc
