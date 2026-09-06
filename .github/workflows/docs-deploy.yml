@@ -38,14 +38,18 @@ jobs:
     permissions:
       contents: read
     steps:
+      # A workflow_dispatch ref is whatever the person starting the run picks, and GitHub allows
+      # any branch or tag, so it must not decide what reaches the canonical documentation domain.
+      # Manual runs are pinned to `master`; a push deploys its own commit and a release its tag.
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.ref }}
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event_name == 'push' && github.sha || 'master' }}
           fetch-depth: 0
 
-      - name: Verify the release tag is on master
-        if: github.event_name == 'release'
+      # Runs for every event rather than releases only: this is the single gate that keeps
+      # unreviewed work off the published site, whichever trigger fired.
+      - name: Verify the checked-out commit is on master
         run: |
           git fetch origin master
           git merge-base --is-ancestor HEAD origin/master

@@ -12,7 +12,7 @@ Whichever you choose, the configuration file and the MongoDB requirements are id
 
 | Component | Version | Notes |
 | --- | --- | --- |
-| Node.js | 22 or newer | Only for a source installation |
+| Node.js | 22.12 or newer | Only for a source installation. The service runs on any Node.js 22; 22.12 is the floor for the documentation toolchain, which resolves Vite 8 and Rolldown |
 | pnpm | 10.11.0 | Pinned through `packageManager`; npm works but the lockfile is pnpm's |
 | MongoDB | 6.0 or newer | 8.0 is what the shipped Compose file pins |
 | Docker | 24 or newer | Only for container deployments |
@@ -113,7 +113,7 @@ Without the `!override` tag Compose keeps **both** mappings, so the public `3666
 docker compose -f docker-compose.yaml -f docker-compose.override.yml config
 ```
 
-`!override` needs Compose v2.24 or newer. On an older Compose, edit the `ports` list in the main file instead of layering an override.
+`!override` needs Compose v2.24.4 or newer; 2.24.0 through 2.24.3 do not support it. On an older Compose, edit the `ports` list in the main file instead of layering an override.
 :::
 
 ## Building the image yourself

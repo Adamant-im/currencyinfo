@@ -20,7 +20,7 @@ All repository artifacts—including code, comments, documentation, commits, iss
 
 ## Development setup
 
-Use Node.js 22 or newer and pnpm:
+Use Node.js 22.12 or newer and pnpm. The service itself runs on any Node.js 22, but the documentation toolchain resolves Vite 8 and Rolldown, which require `^20.19.0 || >=22.12.0`:
 
 ```bash
 git clone https://github.com/Adamant-im/currencyinfo.git

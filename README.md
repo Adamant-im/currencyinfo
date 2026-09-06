@@ -123,7 +123,7 @@ pnpm run build
 pnpm run start:prod
 ```
 
-Requires Node.js 22+, pnpm, and MongoDB 6.0+. Full instructions, including a systemd unit: [Installation](https://currencyinfo.docs.adamant.im/guide/installation).
+Requires Node.js 22.12+, pnpm, and MongoDB 6.0+. Full instructions, including a systemd unit: [Installation](https://currencyinfo.docs.adamant.im/guide/installation).
 
 ## API
 
@@ -181,7 +181,7 @@ pnpm run docs:links     # repository-wide Markdown link and anchor check
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, coding standards, and verification workflows. Report security issues privately through [private vulnerability reporting](https://github.com/Adamant-im/currencyinfo/security/advisories/new).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, coding standards, and verification workflows. Report security issues privately to `devs@adamant.im` rather than in a public issue.
 
 ## License
 

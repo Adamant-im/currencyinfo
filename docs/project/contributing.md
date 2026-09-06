@@ -133,7 +133,7 @@ Search [existing issues](https://github.com/Adamant-im/currencyinfo/issues) firs
 
 Include the version from `/status`, how it is deployed, the relevant log lines, and your configuration **with every credential redacted**.
 
-Security issues go through [private vulnerability reporting](https://github.com/Adamant-im/currencyinfo/security/advisories/new) instead — see [security](../guide/security.md#reporting-a-vulnerability).
+Security issues go privately to `devs@adamant.im` instead — see [security](../guide/security.md#reporting-a-vulnerability).
 
 ## Financial contribution
 

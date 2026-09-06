@@ -101,6 +101,43 @@ jobs:
             org.opencontainers.image.licenses=GPL-3.0
             org.opencontainers.image.vendor=ADAMANT community developers
 
+      # The gate. Built for one platform and loaded locally so Trivy can read it, before any
+      # layer reaches the registry. The layers are the same ones the push below reuses from
+      # cache, so this costs a scan rather than a second build.
+      - name: Build amd64 image for scanning
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: currencyinfo:scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Matches the published policy: a critical or high finding that has a fix available blocks
+      # the release. Findings with no upstream fix are reported but do not block, and belong in
+      # the release notes instead.
+      # https://currencyinfo.docs.adamant.im/guide/security#vulnerability-scanning-policy
+      - name: Scan the image for fixable critical and high vulnerabilities
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: currencyinfo:scan
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Report findings that have no fix available
+        if: always()
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: currencyinfo:scan
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: false
+          exit-code: '0'
+
       - name: Build and push
         uses: docker/build-push-action@v7
         with:

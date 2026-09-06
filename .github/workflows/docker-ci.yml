@@ -55,6 +55,28 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # Same severity policy as the release gate, so a pull request that would block publication
+      # fails here instead of at release time.
+      # https://currencyinfo.docs.adamant.im/guide/security#vulnerability-scanning-policy
+      - name: Scan the image for fixable critical and high vulnerabilities
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Report findings that have no fix available
+        if: always()
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: false
+          exit-code: '0'
+
       - name: Verify OCI labels are present
         run: |
           docker image inspect "$IMAGE" \

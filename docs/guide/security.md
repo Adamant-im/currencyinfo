@@ -124,7 +124,9 @@ pnpm audit
 
 ## Vulnerability scanning policy
 
-Published images are scanned, and an operator can reproduce the scan on any tag:
+Every image is scanned with [Trivy](https://trivy.dev) before it is published, and the same scan runs on every pull request that touches the image. A `critical` or `high` finding **that has a fix available** fails the build, so it cannot reach the registry. Findings with no upstream fix are printed in the workflow log rather than blocking, and belong in the release notes.
+
+The gate lives in [`publish-docker.yml`](https://github.com/Adamant-im/currencyinfo/blob/master/.github/workflows/publish-docker.yml) and [`docker-ci.yml`](https://github.com/Adamant-im/currencyinfo/blob/master/.github/workflows/docker-ci.yml), and an operator can reproduce it on any tag:
 
 ```bash
 # Trivy
@@ -139,12 +141,12 @@ grype sbom:sbom.json
 The project's commitments:
 
 - the base image is `node:22-alpine`, refreshed on every release build, so base-image fixes reach users through the next release
-- a `critical` or `high` finding with a fix available in the application's own dependency tree is addressed in a patch release
-- a finding in the base image with no upstream fix is documented in the release notes rather than silently carried
+- a `critical` or `high` finding with a fix available blocks publication, and is addressed in a patch release
+- a finding with no upstream fix is documented in the release notes rather than silently carried
 - the SBOM published with each image is the authoritative component list for your own scanner
 
 ## Reporting a vulnerability
 
-Report security issues privately rather than in a public issue. Use [GitHub private vulnerability reporting](https://github.com/Adamant-im/currencyinfo/security/advisories/new) on the repository, or contact the maintainers at `devs@adamant.im`.
+Report security issues privately rather than in a public issue. Email the maintainers at `devs@adamant.im`.
 
 Include the affected version, a reproduction, and the impact you observed. Please allow time for a fix before public disclosure.

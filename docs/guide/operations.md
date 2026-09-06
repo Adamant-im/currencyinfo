@@ -15,7 +15,7 @@ services:
       - '127.0.0.1:36661:36661'
 ```
 
-The `!override` tag matters. Compose merges `ports` by appending, so without it the public `36661:36661` mapping from `docker-compose.prod.yaml` survives alongside the loopback one and the service stays reachable from every interface. Confirm with `docker compose config` before you rely on it. The tag needs Compose v2.24 or newer; on an older release, edit the `ports` list in the main file instead.
+The `!override` tag matters. Compose merges `ports` by appending, so without it the public `36661:36661` mapping from `docker-compose.prod.yaml` survives alongside the loopback one and the service stays reachable from every interface. Confirm with `docker compose config` before you rely on it. The tag needs Compose v2.24.4 or newer; on an older release, edit the `ports` list in the main file instead.
 
 Or keep it on a private Compose network with no published port at all, and let the consuming container reach it by service name.
 

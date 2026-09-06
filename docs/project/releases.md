@@ -21,8 +21,12 @@ Currencyinfo follows semantic versioning, applied to the operator-facing contrac
 Within a major version:
 
 - `/get`, `/getHistory`, and `/status` response shapes stay compatible
-- an existing configuration keeps working, though options may be deprecated with a warning first
 - stored documents stay readable, and any migration is documented and scripted
+- an existing configuration keeps working, except where an upstream provider forces a change. The exception is announced in the release notes and carries a documented migration
+
+::: warning 4.2.0 is such an exception
+A stock 4.1.2 configuration does **not** start on 4.2.0. CryptoCompare retired its free tier and CoinGecko's keyless plan became unusable, so both sources now require an API key, and validation rejects the old file before the HTTP port opens. See [configuration migration](../guide/upgrading.md#412-to-420-configuration-migration).
+:::
 
 ## Release channels
 
@@ -45,9 +49,10 @@ The current deprecation is [CryptoCompare](../reference/sources/cryptocompare.md
 
 ## Upgrading
 
-Read [upgrade and rollback](../guide/upgrading.md) before moving between versions. Two upgrades need explicit steps:
+Read [upgrade and rollback](../guide/upgrading.md) before moving between versions. Three upgrades need explicit steps:
 
-- **4.1.2 → 4.2.0** rebuilds the `tickers` indexes. Build them out of band first on a large history collection
+- **4.1.2 → 4.2.0** needs a [configuration migration](../guide/upgrading.md#412-to-420-configuration-migration) before the version changes. This one is mandatory: skipping it restarts the service into a validation failure
+- **4.1.2 → 4.2.0** also rebuilds the `tickers` indexes. Build them out of band first on a large history collection
 - **4.0.x → 4.1.0** changes the stored document layout and needs `scripts/migrate-db.mjs`
 
 ## Security releases
