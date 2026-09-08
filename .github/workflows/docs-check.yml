@@ -15,6 +15,7 @@ on:
       - 'scripts/check-docs-links.mjs'
       - 'package.json'
       - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - '.github/workflows/docs-check.yml'
   workflow_dispatch:
 

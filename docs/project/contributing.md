@@ -28,6 +28,8 @@ cp config.default.jsonc config.jsonc
 
 `--ignore-scripts` is not optional. It blocks lifecycle scripts across the whole dependency tree; `deps:setup` then rebuilds `@swc/core` alone, which is the one package that genuinely needs a native build step.
 
+The allow-list lives in `pnpm-workspace.yaml`, where `allowBuilds` records an explicit `true` or `false` for every dependency that ships an install script. pnpm 12 fails the install while any of them is undecided, so a new one has to be reviewed and answered rather than silently inherited.
+
 A local MongoDB for development:
 
 ```bash
@@ -50,6 +52,8 @@ pnpm test
 pnpm run lint
 pnpm run format:check
 ```
+
+`pnpm test` needs Node.js 24.9 or newer, which is stricter than the 22.12 the service itself runs on. NestJS 12 publishes ES modules only, and Jest can load them from a CommonJS test only where `vm.SourceTextModule.prototype.hasAsyncGraph` exists — hence the `--experimental-vm-modules` flag the `test` scripts already pass. The compiled application is unaffected: it reaches the same packages through Node's own `require(esm)`, available since 22.12.
 
 For documentation changes, also:
 
@@ -125,7 +129,8 @@ Design rules the existing connectors follow:
 - install with `pnpm install --ignore-scripts`, never with `--ignore-scripts=false`
 - review package names, maintainers, release dates, and lifecycle scripts before adding or updating anything
 - keep `pnpm-lock.yaml` committed and synchronized
-- revisit `pnpm.overrides` in `package.json` on every dependency update, and drop an override once upstream ships the patched version
+- answer `allowBuilds` in `pnpm-workspace.yaml` for any dependency that arrives with an install script, and deny it unless the build is genuinely required
+- revisit `overrides` in `pnpm-workspace.yaml` on every dependency update, and drop an override once the tree resolves to the patched version without it
 
 ## Reporting issues
 

@@ -112,9 +112,10 @@ services:
 The repository's dependency policy is deliberately conservative:
 
 - installs run with `--ignore-scripts`, so no package executes a lifecycle script during install
-- exactly one package, `@swc/core`, is rebuilt afterwards through `pnpm run deps:setup`
+- `pnpm-workspace.yaml` records an explicit allow or deny for every dependency that ships an install script, and pnpm refuses to install while any of them is undecided
+- exactly one package, `@swc/core`, is allowed, and it is rebuilt afterwards through `pnpm run deps:setup`. Its install script only resolves the prebuilt binding shipped in its own optional dependencies
 - `pnpm-lock.yaml` is committed, and CI installs with `--frozen-lockfile`
-- `pnpm.overrides` pins patched versions of transitive packages with known advisories, and is reviewed on every dependency update
+- transitive packages with known advisories are pinned through `overrides` in `pnpm-workspace.yaml` whenever the resolved tree would otherwise carry a vulnerable version. The list is reviewed on every dependency update and an entry is dropped once upstream resolves to a patched version on its own; as of 4.2.0 none is needed
 
 Check the tree yourself before deploying an unreleased revision:
 

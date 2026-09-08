@@ -20,6 +20,7 @@ on:
       - 'docs/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - '.github/workflows/docs-deploy.yml'
   workflow_dispatch:
 

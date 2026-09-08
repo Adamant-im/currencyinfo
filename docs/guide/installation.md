@@ -12,8 +12,8 @@ Whichever you choose, the configuration file and the MongoDB requirements are id
 
 | Component | Version | Notes |
 | --- | --- | --- |
-| Node.js | 22.12 or newer | Only for a source installation. The service runs on any Node.js 22; 22.12 is the floor for the documentation toolchain, which resolves Vite 8 and Rolldown |
-| pnpm | 10.11.0 | Pinned through `packageManager`; npm works but the lockfile is pnpm's |
+| Node.js | 22.12 or newer | Only for a source installation. The service runs on any Node.js 22; 22.12 is the floor both for the documentation toolchain, which resolves Vite 8 and Rolldown, and for `require(esm)`, which the compiled build uses to load the ESM-only NestJS 12 packages. Running the test suite needs 24.9 — see [contributing](../project/contributing.md#validation) |
+| pnpm | 12.3.4 | Pinned through `packageManager`; npm works but the lockfile is pnpm's |
 | MongoDB | 6.0 or newer | 8.0 is what the shipped Compose file pins |
 | Docker | 24 or newer | Only for container deployments |
 

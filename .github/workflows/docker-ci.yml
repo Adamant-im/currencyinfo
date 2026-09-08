@@ -16,6 +16,7 @@ on:
       - 'config.default.jsonc'
       - 'package.json'
       - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - 'src/**'
       - 'scripts/**'
       - '.github/workflows/docker-ci.yml'
