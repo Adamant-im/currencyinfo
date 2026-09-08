@@ -35,7 +35,7 @@ jobs:
           ref: ${{ github.event.release.tag_name }}
           fetch-depth: 0
 
-      # An image must never be published from `develop`, from an unreviewed commit, or from an
+      # An image must never be published from `dev`, from an unreviewed commit, or from an
       # arbitrary workflow run. This is the gate that enforces it.
       - name: Verify the release tag is on master
         run: |

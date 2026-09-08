@@ -44,7 +44,7 @@ docker pull ghcr.io/adamant-im/currencyinfo:latest
 | `4` | Within a major series | Automatic minor updates |
 | `latest` | Newest stable release | Evaluation and development |
 
-`latest` is published only from a reviewed release whose tag is an ancestor of `master`. Pre-releases never move `latest`, and no image is ever published from `develop` or from an arbitrary workflow run.
+`latest` is published only from a reviewed release whose tag is an ancestor of `master`. Pre-releases never move `latest`, and no image is ever published from `dev` or from an arbitrary workflow run.
 
 ### What is not in the image
 
