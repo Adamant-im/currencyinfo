@@ -33,9 +33,9 @@ A stock 4.1.2 configuration does **not** start on 4.2.0. CryptoCompare retired i
 | Channel | Branch | Container tag |
 | --- | --- | --- |
 | Stable | `master` | `x.y.z`, `x.y`, `x`, and `latest` |
-| Development | `develop` | Not published |
+| Development | `dev` | Not published |
 
-Images are published only from a reviewed release whose tag is an ancestor of `master`. Nothing is published from `develop`, from an unreviewed commit, or from an arbitrary workflow run. Pre-releases never move `latest`.
+Images are published only from a reviewed release whose tag is an ancestor of `master`. Nothing is published from `dev`, from an unreviewed commit, or from an arbitrary workflow run. Pre-releases never move `latest`.
 
 ## Deprecations
 

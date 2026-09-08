@@ -20,7 +20,7 @@ Everything in the repository is written in English: code, comments, documentatio
 ```bash
 git clone https://github.com/Adamant-im/currencyinfo.git
 cd currencyinfo
-git switch develop
+git switch dev
 pnpm install --ignore-scripts
 pnpm run deps:setup
 cp config.default.jsonc config.jsonc
@@ -96,7 +96,7 @@ Every page carries an "Edit this page on GitHub" link that opens the right file.
 
 ## Branches and pull requests
 
-- base your work on `develop` and target `develop`. `master` represents stable releases
+- base your work on `dev` and target `dev`. `master` represents stable releases
 - name branches by type: `feat/short-description`, `fix/…`, `docs/…`, `chore/…`
 - use Conventional Commits style for the PR title: `Type: Short summary`, for example `Feat: Add support for new fiat provider`
 - issue-style prefixes such as `[Docs]` are for issues, not for PR titles

@@ -12,7 +12,7 @@ Currencyinfo is a universal, self-hosted exchange rates service maintained by th
 
 - Search [existing issues](https://github.com/Adamant-im/currencyinfo/issues) before opening a new one
 - Use a concise issue prefix such as `[Bug]`, `[Feat]`, `[Refactor]`, `[Docs]`, `[Test]`, or `[Chore]`
-- Base work on `develop` and target `develop` in pull requests; `master` represents stable releases
+- Base work on `dev` and target `dev` in pull requests; `master` represents stable releases
 - Keep rate calculation, triangulation, and merging logic deterministic and robust against provider outages
 - Never commit or log webhook URLs, API keys, passphrases, or sensitive configuration values
 
@@ -25,7 +25,7 @@ Use Node.js 22.12 or newer and pnpm 12.3.4, which `packageManager` pins. The ser
 ```bash
 git clone https://github.com/Adamant-im/currencyinfo.git
 cd currencyinfo
-git switch develop
+git switch dev
 pnpm install --ignore-scripts
 pnpm run deps:setup
 ```
@@ -166,7 +166,7 @@ Design rules the existing connectors follow:
 ## Pull requests
 
 - Use a PR title in Conventional Commits style: `Type: Short summary` (for example, `Feat: Add support for new fiat provider`)
-- Target the `develop` branch for all development pull requests
+- Target the `dev` branch for all development pull requests
 - Link related issues explicitly in the PR description (for example, `Closes #123`)
 - Follow the pull request template structure (`Description`, `Related issue`, `Breaking changes`, `How to test`, `Notes for reviewers`, `Checklist`)
 - Ensure all tests, linter checks, and builds pass cleanly before requesting review
