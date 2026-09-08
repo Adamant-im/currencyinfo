@@ -9,8 +9,11 @@ FROM --platform=$BUILDPLATFORM node:22-alpine AS builder
 
 WORKDIR /usr/src/currencyinfo
 
-COPY package.json pnpm-lock.yaml ./
-RUN npm install -g pnpm@10.11.0 && \
+# `pnpm-workspace.yaml` carries the build allow-list `deps:setup` relies on. Since pnpm 12 an
+# install fails outright when a dependency with an install script has no recorded decision, so the
+# file has to be here before the install rather than arriving with the sources below.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN npm install -g pnpm@12.3.4 && \
     pnpm install --ignore-scripts --frozen-lockfile && \
     pnpm run deps:setup
 

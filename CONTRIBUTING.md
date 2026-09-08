@@ -20,7 +20,7 @@ All repository artifacts—including code, comments, documentation, commits, iss
 
 ## Development setup
 
-Use Node.js 22.12 or newer and pnpm. The service itself runs on any Node.js 22, but the documentation toolchain resolves Vite 8 and Rolldown, which require `^20.19.0 || >=22.12.0`:
+Use Node.js 22.12 or newer and pnpm 12.3.4, which `packageManager` pins. The service itself runs on any Node.js 22, but the documentation toolchain resolves Vite 8 and Rolldown, which require `^20.19.0 || >=22.12.0`, and the compiled build reaches the ESM-only NestJS 12 packages through `require(esm)`, which arrived in 22.12. Running the test suite needs 24.9 — see [Validation](#validation):
 
 ```bash
 git clone https://github.com/Adamant-im/currencyinfo.git
@@ -61,6 +61,8 @@ pnpm run lint
 pnpm run format:check
 ```
 
+`pnpm test` needs Node.js 24.9 or newer, which is stricter than the 22.12 the service itself runs on. NestJS 12 publishes ES modules only, and Jest can load them from a CommonJS test only where `vm.SourceTextModule.prototype.hasAsyncGraph` exists — hence the `--experimental-vm-modules` flag the `test` scripts already pass. The compiled application is unaffected: it reaches the same packages through Node's own `require(esm)`.
+
 When the change touches documentation, also run:
 
 ```bash
@@ -76,7 +78,7 @@ Also check dependencies and security when relevant:
 pnpm audit
 ```
 
-Review `pnpm.overrides` in `package.json` with every dependency update to minimize forced overrides as upstream packages adopt patched releases.
+Review `pnpm-workspace.yaml` with every dependency update. `allowBuilds` needs an explicit answer for every dependency that ships an install script — pnpm 12 fails the install until it has one — and `overrides` should shrink as upstream packages adopt patched releases.
 
 Report the exact commands run and any skipped or blocked validation in the pull request.
 

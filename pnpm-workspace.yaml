@@ -1,0 +1,17 @@
+# pnpm settings. Since pnpm 12 the `pnpm` field in package.json is no longer read, so anything
+# that used to live there belongs here instead.
+
+# Every dependency that ships an install script needs an explicit decision, and pnpm 12 fails the
+# install until it has one. Installs run with `--ignore-scripts` regardless (see CONTRIBUTING.md
+# and the Dockerfile); this list is what `pnpm run deps:setup` is then allowed to rebuild.
+#
+# @swc/core is the compiler `nest build` runs through, and its postinstall only resolves the
+# prebuilt binding that ships in its own optional dependencies — no download, no compilation.
+#
+# @parcel/watcher and unrs-resolver arrive under jest as optional native accelerators. Both build
+# from source on install, and jest falls back to JavaScript implementations without them, which is
+# what the test suite already runs on. Denied.
+allowBuilds:
+  '@swc/core': true
+  '@parcel/watcher': false
+  'unrs-resolver': false

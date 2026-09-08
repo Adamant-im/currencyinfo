@@ -20,6 +20,23 @@ describe('Configuration Loader', () => {
     },
   };
 
+  // A spy on `fs.readFileSync` is process wide, and Jest reads source files through it while it
+  // formats console output. Answer only for the configuration files and delegate everything else
+  // to the real implementation; otherwise Jest parses the mocked config JSON as a source map and
+  // the suite fails inside Jest rather than in the code under test.
+  const realReadFileSync = fs.readFileSync;
+
+  const mockConfigFileRead = () =>
+    jest
+      .spyOn(fs, 'readFileSync')
+      .mockImplementation(((path: unknown, ...rest: unknown[]) =>
+        typeof path === 'string' && path.endsWith('.jsonc')
+          ? JSON.stringify(validFullConfig)
+          : (realReadFileSync as (...args: unknown[]) => unknown)(
+              path,
+              ...rest,
+            )) as typeof fs.readFileSync);
+
   afterEach(() => {
     process.env.NODE_ENV = originalEnv;
     process.env.JEST_WORKER_ID = originalWorkerId;
@@ -37,9 +54,7 @@ describe('Configuration Loader', () => {
       return false;
     });
 
-    const readFileSyncSpy = jest
-      .spyOn(fs, 'readFileSync')
-      .mockReturnValue(JSON.stringify(validFullConfig));
+    const readFileSyncSpy = mockConfigFileRead();
 
     const config = configuration();
     expect(existsSyncSpy).toHaveBeenCalledWith('./config.jsonc');
@@ -61,9 +76,7 @@ describe('Configuration Loader', () => {
       return false;
     });
 
-    const readFileSyncSpy = jest
-      .spyOn(fs, 'readFileSync')
-      .mockReturnValue(JSON.stringify(validFullConfig));
+    const readFileSyncSpy = mockConfigFileRead();
 
     const config = configuration();
     expect(existsSyncSpy).toHaveBeenCalledWith('./config.default.jsonc');
