@@ -218,7 +218,13 @@ For an allowlisted egress, the hosts are:
 | `discord.com` | Discord notifications |
 | ADAMANT nodes | ADAMANT Messenger notifications |
 
-Each request has a 10 second timeout, and 15 seconds for the CoinGecko directory download.
+Request timeouts are 10 seconds, with two exceptions for the larger startup payloads:
+
+| Timeout | Requests |
+| --- | --- |
+| 20 s | CoinPaprika `/v1/coins` and CoinLore `/api/assets/` coin directories |
+| 15 s | CoinGecko directory, Binance `exchangeInfo`, CoinPaprika bulk tickers |
+| 10 s | everything else, including every per-cycle rate request |
 
 ## Resource expectations
 

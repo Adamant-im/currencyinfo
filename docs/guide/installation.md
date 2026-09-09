@@ -151,6 +151,23 @@ pnpm run deps:setup
 
 `--ignore-scripts` blocks lifecycle scripts across the whole dependency tree. `deps:setup` then rebuilds `@swc/core` alone, which is the one package that genuinely needs a native build step.
 
+::: warning `pnpm` has to be on `PATH`, not only reachable through `corepack`
+`deps:setup` runs `pnpm rebuild @swc/core` in a child shell, so invoking it as `corepack pnpm run deps:setup` fails: the child inherits no `pnpm` executable.
+
+```
+$ pnpm rebuild @swc/core
+sh: 1: pnpm: not found
+[ELIFECYCLE] Command failed with exit code 127.
+```
+
+Install the shim once, and the commands on this page work as written:
+
+```bash
+corepack enable pnpm
+pnpm --version   # 12.3.4, taken from `packageManager`
+```
+:::
+
 ### 2. Configure
 
 ```bash

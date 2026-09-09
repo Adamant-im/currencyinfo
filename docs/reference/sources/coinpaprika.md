@@ -98,7 +98,8 @@ Not every configured coin can be served within the quota, so admission is decide
 3. coins beyond that cap are **excluded** from requests and from source coverage for the whole run, and a single warning names them
 
 ```
-CoinPaprika: excluded from this run because they exceed max_individual_requests=5: …
+CoinPaprika excludes coins outside the bulk rank window that exceed
+'coinpaprika.max_individual_requests' (5): …
 ```
 
 To reconsider excluded coins, raise `max_individual_requests` or `bulk_limit` and restart. A cap of `0` keeps only bulk-range coins, and disables the source for the run if none remain.
@@ -118,11 +119,48 @@ The CoinPaprika [plan matrix](https://docs.coinpaprika.com/api-plans) marks the 
 - **Public or commercial instance serving these rates onwards**: an Enterprise agreement is required, or set `"enabled": false`
 :::
 
+## Some hosting providers are blocked
+
+`api.coinpaprika.com` sits behind Cloudflare, which answers `403` with a `Just a moment…`
+challenge page to whole IP ranges of some hosting providers. The block is on the address, not on
+the client: it does not lift with a browser `User-Agent`, and it does not lift on retry.
+
+Check from the server itself rather than from your workstation, because the two are rarely on the
+same network:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' https://api.coinpaprika.com/v1/coins
+```
+
+`200` means the host is fine. `403` means this source cannot work from that machine at all, and
+startup ends like this:
+
+```
+warn  | Could not get coin IDs for CoinPaprika. Retrying attempt 1/3…
+warn  | Could not get coin IDs for CoinPaprika. Retrying attempt 2/3…
+error | Could not fetch coin IDs for CoinPaprika after 3 attempts. Rates from this source
+        will be unavailable.
+log   | Rates from 7/8 sources saved successfully.
+```
+
+The service keeps serving from the remaining sources, but **set `"enabled": false` on that host**
+rather than leaving it in place. Discovery is not retried after startup, so the source stays dead
+until the process restarts, and while it is nominally enabled:
+
+- `minSources` is measured against a source count that includes one that can never answer
+- every refresh cycle dispatches `Unable to fetch valid data from CoinPaprika` through the
+  notifier, which means one message per `refreshInterval` in Slack, Discord, or ADAMANT
+
+The same deployment can legitimately differ per host: one machine keeps the source enabled while
+another disables it. Note the reason in the configuration file so the next operator does not
+re-enable it blindly.
+
 ## Troubleshooting
 
 | Symptom | Cause |
 | --- | --- |
-| Repeated `Unable to fetch valid data from CoinPaprika` | Monthly quota exhausted, or rate limiting from a very short `refreshInterval` |
+| Repeated `Unable to fetch valid data from CoinPaprika` | Monthly quota exhausted, rate limiting from a very short `refreshInterval`, or coin discovery failed at startup |
 | A configured coin never appears | Excluded at startup by `max_individual_requests`. The startup warning names it |
-| `Could not fetch coin IDs for CoinPaprika after 3 attempts` | The directory download failed. Check outbound HTTPS and the quota |
+| `Could not fetch coin IDs for CoinPaprika after 3 attempts` | The directory download failed. Check outbound HTTPS, the quota, and whether the host is blocked — see [above](#some-hosting-providers-are-blocked) |
+| Every request answers `403` with `Just a moment…` | Cloudflare blocks this server's address. Disable the source on this host |
 | A coin resolves to the wrong asset | Symbol ambiguity. Configure the explicit ID instead |

@@ -90,6 +90,26 @@ sudo systemctl restart currencyinfo
 
 `--frozen-lockfile` fails rather than silently resolving a different dependency tree than the release was tested with.
 
+::: tip `git checkout` aborts on untracked files the new version tracks
+A file you created by hand on an older release can become a tracked file in the target one. Git refuses to overwrite it and changes nothing, which is the safe outcome but stops the upgrade:
+
+```
+error: The following untracked working tree files would be overwritten by checkout:
+	pnpm-workspace.yaml
+Please move or remove them before you switch branches.
+Aborting
+```
+
+Move the file aside and re-run the checkout. Keep the copy until you have compared it with the version the release ships — `pnpm-workspace.yaml` in particular carries the install-script allow-list, and a hand-written one from 4.1.x is not the same file:
+
+```bash
+mv pnpm-workspace.yaml ../pnpm-workspace.yaml.local
+git checkout v4.2.0
+```
+
+`config.jsonc` and `logs/` are git-ignored, so they are never touched by a checkout.
+:::
+
 ## Rollback
 
 A rollback is safe as long as the target version can read the stored documents, which is true for every 4.x release from 4.1.0 onwards.
@@ -222,13 +242,52 @@ Every `tickers` index is now date-ordered, so `/getHistory` sorts are served by 
 
 Mongoose `autoIndex` creates missing indexes on connect but never drops undeclared ones, so a direct upgrade builds all three new indexes at startup and keeps all three old ones. On a large history collection that is real I/O, and it can delay readiness.
 
-Build the new indexes out of band before deploying:
+### What it costs
+
+Measured on two production deployments, both holding roughly 238 million `tickers` documents
+(~19.5 GB of data) after four years of history at a 9 minute refresh interval:
+
+| | NVMe, 12 cores, 64 GB RAM, MongoDB 8.0 | SATA, 4 cores, 16 GB RAM, MongoDB 7.0 |
+| --- | --- | --- |
+| Build time, all three indexes | **17 minutes** | **50 minutes** |
+| `indexSize` before → after | 9.1 → 19.3 GB | 8.7 → 18.9 GB |
+
+Budget the disk before you start: the three new indexes roughly double `indexSize` while the
+superseded ones are still in place. Both deployments kept serving throughout, though a
+`/getHistory` query over a wide range can time out behind a reverse proxy while the build
+saturates the disk.
+
+Scale from your own collection size — the cost is driven by document count, not by the number of
+distinct pairs.
+
+### Building them
+
+Build the new indexes out of band before deploying. One `createIndexes` command builds all three
+from a single collection scan, which is substantially cheaper than three separate calls:
 
 ```js
-db.tickers.createIndex({ base: 1, date: -1 }, { background: true });
-db.tickers.createIndex({ quote: 1, date: -1 }, { background: true });
-db.tickers.createIndex({ base: 1, quote: 1, date: -1 }, { background: true });
+db.runCommand({
+  createIndexes: 'tickers',
+  indexes: [
+    { key: { base: 1, date: -1 }, name: 'base_1_date_-1' },
+    { key: { quote: 1, date: -1 }, name: 'quote_1_date_-1' },
+    { key: { base: 1, quote: 1, date: -1 }, name: 'base_1_quote_1_date_-1' },
+  ],
+});
 ```
+
+Watch the progress from another shell:
+
+```js
+db.getSiblingDB('admin')
+  .aggregate([{ $currentOp: {} }])
+  .toArray()
+  .filter((op) => op.desc?.includes('IndexBuild'))
+  .forEach((op) => print(op.msg));
+```
+
+The names above are the ones Mongoose derives from the same keys, so a later start of 4.2.0 finds
+them in place and creates nothing.
 
 Once 4.2.0 is running and validated, drop the superseded ones to stop paying for their write amplification and disk:
 
