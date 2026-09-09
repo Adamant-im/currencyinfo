@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { Logger } from 'src/global/logger/logger.service';
 import { Notifier } from 'src/global/notifier/notifier.service';
 
 import { BaseApi } from './api/base';
@@ -10,50 +11,68 @@ import { CryptoCompareApi } from './api/cryptocompare';
 import { MoexApi } from './api/moex';
 import { CoinmarketcapApi } from './api/coinmarketcap';
 import { ExchangeRateHost } from './api/exchangeratehost';
+import { ExchangeRateApi } from './api/exchangerateapi';
+import { CoinPaprikaApi } from './api/coinpaprika';
+import { CoinLoreApi } from './api/coinlore';
+import { BinanceApi } from './api/binance';
 
+/**
+ * Manages external rate provider connectors, lifecycle initialization,
+ * enabled coin discovery, and minSources threshold verification.
+ */
 @Injectable()
 export class SourcesManager {
-  public logger = new Logger();
   public sources: BaseApi[] = [];
 
   /**
-   * List of all enabled coins
+   * List of all discovered coins available across enabled sources.
    */
   public allCoins: string[] = [];
+
   /**
-   * Represents the amount of enabled sources for a pair name
-   * bound to `config.minSources`
+   * Map of pair names to their effective source count bound to minSources.
    */
   public sourcePairRecord: Record<string, number> = {};
+
   /**
-   * Number of enabled sources
+   * Count of active enabled sources.
    */
   public sourceCount = 0;
 
-  // parameters from the config
   private minSources: number;
 
   constructor(
     private config: ConfigService,
     private notifier: Notifier,
+    public logger: Logger,
   ) {
-    this.minSources = config.get('minSources') as number;
+    this.minSources = (config.get('minSources') as number) ?? 1;
   }
 
+  /**
+   * Boots up all source connectors, waits for coin discovery, and verifies base coin availability.
+   */
   async initialize() {
     this.initializeSources();
     await this.getEnabledCoins();
     this.warnUnavailableBaseCoins();
   }
 
+  /**
+   * Instantiates all supported API provider connectors.
+   */
   initializeSources() {
     this.sources = [
       new CurrencyApi(this.config, this.logger),
+      new ExchangeRateApi(this.config, this.logger),
       new ExchangeRateHost(this.config, this.logger),
       new MoexApi(this.config, this.logger, this.notifier),
       new CoinmarketcapApi(this.config, this.logger, this.notifier),
       new CryptoCompareApi(this.config, this.logger),
       new CoingeckoApi(this.config, this.logger, this.notifier),
+      new CoinPaprikaApi(this.config, this.logger, this.notifier),
+      new CoinLoreApi(this.config, this.logger, this.notifier),
+      new BinanceApi(this.config, this.logger, this.notifier),
     ];
 
     this.sourceCount = this.getEnabledSources().length;
@@ -78,31 +97,37 @@ export class SourcesManager {
   }
 
   /**
-   * Waits for all enabled sources to be ready for getting rates
+   * Awaits completion of initialization for all enabled sources.
    */
   async prepareSources() {
     return Promise.all(this.getEnabledSources().map((source) => source.ready));
   }
 
   /**
-   * Counts amount of enabled coins for each pair bound to
-   * `config.minSources` and saves list of all coins
+   * Discovers enabled coins across all sources and tracks provider coverage per pair.
    *
-   * Warns about coins with fewer enabled sources than the `config.minSources`
+   * Coverage is capped at `minSources`, which makes the recorded value the *effective*
+   * threshold for the pair rather than the configured one: `min(minSources, coverage)`.
+   * A pair advertised by a single source is therefore still served from that one quote,
+   * and `warnInsufficiency` reports every pair that falls short of the configured value.
    */
   async getEnabledCoins() {
     await this.prepareSources();
 
     const enabledSources = this.getEnabledSources();
-
-    const mappings = this.config.get('mappings') as Record<string, string>;
+    const mappings = (this.config.get('mappings') as Record<string, string>) || {};
 
     const coins = new Set<string>();
+    this.sourcePairRecord = {};
 
     for (const source of enabledSources) {
-      source.enabledCoins.forEach((enabledCoin) => {
-        const baseCoin = mappings[enabledCoin] ?? enabledCoin;
+      const sourceCoins = new Set(
+        [...source.enabledCoins].map((enabledCoin) =>
+          Object.hasOwn(mappings, enabledCoin) ? mappings[enabledCoin] : enabledCoin,
+        ),
+      );
 
+      sourceCoins.forEach((baseCoin) => {
         if (baseCoin !== 'USD') {
           const pairName = `${baseCoin}/USD`;
           this.sourcePairRecord[pairName] = Math.min(
@@ -121,14 +146,12 @@ export class SourcesManager {
   }
 
   /**
-   * Finds coins with fewer enabled coins than configured minimum and warns about it
+   * Logs a warning if any pairs have fewer enabled sources than the minSources threshold.
    */
   warnInsufficiency() {
     const pairsWithLowSourceCount: Array<[string, number]> = [];
 
-    for (const [pairName, sourceCount] of Object.entries(
-      this.sourcePairRecord,
-    )) {
+    for (const [pairName, sourceCount] of Object.entries(this.sourcePairRecord)) {
       if (sourceCount < this.minSources) {
         pairsWithLowSourceCount.push([pairName, sourceCount]);
       }
@@ -145,12 +168,12 @@ export class SourcesManager {
   }
 
   /**
-   * Finds base coins that are not provided in any of the enabled sources
+   * Emits a warning when configured base coins are not provided by any active rate source.
    */
   warnUnavailableBaseCoins() {
-    const mappings = this.config.get('mappings') as Record<string, string>;
-    const baseCoins = (this.config.get('base_coins') as string[]).map(
-      (coin) => mappings[coin] ?? coin,
+    const mappings = (this.config.get('mappings') as Record<string, string>) || {};
+    const baseCoins = ((this.config.get('base_coins') as string[]) || []).map((coin) =>
+      Object.hasOwn(mappings, coin) ? mappings[coin] : coin,
     );
 
     const unavailableBaseCoins = baseCoins.filter(

@@ -1,8 +1,6 @@
 import { Module } from '@nestjs/common';
-
 import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-
 import { MongooseModule } from '@nestjs/mongoose';
 
 import configuration from './global/config/configuration';
@@ -12,6 +10,9 @@ import { LoggerModule } from './global/logger/logger.module';
 import { NotifierModule } from './global/notifier/notifier.module';
 import { Logger } from './global/logger/logger.service';
 
+/**
+ * Root NestJS application module bootstrapping global services, configuration, and database connections.
+ */
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -33,14 +34,15 @@ import { Logger } from './global/logger/logger.service';
         return {
           uri: `mongodb://${host}:${port}/${db}`,
           retryAttempts: 0,
-          serverSelectionTimeoutMS: 1000,
+          serverSelectionTimeoutMS: 2000,
           connectionFactory(connection) {
+            logger.log(`InfoService successfully connected to '${db}' MongoDB.`);
             connection.on('connected', () => {
-              logger.log(
-                `InfoService successfully connected to '${db}' MongoDB.`,
-              );
+              logger.log(`InfoService reconnected to '${db}' MongoDB.`);
             });
-            connection._events.connected();
+            connection.on('error', (err: unknown) => {
+              logger.error(`MongoDB connection error for database '${db}': ${err}`);
+            });
             return connection;
           },
         };

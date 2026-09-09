@@ -1,24 +1,21 @@
-import {
-  Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
-} from '@nestjs/common';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
 
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { version } from 'src/global/version';
-
 import { RatesService } from './rates.service';
 
+/**
+ * Interceptor wrapping successful rate controller responses into a standard envelope.
+ */
 @Injectable()
 export class RatesInterceptor implements NestInterceptor {
   constructor(private readonly ratesService: RatesService) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(_context: ExecutionContext, next: CallHandler): Observable<any> {
     return next.handle().pipe(
-      map(async (data: object) => {
+      map((data: object) => {
         const { lastUpdated } = this.ratesService;
 
         return {

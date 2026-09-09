@@ -2,14 +2,30 @@ import { existsSync, readFileSync } from 'fs';
 import JSON5 from 'json5';
 import { schema, Schema } from './schema';
 
-const isDev = process.env.NODE_ENV === 'development';
+function isDev(): boolean {
+  return process.env.NODE_ENV === 'development';
+}
 
-export default () => {
+/**
+ * Terminates the application on unrecoverable configuration errors.
+ */
+function fail(message: string): never {
+  console.error(message);
+  process.exit(-1);
+  throw new Error(message);
+}
+
+/**
+ * Loads and validates configuration from JSONC configuration files.
+ * Checks config.test.jsonc, config.jsonc, and falls back to config.default.jsonc in development.
+ *
+ * @returns Validated configuration object
+ */
+export default (): Schema => {
   const configPath = findConfig();
 
   if (!configPath) {
-    console.error(`No config found. Cannot start the app.`);
-    process.exit(-1);
+    fail('No configuration file found. Cannot start the app.');
   }
 
   const json = readFileSync(configPath, 'utf-8');
@@ -19,22 +35,21 @@ export default () => {
 
   if (!result.success) {
     const message = formatZodErrors(result.error.format());
-
-    console.error(`App's config is wrong:\n${message}Cannot start the app.`);
-    process.exit(-1);
+    fail(`App configuration is invalid:\n${message}Cannot start the app.`);
   }
 
   console.info(
-    `InfoService successfully read the config-file '${configPath}'${
-      isDev ? ' (dev)' : ''
-    }.`,
+    `InfoService successfully read the configuration file '${configPath}'${isDev() ? ' (dev)' : ''}.`,
   );
 
   return result.data;
 };
 
-function findConfig() {
-  if (isDev || process.env.JEST_WORKER_ID) {
+/**
+ * Resolves the configuration file path based on environment and availability.
+ */
+function findConfig(): string | undefined {
+  if (isDev() || process.env.JEST_WORKER_ID) {
     if (existsSync('./config.test.jsonc')) {
       return './config.test.jsonc';
     }
@@ -43,14 +58,22 @@ function findConfig() {
   if (existsSync('./config.jsonc')) {
     return './config.jsonc';
   }
+
+  if (isDev() || process.env.JEST_WORKER_ID) {
+    if (existsSync('./config.default.jsonc')) {
+      return './config.default.jsonc';
+    }
+  }
 }
 
-function formatZodErrors(errors: any, tab = 0, property?: string) {
+/**
+ * Formats Zod validation errors into human-readable multiline string.
+ */
+function formatZodErrors(errors: any, tab = 0, property?: string): string {
   let output = '';
 
   if (property) {
     const indent = '  '.repeat(tab);
-
     output += `${indent}${property}: `;
   }
 
@@ -68,7 +91,6 @@ function formatZodErrors(errors: any, tab = 0, property?: string) {
     }
 
     const error = errors[key];
-
     output += formatZodErrors(error, tab + 1, key);
   }
 

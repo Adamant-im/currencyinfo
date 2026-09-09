@@ -1,0 +1,36 @@
+# pnpm settings. Since pnpm 12 the `pnpm` field in package.json is no longer read, so anything
+# that used to live there belongs here instead.
+
+# Every dependency that ships an install script needs an explicit decision, and pnpm 12 fails the
+# install until it has one. Installs run with `--ignore-scripts` regardless (see CONTRIBUTING.md
+# and the Dockerfile); this list is what `pnpm run deps:setup` is then allowed to rebuild.
+#
+# @swc/core is the compiler `nest build` runs through, and its postinstall only resolves the
+# prebuilt binding that ships in its own optional dependencies — no download, no compilation.
+#
+# @parcel/watcher and unrs-resolver arrive under jest as optional native accelerators. Both build
+# from source on install, and jest falls back to JavaScript implementations without them, which is
+# what the test suite already runs on. Denied.
+allowBuilds:
+  '@swc/core': true
+  '@parcel/watcher': false
+  'unrs-resolver': false
+
+# Transitive packages that resolve to a version carrying a known advisory are pinned here until
+# the direct dependency catches up. Since pnpm 12 this lives in this file rather than in the
+# `pnpm` field of package.json. Drop an entry once the parent resolves to a patched version on
+# its own, and re-check with `pnpm audit --prod` when updating dependencies.
+#
+# multer: @nestjs/platform-express pins multer to an exact 2.2.0, which carries three HIGH
+# denial-of-service advisories (GHSA-wc9g-mqfw-jrwm, GHSA-qfvm-cv95-jqjf, GHSA-535w-7cp7-47q4)
+# and one low-severity one (GHSA-qvfw-j98x-7q72), all fixed in 2.3.0. Currencyinfo mounts no
+# upload route, so none of them is reachable here, but the package is in the production tree and
+# an operator running `pnpm audit` has to see a clean result rather than a footnote.
+overrides:
+  multer: 2.3.0
+  # js-yaml: two advisories for the same CPU-exhaustion bug, one per major line. Both arrive only
+  # through development tooling (jest via babel-plugin-istanbul, @nestjs/cli via cosmiconfig) and
+  # neither is in the production tree, but `pnpm audit` is documented as a pre-deploy check and has
+  # to come back clean. Both pins are patch-level (GHSA-2883-xcg3-v3hh).
+  js-yaml@3: 3.15.2
+  js-yaml@4: 4.3.2
