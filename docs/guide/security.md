@@ -115,14 +115,24 @@ The repository's dependency policy is deliberately conservative:
 - `pnpm-workspace.yaml` records an explicit allow or deny for every dependency that ships an install script, and pnpm refuses to install while any of them is undecided
 - exactly one package, `@swc/core`, is allowed, and it is rebuilt afterwards through `pnpm run deps:setup`. Its install script only resolves the prebuilt binding shipped in its own optional dependencies
 - `pnpm-lock.yaml` is committed, and CI installs with `--frozen-lockfile`
-- transitive packages with known advisories are pinned through `overrides` in `pnpm-workspace.yaml` whenever the resolved tree would otherwise carry a vulnerable version. The list is reviewed on every dependency update and an entry is dropped once upstream resolves to a patched version on its own; as of 4.2.0 none is needed
+- transitive packages with known advisories are pinned through `overrides` in `pnpm-workspace.yaml` whenever the resolved tree would otherwise carry a vulnerable version. The list is reviewed on every dependency update and an entry is dropped once upstream resolves to a patched version on its own
 
-Check the tree yourself before deploying an unreleased revision:
+As of 4.2.0 the list is:
+
+| Package | Pinned to | Tree | Why |
+| --- | --- | --- | --- |
+| `multer` | `2.3.0` | production | `@nestjs/platform-express` pins an exact `2.2.0`, which carries three HIGH denial-of-service advisories and one low-severity one. Currencyinfo mounts no upload route, so none is reachable here, but the package ships in the runtime image |
+| `js-yaml` | `3.15.2`, `4.3.2` | development | One CPU-exhaustion advisory per major line, reaching the tree through `jest` and `@nestjs/cli`. Neither line is in the production tree; both pins are patch-level |
+
+Check the tree yourself before deploying an unreleased revision. Both commands must come back clean:
 
 ```bash
 pnpm install --ignore-scripts --frozen-lockfile
-pnpm audit
+pnpm audit --prod   # production tree, which is what ships in the image
+pnpm audit          # plus the development tooling
 ```
+
+`--prod` is the one that matters for a deployment: it scans exactly the dependency tree the runtime image carries.
 
 ## Vulnerability scanning policy
 
